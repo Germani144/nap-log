@@ -92,7 +92,8 @@ function connect(){
   }
   db=firebase.firestore();
   unsubs.push(fam().onSnapshot(d=>{const s=d.data()&&d.data().settings;if(s){settings=s;save('nt_settings',s);initForm();render()}}));
-  unsubs.push(fam().collection('entries').onSnapshot(q=>{entries=q.docs.map(d=>d.data());save('nt_entries',entries);render()}));
+  // only sync the last 14 days: all the plan and the 7-day averages need, and it keeps Firestore reads tiny
+  unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data());save('nt_entries',entries);render()}));
   $('#sync').textContent='· shared';
 }
 
