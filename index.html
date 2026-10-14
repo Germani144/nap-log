@@ -42,6 +42,19 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 .cal button.dot::after{content:'';position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}
 .cal button.sel.dot::after{background:#fff}
 .lnk{margin-right:16px}
+.clock{display:inline-block;min-width:68%;margin:6px 0 10px;padding:14px 24px;border:2px solid var(--ac);border-radius:20px;box-shadow:0 0 0 6px rgba(129,140,248,.14);font-size:clamp(40px,15vw,64px);font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+#now{text-align:center}
+#now h2{margin-bottom:6px}
+.nowbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+#algo{margin:10px 0}
+#algo summary{list-style:none;cursor:pointer;text-align:center;padding:12px 14px;border:1.5px solid var(--ac);border-radius:10px;color:var(--ac);font-weight:600}
+#algo summary::-webkit-details-marker{display:none}
+#algo summary::after{content:' ▾'}
+#algo[open] summary::after{content:' ▴'}
+#algo .txt{font-size:14px;line-height:1.5}
+#algo .txt h3{font-size:14px;margin:14px 0 4px}
+#algo .txt h3:first-child{margin-top:0}
+#algo .txt p{margin:4px 0}
 .bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:0 0 8px}
 .bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
 </style></head>
@@ -60,6 +73,29 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
  <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
  <button id="ssave">Save</button>
 </div>
+
+<details id="algo"><summary>🧠 Algorithm: how it works</summary>
+<div class="card txt">
+ <h3>The clock</h3>
+ <p>"Awake for" counts from the end of the last nap or night sleep, whichever ended most recently. While a nap or night is running it switches to "Asleep for".</p>
+ <h3>What "past 7 days" means</h3>
+ <p>The 7 full days before today. Today never counts towards its own averages. Days with nothing logged are skipped, and a suggestion needs at least one day of data (otherwise it says "no data yet").</p>
+ <h3>Nap suggestions</h3>
+ <p>For each nap number (1st, 2nd, 3rd…) the app averages the start time and the length of that nap over the past 7 days. The number of naps planned is your "Target naps/day", or more if you have logged more.</p>
+ <h3>Wake-up</h3>
+ <p>Shown as the average wake-up time of the past 7 nights, or the real time once this morning's night sleep has ended.</p>
+ <h3>Nap time target</h3>
+ <p>The average total nap time per day over the past 7 days. Night sleep is not counted.</p>
+ <h3>Catching up after short naps</h3>
+ <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is never stretched beyond 3 hours, so on a very short day the target may not be reached. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its usual end, or until now if it is already longer.</p>
+ <h3>Awake window limits</h3>
+ <p>A suggested nap never starts more than 3h 30m after the previous nap ended (or after wake-up, for nap 1). If the averages would give a longer wait, the nap is moved earlier. Suggested naps also keep at least 30 minutes apart.</p>
+ <h3>Bedtime</h3>
+ <p>Estimated as the end of the last nap plus the average time between the last nap and bedtime over the past 7 nights, capped at 3h 30m. Your target bedtime is shown next to it for comparison; it does not change the estimate.</p>
+ <h3>Symbols</h3>
+ <p>~ means an estimate. ✓ means it was logged. Tap any logged row to edit it.</p>
+</div>
+</details>
 </div>
 
 <div id="v-hist" hidden>
@@ -190,10 +226,10 @@ function openAdd(type,day){
 function render(){
   const run=entries.find(e=>!e.end);
   if(run){
-    $('#now').innerHTML=`<h2>Asleep for</h2><div class="big">${dur((Date.now()-run.start)/6e4)}</div><div class="mu">since ${hm(tod(run.start))} · ${run.type==='nap'?'nap':'night sleep'}</div><p><button onclick="stopE('${run.id}')">End ${run.type==='nap'?'nap':'night sleep'}</button></p>`;
+    $('#now').innerHTML=`<h2>Asleep for</h2><div class="clock">${dur((Date.now()-run.start)/6e4)}</div><div class="mu">since ${hm(tod(run.start))} · ${run.type==='nap'?'nap':'night sleep'}</div><div class="nowbtns"><button onclick="stopE('${run.id}')">End ${run.type==='nap'?'nap':'night sleep'}</button></div>`;
   }else{
     const last=entries.filter(e=>e.end).sort((a,b)=>b.end-a.end)[0];
-    $('#now').innerHTML=`<h2>Awake${last?' for':''}</h2>${last?`<div class="big">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<p><button onclick="startE('nap')">Start nap</button> <button onclick="startE('night')">Start night</button></p>`;
+    $('#now').innerHTML=`<h2>Awake${last?' for':''}</h2>${last?`<div class="clock">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<div class="nowbtns"><button onclick="startE('nap')">Start nap</button><button onclick="startE('night')">Start night</button></div>`;
   }
 
   // plan: wake-up -> naps (actual or suggested) -> bedtime. All times are minutes of the day.
