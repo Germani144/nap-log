@@ -29,20 +29,27 @@ label{font-size:13px;color:var(--mu)}
 button.x.del{color:#dc2626}
 dialog{border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);width:min(92vw,400px);padding:16px}
 dialog::backdrop{background:rgba(0,0,0,.5)}
+.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:4px;margin:8px 0}
+.tabs button{flex:1;background:transparent;color:var(--mu);padding:8px}
+.tabs button.on{background:var(--ac);color:#fff}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.calhead button{font-size:22px;padding:2px 14px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .h{font-size:12px;color:var(--mu);padding:2px 0}
+.cal button{position:relative;min-height:40px;padding:8px 0;background:transparent;color:var(--tx);border-radius:10px}
+.cal button.today{outline:1.5px solid var(--ac);outline-offset:-1.5px}
+.cal button.sel{background:var(--ac);color:#fff}
+.cal button.dot::after{content:'';position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}
+.cal button.sel.dot::after{background:#fff}
+.lnk{margin-right:16px}
 </style></head>
 <body>
 <h1>😴 Nap Log <span class="mu" id="sync"></span></h1>
+<div class="tabs"><button id="t-today" class="on" onclick="setTab('today')">Today</button><button id="t-hist" onclick="setTab('hist')">History</button></div>
+
+<div id="v-today">
 <div class="card" id="now"></div>
 <div class="card"><h2>Today's plan</h2><div id="plan"></div><button class="lnk" onclick="openAdd('nap')">＋ Add extra nap</button></div>
-<dialog id="dlg">
- <h2 id="dt"></h2>
- <div class="grid">
-  <div><label>Start</label><input type="time" id="es"></div>
-  <div><label>End</label><input type="time" id="ee"></div>
- </div>
- <p><button id="esave">Save</button> <button class="x" id="ecancel">Cancel</button> <button class="x del" id="edel">Delete</button></p>
-</dialog>
-<div class="card"><h2>Recent</h2><div id="log"></div></div>
 <div class="card"><h2>Settings</h2>
  <div class="grid">
   <div><label>Target naps/day</label><input type="number" id="sn" min="1" max="8"></div>
@@ -51,6 +58,21 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
  <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
  <button id="ssave">Save</button>
 </div>
+</div>
+
+<div id="v-hist" hidden>
+<div class="card" id="cal"></div>
+<div class="card" id="day"></div>
+</div>
+
+<dialog id="dlg">
+ <h2 id="dt"></h2>
+ <div class="grid">
+  <div><label>Start</label><input type="time" id="es"></div>
+  <div><label>End</label><input type="time" id="ee"></div>
+ </div>
+ <p><button id="esave">Save</button> <button class="x" id="ecancel">Cancel</button> <button class="x del" id="edel">Delete</button></p>
+</dialog>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -72,15 +94,21 @@ const dur=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+'h '+P(m%60)+'m':m+'
 const avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const isoDay=t=>{const d=new Date(t);return d.getFullYear()+'-'+P(d.getMonth()+1)+'-'+P(d.getDate())};
+// history tab state; `hist` holds entries older than the live 14-day sync window (shared mode only)
+let hist={},tab='today',viewM=new Date(new Date().getFullYear(),new Date().getMonth(),1),selDay=sod(Date.now());
+const allE=()=>{const m={};Object.values(hist).forEach(e=>m[e.id]=e);entries.forEach(e=>m[e.id]=e);return Object.values(m)};
+const findE=id=>entries.find(x=>x.id===id)||hist[id];
 
 // ---------- storage / sync ----------
 const fam=()=>db.collection('families').doc(family);
 function putEntry(e){
-  if(db)fam().collection('entries').doc(e.id).set(e);
-  else{entries=entries.filter(x=>x.id!==e.id).concat(e);save('nt_entries',entries);render()}
+  if(db){
+    fam().collection('entries').doc(e.id).set(e);
+    if(e.start<sod(Date.now())-14*DAY){hist[e.id]=e;renderHistory()} // outside the live window: keep a local copy
+  }else{entries=entries.filter(x=>x.id!==e.id).concat(e);save('nt_entries',entries);render()}
 }
 function removeEntry(id){
-  if(db)fam().collection('entries').doc(id).delete();
+  if(db){fam().collection('entries').doc(id).delete();delete hist[id];renderHistory()}
   else{entries=entries.filter(x=>x.id!==id);save('nt_entries',entries);render()}
 }
 function connect(){
@@ -129,15 +157,16 @@ function startE(type){putEntry({id:uid(),type,start:Date.now(),end:null})}
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
 let ed=null;
 function openEdit(id){
-  const e=entries.find(x=>x.id===id);if(!e)return;
+  const e=findE(id);if(!e)return;
   ed={id,type:e.type,day:sod(e.start),wasOpen:!e.end};
   $('#dt').textContent=(e.type==='nap'?'Nap':'Night sleep')+' · '+isoDay(e.start).slice(5);
   $('#es').value=hm(tod(e.start));$('#ee').value=e.end?hm(tod(e.end)):'';
   $('#edel').style.display='';$('#dlg').showModal();
 }
-function openAdd(type){
-  ed={id:null,type,day:sod(Date.now()),wasOpen:true};
-  $('#dt').textContent=type==='nap'?'Add extra nap':'Log bedtime';
+function openAdd(type,day){
+  const t0=!day||day===sod(Date.now());day=day||sod(Date.now());
+  ed={id:null,type,day,wasOpen:t0}; // only today's entry may stay open-ended (in progress)
+  $('#dt').textContent=(type==='nap'?(t0?'Add extra nap':'Add nap'):'Log bedtime')+(t0?'':' · '+isoDay(day).slice(5));
   $('#es').value=type==='night'?settings.bedtime:'';$('#ee').value='';
   $('#edel').style.display='none';$('#dlg').showModal();
 }
@@ -175,10 +204,60 @@ function render(){
   h+=`<div class="mu" style="margin-top:6px">~ = average of the past 7 days · tap a row to edit</div>`;
   $('#plan').innerHTML=h;
 
-  const from=today-2*DAY;
-  $('#log').innerHTML=entries.filter(e=>e.start>=from).sort((a,b)=>b.start-a.start).map(e=>
-    `<div class="row tap" onclick="openEdit('${e.id}')"><span>${isoDay(e.start).slice(5)} · ${e.type==='nap'?'Nap':'Night'}</span><span class="mu">${hm(tod(e.start))}–${e.end?hm(tod(e.end))+' ('+dur((e.end-e.start)/6e4)+')':'ongoing'} ›</span></div>`
-  ).join('')||'<div class="mu">Nothing logged yet</div>';
+  renderHistory();
+}
+
+// ---------- history tab ----------
+const loadedM=new Set();
+function setTab(t){
+  tab=t;
+  $('#v-today').hidden=t!=='today';$('#v-hist').hidden=t!=='hist';
+  $('#t-today').classList.toggle('on',t==='today');$('#t-hist').classList.toggle('on',t==='hist');
+  if(t==='hist'){ensureMonth();renderHistory()}
+  window.scrollTo(0,0);
+}
+// shared mode: fetch the part of the viewed month that is older than the live sync window (once per month)
+function ensureMonth(){
+  if(!db)return;
+  const from=+viewM,to=+new Date(viewM.getFullYear(),viewM.getMonth()+1,1),upto=Math.min(to,sod(Date.now())-14*DAY);
+  if(upto<=from||loadedM.has(from))return;
+  loadedM.add(from);
+  fam().collection('entries').where('start','>=',from-DAY).where('start','<',upto).get()
+    .then(q=>{q.docs.forEach(d=>hist[d.id]=d.data());renderHistory()})
+    .catch(()=>loadedM.delete(from));
+}
+function showMonth(y,m){
+  viewM=new Date(y,m,1);
+  const n=new Date();
+  selDay=viewM.getFullYear()===n.getFullYear()&&viewM.getMonth()===n.getMonth()?sod(Date.now()):+viewM;
+  ensureMonth();renderHistory();
+}
+function pickDay(t){selDay=t;renderHistory()}
+function renderHistory(){
+  if(tab!=='hist')return;
+  const y=viewM.getFullYear(),m=viewM.getMonth(),lead=(new Date(y,m,1).getDay()+6)%7,dim=new Date(y,m+1,0).getDate(),all=allE(),has=new Set(),today=sod(Date.now()),now=new Date();
+  all.forEach(e=>{has.add(sod(e.start));if(e.type==='night'&&e.end)has.add(sod(e.end))});
+  let c=['Mo','Tu','We','Th','Fr','Sa','Su'].map(x=>`<div class="h">${x}</div>`).join('')+'<span></span>'.repeat(lead);
+  for(let d=1;d<=dim;d++){
+    const t=+new Date(y,m,d);
+    c+=`<button class="${[t===selDay?'sel':'',t===today?'today':'',has.has(t)?'dot':''].join(' ')}" onclick="pickDay(${t})">${d}</button>`;
+  }
+  $('#cal').innerHTML=`<div class="calhead"><button class="x" onclick="showMonth(${y},${m-1})">‹</button><b>${viewM.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</b><button class="x" onclick="showMonth(${y},${m+1})">›</button></div><div class="cal">${c}</div><button class="lnk" onclick="showMonth(${now.getFullYear()},${now.getMonth()})">Today</button>`;
+
+  // selected day: wake-up (night that ended this day), naps, bedtime (night that started this day)
+  const d=selDay,
+    ns=all.filter(e=>e.type==='nap'&&sod(e.start)===d).sort((a,b)=>a.start-b.start),
+    wk=all.find(e=>e.type==='night'&&e.end&&sod(e.end)===d),
+    bd=all.find(e=>e.type==='night'&&sod(e.start)===d),
+    row=(id,l,r)=>`<div class="row tap" onclick="openEdit('${id}')"><span>${l}</span><span class="mu">${r} ›</span></div>`;
+  let h='';
+  if(wk)h+=row(wk.id,'Wake-up',hm(tod(wk.end))+' · slept '+dur((wk.end-wk.start)/6e4));
+  ns.forEach((e,i)=>h+=row(e.id,'Nap '+(i+1),hm(tod(e.start))+'–'+(e.end?hm(tod(e.end))+' ('+dur((e.end-e.start)/6e4)+')':'ongoing')));
+  if(bd)h+=row(bd.id,'Bedtime',hm(tod(bd.start))+(bd.end?'':' · sleeping'));
+  if(!h)h='<div class="mu">Nothing logged for this day</div>';
+  else if(ns.length)h+=`<div class="mu" style="margin-top:6px">${ns.length} nap${ns.length>1?'s':''} · ${dur(ns.filter(e=>e.end).reduce((s,e)=>s+(e.end-e.start)/6e4,0))} total</div>`;
+  h+=`<button class="lnk" onclick="openAdd('nap',${d})">＋ Add nap</button>`+(bd?'':`<button class="lnk" onclick="openAdd('night',${d})">＋ Log bedtime</button>`);
+  $('#day').innerHTML=`<h2>${new Date(d).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>`+h;
 }
 
 function initForm(){
@@ -191,7 +270,7 @@ $('#esave').onclick=()=>{
   const st=atTime(ed.day,sv);let en=null;
   if(ev){en=atTime(ed.day,ev);if(en<=st)en+=DAY} // e.g. night sleep crossing midnight
   else if(!ed.wasOpen)return alert('Set an end time, or delete the entry');
-  const old=ed.id&&entries.find(x=>x.id===ed.id);
+  const old=ed.id&&findE(ed.id);
   putEntry({...(old||{}),id:ed.id||uid(),type:ed.type,start:st,end:en});
   $('#dlg').close();
 };
