@@ -79,7 +79,14 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 <script>
 // Paste your Firebase web config here to enable sharing between phones.
 // Leave as null to run in local-only mode (data stays on this phone).
-const FIREBASE_CONFIG = null;
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDDKYM5tvjTixUdBq0BAd9-recAyoL6TE4",
+  authDomain: "nap-log-78cb6.firebaseapp.com",
+  projectId: "nap-log-78cb6",
+  storageBucket: "nap-log-78cb6.firebasestorage.app",
+  messagingSenderId: "711794498566",
+  appId: "1:711794498566:web:194b83d05cb55eaf0c3787"
+};
 
 const $=s=>document.querySelector(s);
 const DAY=864e5,P=n=>String(n).padStart(2,'0');
