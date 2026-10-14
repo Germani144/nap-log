@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111827">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Nap Log</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#111827;--mu:#6b7280;--ac:#4f46e5;--ok:#16a34a;--bd:#e5e7eb}
+@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#1e293b;--tx:#f1f5f9;--mu:#94a3b8;--ac:#818cf8;--ok:#4ade80;--bd:#334155}}
+*{box-sizing:border-box}
+body{margin:0 auto;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,sans-serif;max-width:520px;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom))}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:0 0 8px;color:var(--mu);font-weight:600}
+button{font:inherit;border:0;border-radius:10px;padding:12px 14px;background:var(--ac);color:#fff;cursor:pointer}
+button.x{background:transparent;color:var(--mu);padding:4px 8px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd)}
+.row:last-child{border:0}
+.mu{color:var(--mu);font-size:14px}.ok{color:var(--ok)}
+.big{font-size:32px;font-weight:700}
+input,select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);width:100%}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{font-size:13px;color:var(--mu)}
+</style></head>
+<body>
+<h1>😴 Nap Log <span class="mu" id="sync"></span></h1>
+<div class="card" id="now"></div>
+<div class="card"><h2>Today's plan</h2><div id="plan"></div></div>
+<div class="card"><h2>Add manually</h2>
+ <div class="grid">
+  <div><label>Type</label><select id="mt"><option value="nap">Nap</option><option value="night">Night sleep</option></select></div>
+  <div><label>Date</label><input type="date" id="md"></div>
+  <div><label>Start</label><input type="time" id="ms"></div>
+  <div><label>End</label><input type="time" id="me"></div>
+ </div>
+ <p><button id="madd">Add</button></p>
+</div>
+<div class="card"><h2>Recent</h2><div id="log"></div></div>
+<div class="card"><h2>Settings</h2>
+ <div class="grid">
+  <div><label>Target naps/day</label><input type="number" id="sn" min="1" max="8"></div>
+  <div><label>Target bedtime</label><input type="time" id="sb"></div>
+ </div>
+ <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
+ <button id="ssave">Save</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// Paste your Firebase web config here to enable sharing between phones.
+// Leave as null to run in local-only mode (data stays on this phone).
+const FIREBASE_CONFIG = null;
+
+const $=s=>document.querySelector(s);
+const DAY=864e5,P=n=>String(n).padStart(2,'0');
+const load=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+let settings=load('nt_settings',{targetNaps:4,bedtime:'19:30'}),entries=load('nt_entries',[]),family=load('nt_family',''),db=null,unsubs=[];
+
+const sod=t=>{const d=new Date(t);d.setHours(0,0,0,0);return +d};
+const tod=t=>{const d=new Date(t);return d.getHours()*60+d.getMinutes()};
+const hm=m=>{m=Math.round(m);return P(Math.floor(m/60)%24)+':'+P(m%60)};
+const dur=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+'h '+P(m%60)+'m':m+'m'};
+const avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const isoDay=t=>{const d=new Date(t);return d.getFullYear()+'-'+P(d.getMonth()+1)+'-'+P(d.getDate())};
+
+// ---------- storage / sync ----------
+const fam=()=>db.collection('families').doc(family);
+function putEntry(e){
+  if(db)fam().collection('entries').doc(e.id).set(e);
+  else{entries=entries.filter(x=>x.id!==e.id).concat(e);save('nt_entries',entries);render()}
+}
+function removeEntry(id){
+  if(db)fam().collection('entries').doc(id).delete();
+  else{entries=entries.filter(x=>x.id!==id);save('nt_entries',entries);render()}
+}
+function connect(){
+  unsubs.forEach(f=>f());unsubs=[];db=null;
+  if(typeof firebase==='undefined'||!FIREBASE_CONFIG||!family){$('#sync').textContent='· local only';return render()}
+  if(!firebase.apps.length){
+    firebase.initializeApp(FIREBASE_CONFIG);
+    try{firebase.firestore().enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch{}
+  }
+  db=firebase.firestore();
+  unsubs.push(fam().onSnapshot(d=>{const s=d.data()&&d.data().settings;if(s){settings=s;save('nt_settings',s);initForm();render()}}));
+  unsubs.push(fam().collection('entries').onSnapshot(q=>{entries=q.docs.map(d=>d.data());save('nt_entries',entries);render()}));
+  $('#sync').textContent='· shared';
+}
+
+// ---------- analysis ----------
+const naps=()=>entries.filter(e=>e.type==='nap').sort((a,b)=>a.start-b.start);
+const byDay=l=>{const m={};l.forEach(e=>(m[sod(e.start)]??=[]).push(e));return m};
+const win7=()=>{const t=sod(Date.now());return[t-7*DAY,t]};
+
+// average start + length of the n-th nap of the day over the past 7 days
+function suggest(n){
+  const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),xs=[];
+  for(const d in m)if(+d>=f&&+d<t&&m[d][n-1])xs.push(m[d][n-1]);
+  return xs.length?{start:avg(xs.map(e=>tod(e.start))),len:avg(xs.map(e=>(e.end-e.start)/6e4)),n:xs.length}:null;
+}
+function wakeEst(){
+  const today=sod(Date.now()),tn=entries.find(e=>e.type==='night'&&e.end&&e.end>=today);
+  if(tn)return tod(tn.end);
+  const[f]=win7(),xs=entries.filter(e=>e.type==='night'&&e.end&&e.end>=f&&e.end<today).map(e=>tod(e.end));
+  return xs.length?avg(xs):null;
+}
+// average gap between last nap ending and night sleep starting
+function bedGap(){
+  const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),gs=[];
+  entries.filter(e=>e.type==='night'&&e.start>=f&&e.start<t).forEach(n=>{
+    const l=(m[sod(n.start)]||[]).slice(-1)[0];
+    if(l&&n.start>l.end)gs.push((n.start-l.end)/6e4);
+  });
+  return gs.length?avg(gs):null;
+}
+
+// ---------- actions ----------
+function startE(type){putEntry({id:uid(),type,start:Date.now(),end:null})}
+function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
+function delE(id){if(confirm('Delete this entry?'))removeEntry(id)}
+
+// ---------- rendering ----------
+function render(){
+  const run=entries.find(e=>!e.end),nm=t=>t==='nap'?'Nap':'Night sleep';
+  if(run){
+    $('#now').innerHTML=`<h2>${nm(run.type)} in progress</h2><div class="big">${dur((Date.now()-run.start)/6e4)}</div><div class="mu">since ${hm(tod(run.start))}</div><p><button onclick="stopE('${run.id}')">End ${run.type==='nap'?'nap':'night sleep'}</button></p>`;
+  }else{
+    const last=entries.filter(e=>e.end).sort((a,b)=>b.end-a.end)[0];
+    $('#now').innerHTML=`<h2>Awake</h2>${last?`<div class="big">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<p><button onclick="startE('nap')">Start nap</button> <button onclick="startE('night')">Start night</button></p>`;
+  }
+
+  // plan: wake-up -> naps (actual or suggested) -> bedtime
+  const today=sod(Date.now()),tn=naps().filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
+  let prev=wakeEst(),h='';
+  if(prev!=null)h+=`<div class="row"><span>Wake-up</span><span class="mu">~${hm(prev)}</span></div>`;
+  for(let n=1;n<=N;n++){
+    const a=tn[n-1];let s,e,tag;
+    if(a){s=tod(a.start);e=a.end?tod(a.end):null;tag='<b class="ok">✓</b> '}
+    else{
+      const g=suggest(n);
+      if(!g){h+=`<div class="row"><span>Nap ${n}</span><span class="mu">no data yet</span></div>`;prev=null;continue}
+      s=g.start;e=g.start+g.len;tag='';
+    }
+    const aw=prev!=null&&s>prev?` · awake ${dur(s-prev)}`:'';
+    h+=`<div class="row"><span>${tag}Nap ${n}</span><span class="mu">${a?'':'~'}${hm(s)}–${e!=null?hm(e)+' ('+dur(e-s)+')':'now'}${aw}</span></div>`;
+    prev=e;
+  }
+  const g=bedGap(),est=prev!=null&&g!=null?prev+g:null;
+  h+=`<div class="row"><span>Bedtime</span><span class="mu">${est!=null?'~'+hm(est)+' · ':''}target ${settings.bedtime}${est!=null?' · awake '+dur(g):''}</span></div>`;
+  h+=`<div class="mu" style="margin-top:6px">~ = average of the past 7 days</div>`;
+  $('#plan').innerHTML=h;
+
+  const from=today-2*DAY;
+  $('#log').innerHTML=entries.filter(e=>e.start>=from).sort((a,b)=>b.start-a.start).map(e=>
+    `<div class="row"><span>${isoDay(e.start).slice(5)} · ${e.type==='nap'?'Nap':'Night'}</span><span class="mu">${hm(tod(e.start))}–${e.end?hm(tod(e.end))+' ('+dur((e.end-e.start)/6e4)+')':'ongoing'}</span><button class="x" onclick="delE('${e.id}')">🗑</button></div>`
+  ).join('')||'<div class="mu">Nothing logged yet</div>';
+}
+
+function initForm(){
+  $('#sn').value=settings.targetNaps;$('#sb').value=settings.bedtime;$('#sf').value=family;
+}
+$('#md').value=isoDay(Date.now());
+$('#madd').onclick=()=>{
+  const d=$('#md').value,s=$('#ms').value,e=$('#me').value;
+  if(!d||!s||!e)return alert('Fill in date, start and end');
+  const st=new Date(d+'T'+s).getTime();let en=new Date(d+'T'+e).getTime();
+  if(en<=st)en+=DAY; // e.g. night sleep crossing midnight
+  putEntry({id:uid(),type:$('#mt').value,start:st,end:en});
+  $('#ms').value='';$('#me').value='';
+};
+$('#ssave').onclick=()=>{
+  settings={targetNaps:+$('#sn').value||4,bedtime:$('#sb').value||'19:30'};
+  save('nt_settings',settings);
+  const f=$('#sf').value.trim();
+  if(f!==family){family=f;save('nt_family',f);connect()}
+  if(db)fam().set({settings},{merge:true});
+  render();
+};
+
+initForm();connect();render();setInterval(render,30000);
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body></html>
