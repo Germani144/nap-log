@@ -42,6 +42,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 .cal button.dot::after{content:'';position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}
 .cal button.sel.dot::after{background:#fff}
 .lnk{margin-right:16px}
+.bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:0 0 8px}
+.bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
 </style></head>
 <body>
 <h1>😴 Nap Log <span class="mu" id="sync"></span></h1>
@@ -143,6 +145,12 @@ function suggest(n){
   for(const d in m)if(+d>=f&&+d<t&&m[d][n-1])xs.push(m[d][n-1]);
   return xs.length?{start:avg(xs.map(e=>tod(e.start))),len:avg(xs.map(e=>(e.end-e.start)/6e4)),n:xs.length}:null;
 }
+// target for total nap time per day = average of the daily nap totals over the past 7 days (night sleep not counted)
+function napTarget(){
+  const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),xs=[];
+  for(const d in m)if(+d>=f&&+d<t)xs.push(m[d].reduce((s,e)=>s+(e.end-e.start)/6e4,0));
+  return xs.length?avg(xs):null;
+}
 function wakeEst(){
   const today=sod(Date.now()),tn=entries.find(e=>e.type==='night'&&e.end&&e.end>=today);
   if(tn)return tod(tn.end);
@@ -180,35 +188,57 @@ function openAdd(type,day){
 
 // ---------- rendering ----------
 function render(){
-  const run=entries.find(e=>!e.end),nm=t=>t==='nap'?'Nap':'Night sleep';
+  const run=entries.find(e=>!e.end);
   if(run){
-    $('#now').innerHTML=`<h2>${nm(run.type)} in progress</h2><div class="big">${dur((Date.now()-run.start)/6e4)}</div><div class="mu">since ${hm(tod(run.start))}</div><p><button onclick="stopE('${run.id}')">End ${run.type==='nap'?'nap':'night sleep'}</button></p>`;
+    $('#now').innerHTML=`<h2>Asleep for</h2><div class="big">${dur((Date.now()-run.start)/6e4)}</div><div class="mu">since ${hm(tod(run.start))} · ${run.type==='nap'?'nap':'night sleep'}</div><p><button onclick="stopE('${run.id}')">End ${run.type==='nap'?'nap':'night sleep'}</button></p>`;
   }else{
     const last=entries.filter(e=>e.end).sort((a,b)=>b.end-a.end)[0];
-    $('#now').innerHTML=`<h2>Awake</h2>${last?`<div class="big">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<p><button onclick="startE('nap')">Start nap</button> <button onclick="startE('night')">Start night</button></p>`;
+    $('#now').innerHTML=`<h2>Awake${last?' for':''}</h2>${last?`<div class="big">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<p><button onclick="startE('nap')">Start nap</button> <button onclick="startE('night')">Start night</button></p>`;
   }
 
-  // plan: wake-up -> naps (actual or suggested) -> bedtime
-  const today=sod(Date.now()),tn=naps().filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
-  const we=entries.find(e=>e.type==='night'&&e.end&&e.end>=today);
+  // plan: wake-up -> naps (actual or suggested) -> bedtime. All times are minutes of the day.
+  const MAXAWAKE=210,MINGAP=30,MAXNAP=180; // never suggest an awake window over 3.5h; keep suggested naps apart; cap a lengthened nap at 3h
+  const today=sod(Date.now()),nowM=tod(Date.now()),tn=naps().filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
+  const we=entries.find(e=>e.type==='night'&&e.end&&e.end>=today),T=napTarget();
+  const exp=a=>{ // end of a logged nap; one still running is expected to last its average length
+    if(a.end)return tod(a.end);
+    const g=suggest(tn.indexOf(a)+1);
+    return Math.max(nowM,g?tod(a.start)+g.len:nowM);
+  };
+  // suggestions for the naps still to come, lengthened when earlier naps were short so the day reaches the target nap time
+  const gs={};
+  for(let n=tn.length+1;n<=N;n++){const g=suggest(n);if(g)gs[n]={...g}}
+  const rem=Object.keys(gs).map(Number);
+  if(T!=null&&rem.length){
+    const A=tn.reduce((x,a)=>x+Math.max(0,exp(a)-tod(a.start)),0),S=rem.reduce((x,n)=>x+gs[n].len,0),def=T-A-S;
+    if(def>0)rem.forEach(n=>{const add=Math.min(def*gs[n].len/S,MAXNAP-gs[n].len);if(add>0){gs[n].add=add;gs[n].len+=add}});
+  }
+
   let prev=wakeEst(),h='';
+  if(T!=null){
+    const done=tn.reduce((x,a)=>x+((a.end||Date.now())-a.start)/6e4,0);
+    h+=`<div class="row" style="border:0;padding-bottom:4px"><span>Nap time today</span><span class="mu">${dur(done)} of ~${dur(T)}</span></div><div class="bar"><i style="width:${Math.min(100,done/T*100)}%"></i></div>`;
+  }
   if(prev!=null)h+=we?`<div class="row tap" onclick="openEdit('${we.id}')"><span><b class="ok">✓</b> Wake-up</span><span class="mu">${hm(prev)} ›</span></div>`:`<div class="row"><span>Wake-up</span><span class="mu">~${hm(prev)}</span></div>`;
   for(let n=1;n<=N;n++){
-    const a=tn[n-1];let s,e,tag;
-    if(a){s=tod(a.start);e=a.end?tod(a.end):null;tag='<b class="ok">✓</b> '}
+    const a=tn[n-1];let s,e,tag='',add=0;
+    if(a){s=tod(a.start);e=exp(a);tag='<b class="ok">✓</b> '}
     else{
-      const g=suggest(n);
+      const g=gs[n];
       if(!g){h+=`<div class="row"><span>Nap ${n}</span><span class="mu">no data yet</span></div>`;prev=null;continue}
-      s=g.start;e=g.start+g.len;tag='';
+      s=g.start;
+      if(prev!=null)s=Math.max(Math.min(s,prev+MAXAWAKE),prev+MINGAP);
+      e=s+g.len;add=g.add||0;
     }
     const aw=prev!=null&&s>prev?` · awake ${dur(s-prev)}`:'';
-    h+=`<div class="row${a?' tap':''}"${a?` onclick="openEdit('${a.id}')"`:''}><span>${tag}Nap ${n}</span><span class="mu">${a?'':'~'}${hm(s)}–${e!=null?hm(e)+' ('+dur(e-s)+')':'now'}${aw}${a?' ›':''}</span></div>`;
+    const span=a&&!a.end?'now':hm(e)+' ('+dur(e-s)+(add>=5?', +'+dur(add):'')+')';
+    h+=`<div class="row${a?' tap':''}"${a?` onclick="openEdit('${a.id}')"`:''}><span>${tag}Nap ${n}</span><span class="mu">${a?'':'~'}${hm(s)}–${span}${aw}${a?' ›':''}</span></div>`;
     prev=e;
   }
-  const g=bedGap(),est=prev!=null&&g!=null?prev+g:null,bn=entries.find(e=>e.type==='night'&&sod(e.start)===today);
+  const g=bedGap(),gap=g!=null?Math.min(g,MAXAWAKE):null,est=prev!=null&&gap!=null?prev+gap:null,bn=entries.find(e=>e.type==='night'&&sod(e.start)===today);
   if(bn)h+=`<div class="row tap" onclick="openEdit('${bn.id}')"><span><b class="ok">✓</b> Bedtime</span><span class="mu">${hm(tod(bn.start))} · target ${settings.bedtime} ›</span></div>`;
-  else h+=`<div class="row tap" onclick="openAdd('night')"><span>Bedtime</span><span class="mu">${est!=null?'~'+hm(est)+' · ':''}target ${settings.bedtime}${est!=null?' · awake '+dur(g):''} ›</span></div>`;
-  h+=`<div class="mu" style="margin-top:6px">~ = average of the past 7 days · tap a row to edit</div>`;
+  else h+=`<div class="row tap" onclick="openAdd('night')"><span>Bedtime</span><span class="mu">${est!=null?'~'+hm(est)+' · ':''}target ${settings.bedtime}${est!=null?' · awake '+dur(gap):''} ›</span></div>`;
+  h+=`<div class="mu" style="margin-top:6px">~ = based on the past 7 days · tap a row to edit</div>`;
   $('#plan').innerHTML=h;
 
   renderHistory();
