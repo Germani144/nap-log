@@ -24,20 +24,24 @@ button.x{background:transparent;color:var(--mu);padding:4px 8px}
 input,select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);width:100%}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 label{font-size:13px;color:var(--mu)}
+.tap{cursor:pointer}
+.lnk{background:transparent;color:var(--ac);padding:8px 0 0}
+button.x.del{color:#dc2626}
+dialog{border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);width:min(92vw,400px);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.5)}
 </style></head>
 <body>
 <h1>😴 Nap Log <span class="mu" id="sync"></span></h1>
 <div class="card" id="now"></div>
-<div class="card"><h2>Today's plan</h2><div id="plan"></div></div>
-<div class="card"><h2>Add manually</h2>
+<div class="card"><h2>Today's plan</h2><div id="plan"></div><button class="lnk" onclick="openAdd('nap')">＋ Add extra nap</button></div>
+<dialog id="dlg">
+ <h2 id="dt"></h2>
  <div class="grid">
-  <div><label>Type</label><select id="mt"><option value="nap">Nap</option><option value="night">Night sleep</option></select></div>
-  <div><label>Date</label><input type="date" id="md"></div>
-  <div><label>Start</label><input type="time" id="ms"></div>
-  <div><label>End</label><input type="time" id="me"></div>
+  <div><label>Start</label><input type="time" id="es"></div>
+  <div><label>End</label><input type="time" id="ee"></div>
  </div>
- <p><button id="madd">Add</button></p>
-</div>
+ <p><button id="esave">Save</button> <button class="x" id="ecancel">Cancel</button> <button class="x del" id="edel">Delete</button></p>
+</dialog>
 <div class="card"><h2>Recent</h2><div id="log"></div></div>
 <div class="card"><h2>Settings</h2>
  <div class="grid">
@@ -122,7 +126,20 @@ function bedGap(){
 // ---------- actions ----------
 function startE(type){putEntry({id:uid(),type,start:Date.now(),end:null})}
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
-function delE(id){if(confirm('Delete this entry?'))removeEntry(id)}
+let ed=null;
+function openEdit(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  ed={id,type:e.type,day:sod(e.start),wasOpen:!e.end};
+  $('#dt').textContent=(e.type==='nap'?'Nap':'Night sleep')+' · '+isoDay(e.start).slice(5);
+  $('#es').value=hm(tod(e.start));$('#ee').value=e.end?hm(tod(e.end)):'';
+  $('#edel').style.display='';$('#dlg').showModal();
+}
+function openAdd(type){
+  ed={id:null,type,day:sod(Date.now()),wasOpen:true};
+  $('#dt').textContent=type==='nap'?'Add extra nap':'Log bedtime';
+  $('#es').value=type==='night'?settings.bedtime:'';$('#ee').value='';
+  $('#edel').style.display='none';$('#dlg').showModal();
+}
 
 // ---------- rendering ----------
 function render(){
@@ -136,8 +153,9 @@ function render(){
 
   // plan: wake-up -> naps (actual or suggested) -> bedtime
   const today=sod(Date.now()),tn=naps().filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
+  const we=entries.find(e=>e.type==='night'&&e.end&&e.end>=today);
   let prev=wakeEst(),h='';
-  if(prev!=null)h+=`<div class="row"><span>Wake-up</span><span class="mu">~${hm(prev)}</span></div>`;
+  if(prev!=null)h+=we?`<div class="row tap" onclick="openEdit('${we.id}')"><span><b class="ok">✓</b> Wake-up</span><span class="mu">${hm(prev)} ›</span></div>`:`<div class="row"><span>Wake-up</span><span class="mu">~${hm(prev)}</span></div>`;
   for(let n=1;n<=N;n++){
     const a=tn[n-1];let s,e,tag;
     if(a){s=tod(a.start);e=a.end?tod(a.end):null;tag='<b class="ok">✓</b> '}
@@ -147,32 +165,37 @@ function render(){
       s=g.start;e=g.start+g.len;tag='';
     }
     const aw=prev!=null&&s>prev?` · awake ${dur(s-prev)}`:'';
-    h+=`<div class="row"><span>${tag}Nap ${n}</span><span class="mu">${a?'':'~'}${hm(s)}–${e!=null?hm(e)+' ('+dur(e-s)+')':'now'}${aw}</span></div>`;
+    h+=`<div class="row${a?' tap':''}"${a?` onclick="openEdit('${a.id}')"`:''}><span>${tag}Nap ${n}</span><span class="mu">${a?'':'~'}${hm(s)}–${e!=null?hm(e)+' ('+dur(e-s)+')':'now'}${aw}${a?' ›':''}</span></div>`;
     prev=e;
   }
-  const g=bedGap(),est=prev!=null&&g!=null?prev+g:null;
-  h+=`<div class="row"><span>Bedtime</span><span class="mu">${est!=null?'~'+hm(est)+' · ':''}target ${settings.bedtime}${est!=null?' · awake '+dur(g):''}</span></div>`;
-  h+=`<div class="mu" style="margin-top:6px">~ = average of the past 7 days</div>`;
+  const g=bedGap(),est=prev!=null&&g!=null?prev+g:null,bn=entries.find(e=>e.type==='night'&&sod(e.start)===today);
+  if(bn)h+=`<div class="row tap" onclick="openEdit('${bn.id}')"><span><b class="ok">✓</b> Bedtime</span><span class="mu">${hm(tod(bn.start))} · target ${settings.bedtime} ›</span></div>`;
+  else h+=`<div class="row tap" onclick="openAdd('night')"><span>Bedtime</span><span class="mu">${est!=null?'~'+hm(est)+' · ':''}target ${settings.bedtime}${est!=null?' · awake '+dur(g):''} ›</span></div>`;
+  h+=`<div class="mu" style="margin-top:6px">~ = average of the past 7 days · tap a row to edit</div>`;
   $('#plan').innerHTML=h;
 
   const from=today-2*DAY;
   $('#log').innerHTML=entries.filter(e=>e.start>=from).sort((a,b)=>b.start-a.start).map(e=>
-    `<div class="row"><span>${isoDay(e.start).slice(5)} · ${e.type==='nap'?'Nap':'Night'}</span><span class="mu">${hm(tod(e.start))}–${e.end?hm(tod(e.end))+' ('+dur((e.end-e.start)/6e4)+')':'ongoing'}</span><button class="x" onclick="delE('${e.id}')">🗑</button></div>`
+    `<div class="row tap" onclick="openEdit('${e.id}')"><span>${isoDay(e.start).slice(5)} · ${e.type==='nap'?'Nap':'Night'}</span><span class="mu">${hm(tod(e.start))}–${e.end?hm(tod(e.end))+' ('+dur((e.end-e.start)/6e4)+')':'ongoing'} ›</span></div>`
   ).join('')||'<div class="mu">Nothing logged yet</div>';
 }
 
 function initForm(){
   $('#sn').value=settings.targetNaps;$('#sb').value=settings.bedtime;$('#sf').value=family;
 }
-$('#md').value=isoDay(Date.now());
-$('#madd').onclick=()=>{
-  const d=$('#md').value,s=$('#ms').value,e=$('#me').value;
-  if(!d||!s||!e)return alert('Fill in date, start and end');
-  const st=new Date(d+'T'+s).getTime();let en=new Date(d+'T'+e).getTime();
-  if(en<=st)en+=DAY; // e.g. night sleep crossing midnight
-  putEntry({id:uid(),type:$('#mt').value,start:st,end:en});
-  $('#ms').value='';$('#me').value='';
+const atTime=(day,v)=>{const[h,m]=v.split(':').map(Number);const d=new Date(day);d.setHours(h,m,0,0);return +d};
+$('#esave').onclick=()=>{
+  const sv=$('#es').value,ev=$('#ee').value;
+  if(!sv)return alert('Set a start time');
+  const st=atTime(ed.day,sv);let en=null;
+  if(ev){en=atTime(ed.day,ev);if(en<=st)en+=DAY} // e.g. night sleep crossing midnight
+  else if(!ed.wasOpen)return alert('Set an end time, or delete the entry');
+  const old=ed.id&&entries.find(x=>x.id===ed.id);
+  putEntry({...(old||{}),id:ed.id||uid(),type:ed.type,start:st,end:en});
+  $('#dlg').close();
 };
+$('#ecancel').onclick=()=>$('#dlg').close();
+$('#edel').onclick=()=>{if(confirm('Delete this entry?')){removeEntry(ed.id);$('#dlg').close()}};
 $('#ssave').onclick=()=>{
   settings={targetNaps:+$('#sn').value||4,bedtime:$('#sb').value||'19:30'};
   save('nt_settings',settings);
