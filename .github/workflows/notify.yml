@@ -1,0 +1,35 @@
+name: Nap notifications
+
+# Checks every ~5 minutes whether a "nap / bedtime in 30 min" notification is due.
+# GitHub may start runs a few minutes late. If the repo has no activity for 60 days,
+# GitHub switches scheduled workflows off: re-enable under the Actions tab.
+on:
+  schedule:
+    - cron: '3-59/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: sender
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sender/package-lock.json
+      - run: npm ci --prefix sender
+      - run: node sender/notify.mjs
+        env:
+          FAMILY_CODE: ${{ secrets.FAMILY_CODE }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}

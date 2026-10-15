@@ -64,6 +64,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 #setd summary::after{content:'▾'}
 #setd[open] summary::after{content:'▴'}
 #setd .in{padding:0 14px 14px}
+#pushbox{margin-top:16px;padding-top:12px;border-top:1px solid var(--bd)}
+#pushbox p{margin:8px 0 4px}
 .bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:0 0 8px}
 .bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
 </style></head>
@@ -82,6 +84,12 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
  </div>
  <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
  <button id="ssave">Save</button>
+ <div id="pushbox">
+  <label>Notifications on this phone</label>
+  <div class="mu" id="pushstat">…</div>
+  <p><button id="pushbtn">Turn on notifications</button> <button class="x" id="pushtest" hidden>Send test</button></p>
+  <div class="mu" id="pushmsg"></div>
+ </div>
 </div>
 </details>
 
@@ -105,6 +113,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
  <p>Every awake window, from wake-up to the first nap, between naps, and before bedtime, is kept between 30 minutes and 3h 30m. A suggested nap never starts more than 3h 30m after the previous sleep ended. If the averages would give a longer wait, the nap is moved earlier.</p>
  <h3>Bedtime</h3>
  <p>Your target bedtime is the goal. The estimate lands exactly on it whenever the naps allow, and it can move up to 30 minutes either way if that is needed to respect the awake limits. If that is still not enough, the naps still to come are moved together, as little as possible, earlier or later than usual (the plan says by how much). If there are too few naps to stay under 3h 30m awake until bedtime, bedtime is moved earlier instead and the plan suggests adding a nap.</p>
+ <h3>Notifications</h3>
+ <p>The app saves the time of the next nap or bedtime minus 30 minutes. A small job on GitHub checks about every 5 minutes (sometimes later) and sends a push to every phone with notifications turned on, saying how long is left. Each nap or bedtime is notified at most once. The notification is cancelled when the plan changes, for example when a nap starts early, and nothing is sent if the event is already less than 30 minutes away when the plan is made or if it is too late to be useful.</p>
  <h3>Symbols</h3>
  <p>~ means an estimate. ✓ means it was logged. Tap any logged row to edit it.</p>
 </div>
@@ -139,11 +149,14 @@ const FIREBASE_CONFIG = {
   appId: "1:711794498566:web:194b83d05cb55eaf0c3787"
 };
 
+// Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
+const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
+
 const $=s=>document.querySelector(s);
 const DAY=864e5,P=n=>String(n).padStart(2,'0');
 const load=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
-let settings=load('nt_settings',{targetNaps:4,bedtime:'19:30'}),entries=load('nt_entries',[]),family=load('nt_family',''),db=null,unsubs=[];
+let settings=load('nt_settings',{targetNaps:4,bedtime:'19:30'}),entries=load('nt_entries',[]),family=load('nt_family',''),db=null,unsubs=[],famData=null,lastNotifyWrite='';
 
 const sod=t=>{const d=new Date(t);d.setHours(0,0,0,0);return +d};
 const tod=t=>{const d=new Date(t);return d.getHours()*60+d.getMinutes()};
@@ -170,17 +183,18 @@ function removeEntry(id){
   else{entries=entries.filter(x=>x.id!==id);save('nt_entries',entries);render()}
 }
 function connect(){
-  unsubs.forEach(f=>f());unsubs=[];db=null;
+  unsubs.forEach(f=>f());unsubs=[];db=null;famData=null;
   if(typeof firebase==='undefined'||!FIREBASE_CONFIG||!family){$('#sync').textContent='· local only';return render()}
   if(!firebase.apps.length){
     firebase.initializeApp(FIREBASE_CONFIG);
     try{firebase.firestore().enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch{}
   }
   db=firebase.firestore();
-  unsubs.push(fam().onSnapshot(d=>{const s=d.data()&&d.data().settings;if(s){settings=s;save('nt_settings',s);initForm();render()}}));
+  unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};lastNotifyWrite='';const s=famData.settings;if(s){settings=s;save('nt_settings',s);initForm()}render()}));
   // only sync the last 14 days: all the plan and the 7-day averages need, and it keeps Firestore reads tiny
   unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data());save('nt_entries',entries);render()}));
   $('#sync').textContent='· shared';
+  refreshSub();renderPush();
 }
 
 // ---------- analysis ----------
@@ -308,20 +322,86 @@ function render(){
   $('#plan').innerHTML=h;
 
   // "Next nap in …" / "Bedtime in …" under the clock (only while awake)
-  let nx='';
+  let nx='',want=null;
   if(!run&&!bn){
-    const r=rows.find(x=>!x.a);let label,t;
-    if(r&&!r.nodata){label='Next nap';t=r.s}else if(!r&&B!=null){label='Bedtime';t=B}
+    const r=rows.find(x=>!x.a);let label,t,k,nm;
+    if(r&&!r.nodata){label='Next nap';nm='Nap '+r.n;k='nap'+r.n;t=r.s}else if(!r&&B!=null){label='Bedtime';nm='Bedtime';k='bed';t=B}
     if(label){
       const d=Math.round(t-nowM);
       nx=d>0?`${label} in <b>${dur(d)}</b>`:d>-1?`${label} <b>now</b>`:`${label} <b>overdue by ${dur(-d)}</b>`;
       nx+=` <span class="mu">~${hm(t)}</span>`;
+      const ev=today+t*60000;
+      want={key:k+'-'+isoDay(today),at:ev-30*60000,event:ev,label:nm,time:hm(t)}; // notify 30 min before
     }
   }
   const ne=$('#nextev');if(ne)ne.innerHTML=nx;
+  syncNotify(want);
 
   renderHistory();
 }
+
+// ---------- notifications ----------
+// The app only writes WHAT to notify about and WHEN (next nap / bedtime minus 30 min) into the family document.
+// A GitHub Action (sender/notify.mjs) reads it every ~5 min and sends the push to every subscribed phone.
+function syncNotify(want){
+  if(!db||!famData)return;
+  const st=famData,now=Date.now();
+  if(/^test-/.test(st.notifyKey||'')&&st.notifySent!==st.notifyKey&&now-(st.notifyAt||0)<30*60000)return; // a test is waiting for the sender
+  const pending=!!st.notifyAt&&(st.notifyEvent||0)>now&&st.notifySent!==st.notifyKey;
+  const full={notifyAt:want&&want.at,notifyEvent:want&&want.event,notifyKey:want&&want.key,notifyLabel:want&&want.label,notifyTime:want&&want.time,notifyText:''};
+  let out=null;
+  if(!want)out=pending?{notifyAt:0}:null; // asleep, bedtime logged, or no data: cancel what is waiting
+  else if(want.key!==st.notifyKey)out=want.at>now?full:(pending?{notifyAt:0}:null); // a new event (or it is already < 30 min away)
+  else if(st.notifySent!==st.notifyKey&&want.at>now&&(!st.notifyAt||Math.abs(want.at-st.notifyAt)>=5*60000))out=full; // same event, time moved
+  if(!out)return;
+  const j=JSON.stringify(out);if(j===lastNotifyWrite)return;lastNotifyWrite=j;
+  fam().set(out,{merge:true}).catch(()=>{lastNotifyWrite=''});
+}
+
+const iOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+const standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+const pushOk='serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window;
+const b64ToU8=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
+const subId=async ep=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ep)))].map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,32);
+const getSub=async()=>{const reg=await navigator.serviceWorker.ready;return reg.pushManager.getSubscription()};
+async function saveSub(sub){
+  if(!db)return;
+  const j=sub.toJSON();
+  await fam().collection('subs').doc(await subId(j.endpoint)).set({sub:JSON.stringify({endpoint:j.endpoint,keys:j.keys}),device:iOS?'iPhone':/Android/.test(navigator.userAgent)?'Android':'other',at:Date.now()});
+}
+function refreshSub(){ // the push address can change: keep the saved copy current
+  if(pushOk&&db&&Notification.permission==='granted')getSub().then(s=>s&&saveSub(s)).catch(()=>{});
+}
+async function renderPush(){
+  const st=$('#pushstat'),btn=$('#pushbtn'),tst=$('#pushtest');
+  btn.disabled=false;tst.hidden=true;btn.textContent='Turn on notifications';
+  const set=(t,off)=>{st.textContent=t;if(off)btn.disabled=true};
+  if(!pushOk)return set('This browser does not support notifications.',true);
+  if(iOS&&!standalone)return set('On iPhone, open the app from its home-screen icon first, then come back here.',true);
+  if(!db)return set('Needs sharing: enter the family code above and tap Save first.',true);
+  if(Notification.permission==='denied')return set('Blocked. Allow notifications for this app in the phone settings, then reopen it.',true);
+  let sub=null;try{sub=await getSub()}catch{}
+  if(sub&&Notification.permission==='granted'){st.textContent='On for this phone: a heads-up about 30 minutes before the next nap or bedtime.';btn.textContent='Turn off';tst.hidden=false}
+  else st.textContent='Off on this phone.';
+}
+async function togglePush(){
+  const msg=$('#pushmsg');msg.textContent='';
+  try{
+    const cur=await getSub();
+    if(cur&&Notification.permission==='granted'){await fam().collection('subs').doc(await subId(cur.endpoint)).delete().catch(()=>{});await cur.unsubscribe();return renderPush()}
+    if(await Notification.requestPermission()!=='granted')return renderPush();
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});
+    await saveSub(sub);
+  }catch(e){msg.textContent='Could not turn notifications on: '+(e&&e.message||e)}
+  renderPush();
+}
+$('#pushbtn').onclick=togglePush;
+$('#pushtest').onclick=()=>{
+  if(!db)return;
+  fam().set({notifyAt:Date.now(),notifyEvent:0,notifyKey:'test-'+Date.now(),notifyLabel:'',notifyTime:'',notifyText:'Notifications work 🎉'},{merge:true});
+  $('#pushmsg').textContent='Test queued. It arrives within about 5-10 minutes, sometimes later.';
+};
 
 // ---------- history tab ----------
 const loadedM=new Set();
@@ -398,11 +478,11 @@ $('#ssave').onclick=()=>{
   const f=$('#sf').value.trim();
   if(f!==family){family=f;save('nt_family',f);connect()}
   if(db)fam().set({settings},{merge:true});
-  $('#setd').open=false;render();
+  $('#setd').open=false;render();renderPush();
 };
 
 initForm();$('#setd').open=!family; // collapsed once a family code is set
-connect();render();setInterval(render,30000);
+connect();render();renderPush();setInterval(render,30000);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body></html>
