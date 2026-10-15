@@ -68,7 +68,7 @@ dialog h2{font-size:19px;margin:0 0 14px}
 .it .nd.nd0{background:var(--dusk);border:2px dashed var(--mute)}
 .it .t{font-weight:600;line-height:20px}
 .it .r{text-align:right;color:var(--mute);font-size:14px;line-height:20px}.it .r b{color:var(--milk);font-weight:600}
-.foot{margin-top:8px;font-size:13px;color:var(--mute);padding-left:34px}
+.foot{margin-top:12px;font-size:13px;line-height:1.6;color:var(--mute);text-align:center}
 .sec>.lnk{padding-left:34px;margin-top:6px}
 /* folds */
 .folds{margin-top:30px;border-top:1px solid var(--line)}
@@ -345,8 +345,8 @@ function render(){
     if(we)tl+=tlRow(IC.sun,'','Wake-up',`<b>${hm(tod(we.end))}</b>`,`openEdit('${we.id}')`);
     tn.filter(e=>e.end).forEach((e,i)=>tl+=tlRow(IC.check,'','Nap '+(i+1),`<b>${hm(tod(e.start))}–${hm(tod(e.end))}</b> &nbsp;${dur((e.end-e.start)/6e4)}`,`openEdit('${e.id}')`));
     tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(run.start))}</b>`,`openEdit('${run.id}')`);
-    tl+=tlRow(IC.sunA,'bd','Wake-up',`<b>~${hm(tod(wakeT))}</b><br>after about ${dur(avgN)}`);
-    foot='~ = based on the nights of the past 8 days · tap a row to edit';
+    tl+=tlRow(IC.sunA,'bd','Wake-up',`<b>~${hm(tod(wakeT))}</b><br>after ~${dur(avgN)}`);
+    foot='Based on the nights of the past 8 days<br>Tap a row to edit';
   }else{
     let a=wk0!=null?wk0:420,b=bn?tod(bn.start):(B!=null?B:bt);
     const sp=rows.filter(r=>!r.nodata);
@@ -387,7 +387,7 @@ function render(){
       if(B!=null&&B<lo-1)foot+='⚠ Not enough naps to stay under 3h 30m awake until your target bedtime. Consider adding a nap.<br>';
     }
     if(shift&&!bn)foot+=`Naps moved ${dur(Math.abs(shift))} ${shift>0?'later':'earlier'} than usual to fit bedtime<br>`;
-    foot+='~ = based on the past 7 days · tap a row to edit';
+    foot+='Based on the past 7 days<br>Tap a row to edit';
   }
 
   const hero=$('#hero');
