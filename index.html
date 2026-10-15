@@ -417,7 +417,7 @@ $('#pushtest').onclick=()=>{
 };
 
 // ---------- history tab ----------
-const loadedM=new Set();
+const loadedM=new Set();let histNote='';
 function setTab(t){
   tab=t;
   $('#v-today').hidden=t!=='today';$('#v-hist').hidden=t!=='hist';
@@ -445,8 +445,8 @@ function ensureMonth(){
   if(upto<=from||loadedM.has(from))return;
   loadedM.add(from);
   fam().collection('entries').where('start','>=',from-DAY).where('start','<',upto).get()
-    .then(q=>{q.docs.forEach(d=>hist[d.id]=d.data());renderHistory()})
-    .catch(()=>loadedM.delete(from));
+    .then(q=>{q.docs.forEach(d=>hist[d.id]=d.data());histNote=q.size?'':'No older entries found in the shared log for this month.';renderHistory()})
+    .catch(e=>{loadedM.delete(from);histNote='Could not load older days: '+(e&&e.message||e);renderHistory()});
 }
 function showMonth(y,m){
   viewM=new Date(y,m,1);
@@ -479,6 +479,7 @@ function renderHistory(){
   if(!h)h='<div class="mu">Nothing logged for this day</div>';
   else if(ns.length)h+=`<div class="mu" style="margin-top:6px">${ns.length} nap${ns.length>1?'s':''} · ${dur(ns.filter(e=>e.end).reduce((s,e)=>s+(e.end-e.start)/6e4,0))} total</div>`;
   h+=`<button class="lnk" onclick="openAdd('nap',${d})">＋ Add nap</button>`+(bd?'':`<button class="lnk" onclick="openAdd('night',${d})">＋ Log bedtime</button>`);
+  if(histNote&&d<today-14*DAY)h+=`<div class="mu" style="margin-top:8px">${histNote}</div>`;
   $('#day').innerHTML=`<h2>${new Date(d).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>`+h;
 }
 
