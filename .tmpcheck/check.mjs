@@ -1,0 +1,11 @@
+const P='nap-log-78cb6',K='AIzaSyDDKYM5tvjTixUdBq0BAd9-recAyoL6TE4',code=process.env.FAMILY_CODE;
+const base=`https://firestore.googleapis.com/v1/projects/${P}/databases/(default)/documents`;
+const get=async(path,q='')=>{const r=await fetch(`${base}/${path}?${q}key=${K}`);return {s:r.status,j:await r.json().catch(()=>({}))}};
+const f=await get(`families/${encodeURIComponent(code)}`);console.log('family doc HTTP',f.s);
+let all=[],tok='';
+do{const r=await get(`families/${encodeURIComponent(code)}/entries`,`pageSize=300&${tok?'pageToken='+tok+'&':''}`);console.log('entries page HTTP',r.s);all=all.concat(r.j.documents||[]);tok=r.j.nextPageToken||''}while(tok);
+const ids=all.map(d=>d.name.split('/').pop());
+console.log('entries total',all.length,'| imp-n',ids.filter(i=>i.startsWith('imp-n-')).length,'| imp-b',ids.filter(i=>i.startsWith('imp-b-')).length);
+const st=all.map(d=>+(d.fields.start?.integerValue??d.fields.start?.doubleValue??0)).filter(Boolean).sort((a,b)=>a-b);
+if(st.length)console.log('earliest',new Date(st[0]).toISOString(),'latest',new Date(st.at(-1)).toISOString());
+const t=all.find(d=>d.name.endsWith('imp-n-1787466600000'));console.log('sample fields',t?Object.keys(t.fields).join(',')+' start type '+Object.keys(t.fields.start):'sample missing');
