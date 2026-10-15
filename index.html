@@ -87,7 +87,7 @@ button.x.wide{font-weight:400;padding:4px 8px;width:auto;display:inline-block}
 <div class="in">
  <div class="grid">
   <div><label>Target naps/day</label><input type="number" id="sn" min="1" max="8"></div>
-  <div><label>Target bedtime</label><input type="time" id="sb"></div>
+  <div><label>Target bedtime</label><input type="text" id="sb" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
  </div>
  <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
  <button id="ssave">Save</button>
@@ -137,8 +137,8 @@ button.x.wide{font-weight:400;padding:4px 8px;width:auto;display:inline-block}
 <dialog id="dlg">
  <h2 id="dt"></h2>
  <div class="grid">
-  <div><label>Start</label><input type="time" id="es"></div>
-  <div><label>End</label><input type="time" id="ee"></div>
+  <div><label>Start</label><input type="text" id="es" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
+  <div><label>End</label><input type="text" id="ee" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
  </div>
  <p><button id="esave">Save</button> <button class="x" id="ecancel">Cancel</button> <button class="x del" id="edel">Delete</button></p>
 </dialog>
@@ -506,8 +506,23 @@ function initForm(){
   $('#sn').value=settings.targetNaps;$('#sb').value=settings.bedtime;$('#sf').value=family;
 }
 const atTime=(day,v)=>{const[h,m]=v.split(':').map(Number);const d=new Date(day);d.setHours(h,m,0,0);return +d};
+// time fields are typed (numeric keypad), not picked on the clock dial: "1437" -> 14:37, "730" -> 07:30, "9" -> 09:00
+function normT(v){
+  v=String(v||'').trim();if(!v)return '';
+  let h,m;
+  if(v.includes(':')){[h,m]=v.split(':').map(x=>x.replace(/\D/g,''));m=m||'0'}
+  else{const d=v.replace(/\D/g,'');if(!d)return null;if(d.length<=2){h=d;m='0'}else if(d.length===3){h=d[0];m=d.slice(1)}else{h=d.slice(0,2);m=d.slice(2,4)}}
+  h=+h;m=+m;if(!(h>=0&&h<24&&m>=0&&m<60))return null;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+document.querySelectorAll('input.tm').forEach(el=>{
+  el.addEventListener('input',()=>{const d=el.value.replace(/\D/g,'');if(d.length>=4&&!el.value.includes(':'))el.value=d.slice(0,2)+':'+d.slice(2,4)});
+  el.addEventListener('blur',()=>{const n=normT(el.value);if(n)el.value=n});
+  el.addEventListener('focus',()=>setTimeout(()=>el.select(),0));
+});
 $('#esave').onclick=()=>{
-  const sv=$('#es').value,ev=$('#ee').value;
+  const sv=normT($('#es').value),ev=normT($('#ee').value);
+  if(sv===null||ev===null)return alert('Type the time as hours and minutes, for example 14:30');
   if(!sv)return alert('Set a start time');
   const st=atTime(ed.day,sv);let en=null;
   if(ev){en=atTime(ed.day,ev);if(en<=st)en+=DAY} // e.g. night sleep crossing midnight
@@ -519,7 +534,7 @@ $('#esave').onclick=()=>{
 $('#ecancel').onclick=()=>$('#dlg').close();
 $('#edel').onclick=()=>{if(confirm('Delete this entry?')){removeEntry(ed.id);$('#dlg').close()}};
 $('#ssave').onclick=()=>{
-  settings={targetNaps:+$('#sn').value||4,bedtime:$('#sb').value||'19:30'};
+  settings={targetNaps:+$('#sn').value||4,bedtime:normT($('#sb').value)||settings.bedtime||'19:30'};
   save('nt_settings',settings);
   const f=$('#sf').value.trim();
   if(f!==family){family=f;save('nt_family',f);connect()}
