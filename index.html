@@ -68,6 +68,10 @@ dialog h2{font-size:19px;margin:0 0 14px}
 .it .nd.nd0{background:var(--dusk);border:2px dashed var(--mute)}
 .it .t{font-weight:600;line-height:20px}
 .it .r{text-align:right;color:var(--mute);font-size:14px;line-height:20px}.it .r b{color:var(--milk);font-weight:600}
+.tc{display:inline-block;min-width:72px;text-align:center}
+.span2{position:relative;height:52px;margin:-12px 0}
+.span2:before{content:'';position:absolute;right:35px;top:-10px;bottom:-10px;width:2px;background:var(--line)}
+.span2 span{position:absolute;right:36px;top:50%;transform:translate(50%,-50%);background:var(--dusk);padding:2px 8px;font-size:13px;color:var(--mute);white-space:nowrap}
 .foot{margin-top:12px;font-size:13px;line-height:1.6;color:var(--mute);text-align:center}
 .sec>.lnk{padding-left:34px;margin-top:6px}
 /* folds */
@@ -344,8 +348,10 @@ function render(){
     btns=`<button onclick="stopE('${run.id}')">Wake up</button>`;
     if(we)tl+=tlRow(IC.sun,'','Wake-up',`<b>${hm(tod(we.end))}</b>`,`openEdit('${we.id}')`);
     tn.filter(e=>e.end).forEach((e,i)=>tl+=tlRow(IC.check,'','Nap '+(i+1),`<b>${hm(tod(e.start))}–${hm(tod(e.end))}</b> &nbsp;${dur((e.end-e.start)/6e4)}`,`openEdit('${e.id}')`));
-    tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(run.start))}</b>`,`openEdit('${run.id}')`);
-    tl+=tlRow(IC.sunA,'bd','Wake-up',`<b>~${hm(tod(wakeT))}</b><br>after ~${dur(avgN)}`);
+    // bedtime and expected wake-up, joined on the right by a faint line with the expected night length on it
+    tl+=tlRow(IC.moon,'','Bedtime',`<b class="tc">${hm(tod(run.start))}</b>`,`openEdit('${run.id}')`);
+    tl+=`<div class="span2"><span>~${dur(avgN)}</span></div>`;
+    tl+=tlRow(IC.sunA,'bd','Wake-up',`<b class="tc">~${hm(tod(wakeT))}</b>`);
     foot='Based on the nights of the past 8 days<br>Tap a row to edit';
   }else{
     let a=wk0!=null?wk0:420,b=bn?tod(bn.start):(B!=null?B:bt);
