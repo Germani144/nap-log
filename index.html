@@ -56,6 +56,14 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 #algo .txt h3:first-child{margin-top:0}
 #algo .txt p{margin:4px 0}
 .row>.mu{text-align:right}
+.next{margin-top:12px;font-size:17px}
+.next b{font-size:19px}
+#setd{padding:0}
+#setd summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:14px;font-size:15px;font-weight:600;color:var(--mu)}
+#setd summary::-webkit-details-marker{display:none}
+#setd summary::after{content:'▾'}
+#setd[open] summary::after{content:'▴'}
+#setd .in{padding:0 14px 14px}
 .bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:0 0 8px}
 .bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
 </style></head>
@@ -66,7 +74,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 <div id="v-today">
 <div class="card" id="now"></div>
 <div class="card"><h2>Today's plan</h2><div id="plan"></div><button class="lnk" onclick="openAdd('nap')">＋ Add extra nap</button></div>
-<div class="card"><h2>Settings</h2>
+<details class="card" id="setd"><summary>⚙ Settings</summary>
+<div class="in">
  <div class="grid">
   <div><label>Target naps/day</label><input type="number" id="sn" min="1" max="8"></div>
   <div><label>Target bedtime</label><input type="time" id="sb"></div>
@@ -74,11 +83,14 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
  <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
  <button id="ssave">Save</button>
 </div>
+</details>
 
 <details id="algo"><summary>🧠 Algorithm: how it works</summary>
 <div class="card txt">
  <h3>The clock</h3>
  <p>"Awake for" counts from the end of the last nap or night sleep, whichever ended most recently. While a nap or night is running it switches to "Asleep for".</p>
+ <h3>Next nap / bedtime</h3>
+ <p>Under the clock, while she is awake: the time until the next nap in the plan for today, or until bedtime once all planned naps are done. If that time has passed it says "overdue by ...". It is hidden while she sleeps, and when there is not enough data for the next nap.</p>
  <h3>What "past 7 days" means</h3>
  <p>The 7 full days before today. Today never counts towards its own averages. Days with nothing logged are skipped, and a suggestion needs at least one day of data (otherwise it says "no data yet").</p>
  <h3>Nap suggestions</h3>
@@ -220,7 +232,7 @@ function render(){
     $('#now').innerHTML=`<h2>Asleep for</h2><div class="clock">${dur((Date.now()-run.start)/6e4)}</div><div class="mu">since ${hm(tod(run.start))} · ${run.type==='nap'?'nap':'night sleep'}</div><div class="nowbtns"><button onclick="stopE('${run.id}')">End ${run.type==='nap'?'nap':'night sleep'}</button></div>`;
   }else{
     const last=entries.filter(e=>e.end).sort((a,b)=>b.end-a.end)[0];
-    $('#now').innerHTML=`<h2>Awake${last?' for':''}</h2>${last?`<div class="clock">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<div class="nowbtns"><button onclick="startE('nap')">Start nap</button><button onclick="startE('night')">Start night</button></div>`;
+    $('#now').innerHTML=`<h2>Awake${last?' for':''}</h2>${last?`<div class="clock">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<div id="nextev" class="next"></div><div class="nowbtns"><button onclick="startE('nap')">Start nap</button><button onclick="startE('night')">Start night</button></div>`;
   }
 
   // plan: wake-up -> naps (actual or suggested) -> bedtime. All times are minutes of the day.
@@ -294,6 +306,19 @@ function render(){
   if(shift&&!bn)h+=`<div class="mu" style="margin-top:6px">Naps moved ${dur(Math.abs(shift))} ${shift>0?'later':'earlier'} than usual to fit bedtime</div>`;
   h+=`<div class="mu" style="margin-top:6px">~ = based on the past 7 days · tap a row to edit</div>`;
   $('#plan').innerHTML=h;
+
+  // "Next nap in …" / "Bedtime in …" under the clock (only while awake)
+  let nx='';
+  if(!run&&!bn){
+    const r=rows.find(x=>!x.a);let label,t;
+    if(r&&!r.nodata){label='Next nap';t=r.s}else if(!r&&B!=null){label='Bedtime';t=B}
+    if(label){
+      const d=Math.round(t-nowM);
+      nx=d>0?`${label} in <b>${dur(d)}</b>`:d>-1?`${label} <b>now</b>`:`${label} <b>overdue by ${dur(-d)}</b>`;
+      nx+=` <span class="mu">~${hm(t)}</span>`;
+    }
+  }
+  const ne=$('#nextev');if(ne)ne.innerHTML=nx;
 
   renderHistory();
 }
@@ -373,10 +398,11 @@ $('#ssave').onclick=()=>{
   const f=$('#sf').value.trim();
   if(f!==family){family=f;save('nt_family',f);connect()}
   if(db)fam().set({settings},{merge:true});
-  render();
+  $('#setd').open=false;render();
 };
 
-initForm();connect();render();setInterval(render,30000);
+initForm();$('#setd').open=!family; // collapsed once a family code is set
+connect();render();setInterval(render,30000);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body></html>
