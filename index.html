@@ -373,8 +373,17 @@ async function saveSub(sub){
   const j=sub.toJSON();
   await fam().collection('subs').doc(await subId(j.endpoint)).set({sub:JSON.stringify({endpoint:j.endpoint,keys:j.keys}),device:iOS?'iPhone':/Android/.test(navigator.userAgent)?'Android':'other',at:Date.now()});
 }
-function refreshSub(){ // the push address can change: keep the saved copy current
-  if(pushOk&&db&&Notification.permission==='granted')getSub().then(s=>s&&saveSub(s)).catch(()=>{});
+const pushOff=()=>{try{return localStorage.getItem('nt_pushoff')==='1'}catch{return false}};
+const setPushOff=v=>{try{v?localStorage.setItem('nt_pushoff','1'):localStorage.removeItem('nt_pushoff')}catch{}};
+let pushDbg='';
+async function refreshSub(){ // keep the saved copy current; quietly re-subscribe if the phone dropped the subscription
+  if(!(pushOk&&db&&Notification.permission==='granted'))return;
+  try{
+    let s=await getSub();
+    if(!s&&!pushOff()){const reg=await navigator.serviceWorker.ready;s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});pushDbg='re-subscribed'}
+    if(s)await saveSub(s);
+  }catch(e){pushDbg='error: '+(e&&e.message||e)}
+  renderPush();
 }
 async function renderPush(){
   const st=$('#pushstat'),btn=$('#pushbtn'),tst=$('#pushtest');
@@ -386,17 +395,17 @@ async function renderPush(){
   if(Notification.permission==='denied')return set('Blocked. Allow notifications for this app in the phone settings, then reopen it.',true);
   let sub=null;try{sub=await getSub()}catch{}
   if(sub&&Notification.permission==='granted'){st.textContent='🔔 Notifications are on for this phone: a heads-up about 30 minutes before the next nap or bedtime.';btn.textContent='Turn off';btn.className='x';tst.hidden=false}
-  else st.textContent='Get a heads-up about 30 minutes before the next nap or bedtime.';
+  else st.textContent='Get a heads-up about 30 minutes before the next nap or bedtime.'+(Notification.permission==='granted'?' ('+(pushDbg||'permission allowed, no subscription yet')+')':'');
 }
 async function togglePush(){
   const msg=$('#pushmsg');msg.textContent='';
   try{
     const cur=await getSub();
-    if(cur&&Notification.permission==='granted'){await fam().collection('subs').doc(await subId(cur.endpoint)).delete().catch(()=>{});await cur.unsubscribe();return renderPush()}
+    if(cur&&Notification.permission==='granted'){await fam().collection('subs').doc(await subId(cur.endpoint)).delete().catch(()=>{});await cur.unsubscribe();setPushOff(true);return renderPush()}
     if(await Notification.requestPermission()!=='granted')return renderPush();
     const reg=await navigator.serviceWorker.ready;
     const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});
-    await saveSub(sub);
+    await saveSub(sub);setPushOff(false);
   }catch(e){msg.textContent='Could not turn notifications on: '+(e&&e.message||e)}
   renderPush();
 }
@@ -486,7 +495,7 @@ $('#ssave').onclick=()=>{
 };
 
 initForm();$('#setd').open=!family; // collapsed once a family code is set
-connect();render();renderPush();setInterval(render,30000);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+connect();render();renderPush();setInterval(render,30000);
 </script>
 </body></html>
