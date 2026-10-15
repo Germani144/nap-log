@@ -1,5 +1,9 @@
 name: Temp check
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        default: check
 permissions:
   contents: read
 jobs:
@@ -11,6 +15,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: node .tmpcheck/check.mjs
+      - run: node .tmpcheck/${{ inputs.script }}.mjs
         env:
           FAMILY_CODE: ${{ secrets.FAMILY_CODE }}
