@@ -202,6 +202,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="plan.js"></script>
 <script>
 // Paste your Firebase web config here to enable sharing between phones.
 // Leave as null to run in local-only mode (data stays on this phone).
@@ -218,7 +219,6 @@ const FIREBASE_CONFIG = {
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
-const DAY=864e5,P=n=>String(n).padStart(2,'0');
 const load=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 // Everything synced from the shared log is checked before use: the page builds HTML from it, so a malformed
@@ -228,13 +228,7 @@ const okS=s=>({targetNaps:Math.min(8,Math.max(1,Math.round(+(s&&s.targetNaps))||
 const esc=v=>String(v).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 let settings=okS(load('nt_settings',{})),entries=[].concat(load('nt_entries',[])).filter(okE),family=load('nt_family',''),db=null,unsubs=[],famData=null,lastNotifyWrite='';
 
-const sod=t=>{const d=new Date(t);d.setHours(0,0,0,0);return +d};
-const tod=t=>{const d=new Date(t);return d.getHours()*60+d.getMinutes()};
-const hm=m=>{m=Math.round(m);return P(Math.floor(m/60)%24)+':'+P(m%60)};
-const dur=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+'h\u00a0'+P(m%60)+'m':m+'m'}; // non-breaking space keeps "3h 30m" on one line
-const avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const isoDay=t=>{const d=new Date(t);return d.getFullYear()+'-'+P(d.getMonth()+1)+'-'+P(d.getDate())};
 // history tab state; `hist` holds entries older than the live 14-day sync window (shared mode only)
 let hist={},tab='today',viewM=new Date(new Date().getFullYear(),new Date().getMonth(),1),selDay=sod(Date.now());
 const allE=()=>{const m={};Object.values(hist).forEach(e=>m[e.id]=e);entries.forEach(e=>m[e.id]=e);return Object.values(m)};
@@ -268,48 +262,6 @@ function connect(){
   refreshSub();renderPush();
 }
 
-// ---------- analysis ----------
-const naps=()=>entries.filter(e=>e.type==='nap').sort((a,b)=>a.start-b.start);
-const byDay=l=>{const m={};l.forEach(e=>(m[sod(e.start)]??=[]).push(e));return m};
-const win7=()=>{const t=sod(Date.now());return[t-7*DAY,t]};
-
-// Recent days count more: a day's weight halves every 4 days (tested on the logged history: this tracks changes sooner).
-const rw=day=>Math.pow(.5,Math.round((sod(Date.now())-day)/DAY)/4);
-const wavg=(xs)=>{let a=0,b=0;xs.forEach(([v,w])=>{a+=v*w;b+=w});return a/b};
-// the night that ended on a given day = that morning's wake-up
-const wakeOf=day=>entries.find(e=>e.type==='night'&&e.end&&sod(e.end)===day);
-// the n-th nap of the day: usual start, usual length, and the usual awake window before it (from the end of the previous sleep).
-// The awake window is what the plan is built on: a late wake-up or a long nap moves everything after it.
-function suggest(n){
-  const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),xs=[],gs=[];
-  for(const d in m)if(+d>=f&&+d<t&&m[d][n-1]){
-    const e=m[d][n-1],w=rw(+d);xs.push([e,w]);
-    const pe=n===1?(wakeOf(+d)||{}).end:m[d][n-2].end;
-    if(pe&&e.start>pe)gs.push([(e.start-pe)/6e4,w]);
-  }
-  return xs.length?{start:wavg(xs.map(([e,w])=>[tod(e.start),w])),len:wavg(xs.map(([e,w])=>[(e.end-e.start)/6e4,w])),gap:gs.length?wavg(gs):null,n:xs.length}:null;
-}
-// usual time between the last nap of the day and bedtime (recent days weighted more)
-function bedGap(){
-  const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),xs=[];
-  for(const d in m)if(+d>=f&&+d<t){
-    const b=entries.find(e=>e.type==='night'&&sod(e.start)===+d),l=m[d][m[d].length-1];
-    if(b&&b.start>l.end)xs.push([(b.start-l.end)/6e4,rw(+d)]);
-  }
-  return xs.length?wavg(xs):null;
-}
-// target for total nap time per day = average of the daily nap totals over the past 7 days (night sleep not counted)
-function napTarget(){
-  const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),xs=[];
-  for(const d in m)if(+d>=f&&+d<t)xs.push(m[d].reduce((s,e)=>s+(e.end-e.start)/6e4,0));
-  return xs.length?avg(xs):null;
-}
-function wakeEst(){
-  const today=sod(Date.now()),tn=entries.find(e=>e.type==='night'&&e.end&&e.end>=today);
-  if(tn)return tod(tn.end);
-  const[f]=win7(),xs=entries.filter(e=>e.type==='night'&&e.end&&e.end>=f&&e.end<today).map(e=>tod(e.end));
-  return xs.length?avg(xs):null;
-}
 // ---------- actions ----------
 function startE(type){putEntry({id:uid(),type,start:Date.now(),end:null})}
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
@@ -365,86 +317,20 @@ const tlRow=(icon,cls,t,r,click)=>`<div class="it${click?' tap':''}"${click?` on
 
 // ---------- rendering ----------
 function render(){
-  const run=entries.find(e=>!e.end);
-
-  // plan: wake-up -> naps (actual or suggested) -> bedtime. All times are minutes of the day.
-  const MAXAWAKE=210,MINGAP=30,MAXNAP=180,BEDFLEX=30; // awake windows stay within 30m-3.5h; a lengthened nap is capped at 3h; bedtime may move 30m from the target
-  const nowT=Date.now(),today=sod(nowT),nowM=tod(nowT),tn=naps().filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
-  const we=entries.find(e=>e.type==='night'&&e.end&&e.end>=today),T=napTarget();
-  const exp=a=>{ // end of a logged nap; one still running is expected to last its average length
-    if(a.end)return tod(a.end);
-    const g=suggest(tn.indexOf(a)+1);
-    return Math.max(nowM,g?tod(a.start)+g.len:nowM);
-  };
-  // suggestions for the naps still to come, lengthened when earlier naps were short so the day reaches the target nap time
-  const gs={};
-  for(let n=tn.length+1;n<=N;n++){const g=suggest(n);if(g)gs[n]={...g}}
-  const rem=Object.keys(gs).map(Number);
-  if(T!=null&&rem.length){
-    const A=tn.reduce((x,a)=>x+Math.max(0,exp(a)-tod(a.start)),0),S=rem.reduce((x,n)=>x+gs[n].len,0),def=T-A-S;
-    if(def>0)rem.forEach(n=>{const add=Math.min(def*gs[n].len/S,MAXNAP-gs[n].len);if(add>0){gs[n].add=add;gs[n].len+=add}});
-  }
-
-  const wk0=wakeEst();let prev=wk0;
-
-  // naps already logged keep their real times
-  const rows=[];
-  tn.forEach((a,i)=>{const s=tod(a.start),e=exp(a);rows.push({n:i+1,a,s,e,aw:prev!=null&&s>prev?s-prev:null});prev=e});
-
-  // naps still to come: as close to their usual times as the awake limits allow; d moves them all together
-  const nums=[];for(let n=tn.length+1;n<=N;n++)nums.push(n);
-  const sched=d=>{
-    let pv=prev,done=true;const out=[];
-    nums.forEach(n=>{
-      const g=gs[n];
-      if(!g){out.push({n,nodata:true});pv=null;done=false;return}
-      let s=(pv!=null&&g.gap!=null?pv+g.gap:g.start)+d; // usual awake window after the previous sleep (usual clock time if unknown)
-      if(pv!=null)s=Math.max(Math.min(s,pv+MAXAWAKE),pv+MINGAP);
-      out.push({n,s,e:s+g.len,add:g.add||0,aw:pv!=null&&s>pv?s-pv:null});pv=s+g.len;
-    });
-    return{out,last:pv,done};
-  };
-  // bedtime: the target, allowed to move BEDFLEX either way while the last awake window stays within limits.
-  // If that is not possible, the remaining naps are shifted (as little as possible) until it is.
-  const[bh,bm]=(settings.bedtime||'19:30').split(':').map(Number),bt=bh*60+bm,lo=bt-BEDFLEX,hi=bt+BEDFLEX;
-  const fit=d=>{const r=sched(d);if(!r.done||r.last==null)return null;const x=Math.max(r.last+MINGAP,lo),y=Math.min(r.last+MAXAWAKE,hi);return{r,x,y,ok:x<=y}};
-  let best=fit(0),shift=0;
-  if(best&&!best.ok&&nums.length){
-    search:for(let k=5;k<=240;k+=5)for(const d of[-k,k]){const f=fit(d);if(f&&f.ok){best=f;shift=d;break search}}
-  }
-  const plan=best?best.r:sched(0);
-  rows.push(...plan.out);
-  let B=null;
-  if(best)B=best.ok?Math.min(Math.max(bt,best.x),best.y):(plan.last+MAXAWAKE<lo?plan.last+MAXAWAKE:plan.last+MINGAP);
-  // lean 35% towards last nap + the usual gap to bedtime, but never outside the limits above
-  const bg=bedGap();
-  if(B!=null&&bg!=null&&plan.last!=null){
-    const lo2=best&&best.ok?best.x:plan.last+MINGAP,hi2=best&&best.ok?best.y:plan.last+MAXAWAKE;
-    if(best&&best.ok)B=Math.min(Math.max(.65*B+.35*(plan.last+bg),lo2),hi2);
-  }
-  const bn=entries.find(e=>e.type==='night'&&sod(e.start)===today);
-
+  const pl=makePlan(entries,Date.now(),settings);
+  const{now:nowT,today,nowM,run,we,wk0,T,tn,rows,B,bt,lo,shift,bn,avgN,napDone}=pl;
   // "Next nap in …" / "Bedtime in …" under the ring (only while awake)
-  let nx='',want=null;
-  if(!run&&!bn){
-    const r=rows.find(x=>!x.a);let label,t,k,nm;
-    if(r&&!r.nodata){label='Next nap';nm='Nap '+r.n;k='nap'+r.n;t=r.s}else if(!r&&B!=null){label='Bedtime';nm='Bedtime';k='bed';t=B}
-    if(label){
-      const d=Math.round(t-nowM);
-      nx=d>0?`${label} in <b>${dur(d)}</b>`:d>-1?`${label} <b>now</b>`:`${label} <b>overdue by ${dur(-d)}</b>`;
-      nx+=` <span class="mu">~${hm(t)}</span>`;
-      const ev=today+t*60000;
-      want={key:k+'-'+isoDay(today),at:ev-30*60000,event:ev,label:nm,time:hm(t)}; // notify 30 min before
-    }
+  let nx='';
+  if(pl.next){
+    const{label,t}=pl.next,d=Math.round(t-nowM);
+    nx=(d>0?`${label} in <b>${dur(d)}</b>`:d>-1?`${label} <b>now</b>`:`${label} <b>overdue by ${dur(-d)}</b>`)+` <span class="mu">~${hm(t)}</span>`;
   }
 
   let svg='',cool=false,k='',big='',small='',sub='',btns='',one=false,empty=false,tl='',foot='',title="Today's plan",showAdd=true;
-  const napDone=tn.reduce((x,a)=>x+((a.end||nowT)-a.start)/6e4,0);
 
   if(run&&run.type==='night'){
     // the ring becomes a loading ring for the expected night: the average of the nights in the last 8 days
     cool=true;showAdd=false;title='Tonight';one=true;
-    const ns=entries.filter(e=>e.type==='night'&&e.end&&e.end>=nowT-8*DAY),avgN=ns.length?avg(ns.map(e=>(e.end-e.start)/6e4)):630;
     const el=(nowT-run.start)/6e4,left=avgN-el,th=m=>GST+GSW*Math.min(1,Math.max(0,m/avgN)),wakeT=run.start+avgN*6e4;
     const ppm=GR*GSW*Math.PI/180/avgN;
     svg=GDEFS+gline(th(0),th(avgN),'#171A45',22)+(el>.5?gline(th(0),th(Math.min(el,avgN)),'url(#cool)',22):'')
@@ -496,7 +382,7 @@ function render(){
     if(bn)tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(bn.start))}</b><br>target ${settings.bedtime}`,`openEdit('${bn.id}')`);
     else{
       const dev=B!=null?Math.round(B-bt):0;
-      const t=B!=null?`<b>~${hm(B)}</b><br>${dev===0?'on target':'target '+settings.bedtime+' ('+(dev>0?'+':'−')+dur(Math.abs(dev))+')'} · awake&nbsp;${dur(B-plan.last)}`:`<b>target ${settings.bedtime}</b>`;
+      const t=B!=null?`<b>~${hm(B)}</b><br>${dev===0?'on target':'target '+settings.bedtime+' ('+(dev>0?'+':'−')+dur(Math.abs(dev))+')'} · awake&nbsp;${dur(B-pl.last)}`:`<b>target ${settings.bedtime}</b>`;
       tl+=tlRow(IC.moonA,'bd','Bedtime',t,"openAdd('night')");
       if(B!=null&&B<lo-1)foot+='⚠ Not enough naps to stay under 3h 30m awake until your target bedtime. Consider adding a nap.<br>';
     }
@@ -513,7 +399,7 @@ function render(){
   $('#plantitle').textContent=title;
   $('#plan').innerHTML=tl;$('#planfoot').innerHTML=`<div class="foot">${foot}</div>`;
   $('#addnap').hidden=!showAdd;
-  syncNotify(want);
+  syncNotify(pl.want);
 
   renderHistory();
 }

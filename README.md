@@ -10,12 +10,16 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 
 | File | What it does |
 |---|---|
-| `index.html` | The whole app: markup, styles and script in one file |
+| `index.html` | The app: markup, styles, screen drawing, sync and push |
+| `plan.js` | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code |
 | `sw.js` | Service worker: offline cache (network first) and push notification display |
 | `manifest.json` | Install info: name, icons, colours |
 | `icon-*.png` | App icons (background must stay `#1F2358`, the app colour, or Android shows a square on the launch screen) |
 | `sender/notify.mjs` | Sends the push notifications (run by GitHub Actions) |
 | `.github/workflows/notify.yml` | Runs the sender every 5 minutes (GitHub often runs it much less often) |
+| `tests/plan.test.mjs` | Tests for the plan maths |
+| `tools/backtest.mjs` | Replays a logged history through the plan maths and reports the prediction error |
+| `CLAUDE.md` | Working notes for Claude sessions on this repo |
 
 ## How sharing works
 
@@ -63,13 +67,26 @@ The full explanation is in the app under **How the plan works**. In short:
   third towards "end of last nap + usual gap before bedtime".
 - **Night ring** = expected night length is the average of the nights in the past 8 days.
 
-These choices were backtested on the logged history (46 days, predicting each day from the 7 days before it):
-next-nap error went from about 45 to 16 minutes, bedtime from about 25 to 20 minutes.
+These choices were backtested on the logged history (46 days, predicting each day from the days before it):
+next-nap error went from about 45 to 16 minutes, bedtime from about 25 to 20 minutes (`tools/backtest.mjs`).
+
+## Tests and backtest
+
+```
+TZ=Europe/Copenhagen node --test tests/plan.test.mjs
+TZ=Europe/Copenhagen node tools/backtest.mjs history.json
+```
+
+`makePlan(entries, now, settings)` in `plan.js` is pure: it only uses its inputs, so tests can feed it any history
+and any "now". `index.html` only draws what it returns. The backtest needs an export of the logged entries (a JSON
+array of `{id, type, start, end}`); it holds personal data, so keep it out of the repo (`history*.json` is ignored).
+Run both before and after changing the plan logic.
 
 ## Notes for changing the code
 
 - Bump the cache name in `sw.js` (`nap-vN`) with every release, or phones keep showing the old version.
+- Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
-- The ring is drawn as inline SVG in `render()`. A nap bar is a capsule only when at least 30px long, and gets the
+- The ring is drawn as inline SVG in `render()` (`index.html`). A nap bar is a capsule only when at least 30px long, and gets the
   💤 only when at least 38px long; shorter naps are plain dots.
