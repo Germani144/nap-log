@@ -71,6 +71,8 @@ button.x.wide{font-weight:400;padding:4px 8px;width:auto;display:inline-block}
 .pushrow{margin-top:4px}
 .bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:0 0 8px}
 .bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
+@keyframes slr{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}@keyframes sll{from{transform:translateX(-40px);opacity:.3}to{transform:none;opacity:1}}
+.slr{animation:slr .2s ease-out}.sll{animation:sll .2s ease-out}
 #swh{position:fixed;top:50%;z-index:50;padding:10px 14px;border-radius:20px;background:var(--card);border:1px solid var(--bd);color:var(--mu);font-weight:600;pointer-events:none;transform:translateY(-50%);transition:color .1s,border-color .1s}#swh.r{right:10px}#swh.l{left:10px}#swh.go{color:var(--ac);border-color:var(--ac)}
 .tabs button.nx{outline:2px solid var(--ac);outline-offset:-2px}
 </style></head>
@@ -450,7 +452,7 @@ document.addEventListener('touchmove',e=>{
 document.addEventListener('touchend',()=>{
   if(!sw)return;if(sw.m!==2){sw=null;return}
   const dx=sw.d,j=SWT.indexOf(tab)+(dx<0?1:-1);
-  if(Math.abs(dx)>=SWTH&&j>=0&&j<SWT.length&&!(false)){const p=sw.p;p.style.transition='';p.style.transform='';p.style.opacity='';$('#swh')?.remove();SWT.forEach(k=>swBtn(k)?.classList.remove('nx'));sw=null;setTab(SWT[j]);}
+  if(Math.abs(dx)>=SWTH&&j>=0&&j<SWT.length&&!(false)){const p=sw.p;p.style.transition='';p.style.transform='';p.style.opacity='';$('#swh')?.remove();SWT.forEach(k=>swBtn(k)?.classList.remove('nx'));sw=null;setTab(SWT[j]);const np=swPane();np.classList.remove('slr','sll');void np.offsetWidth;np.classList.add(dx<0?'slr':'sll');setTimeout(()=>np.classList.remove('slr','sll'),260);}
   else swReset();
 },{passive:true});
 document.addEventListener('touchcancel',swReset,{passive:true});
