@@ -1,0 +1,13 @@
+name: rulecheck (temporary)
+on: workflow_dispatch
+permissions: {}
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Try to list all families (should be denied)
+        run: |
+          B="https://firestore.googleapis.com/v1/projects/nap-log-78cb6/databases/(default)/documents"
+          K="AIzaSyDDKYM5tvjTixUdBq0BAd9-recAyoL6TE4"
+          s=$(curl -s -o /dev/null -w '%{http_code}' "$B/families?key=$K&pageSize=1")
+          echo "::notice::list families -> HTTP $s ($([ "$s" = 403 ] && echo denied || echo ALLOWED))"
