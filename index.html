@@ -425,6 +425,19 @@ function setTab(t){
   if(t==='hist'){ensureMonth();renderHistory()}
   window.scrollTo(0,0);
 }
+// swipe left/right between Today and History
+let sw=null;
+document.addEventListener('touchstart',e=>{
+  const t=e.touches[0];
+  sw=e.touches.length===1&&!$('#dlg').open&&!e.target.closest('input,select,textarea,dialog')?{x:t.clientX,y:t.clientY,t:Date.now()}:null;
+},{passive:true});
+document.addEventListener('touchend',e=>{
+  if(!sw)return;const t=e.changedTouches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y,fast=Date.now()-sw.t<700;sw=null;
+  if(!fast||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx)*.5)return;
+  if(dx<0&&tab==='today')setTab('hist');else if(dx>0&&tab==='hist')setTab('today');
+},{passive:true});
+document.addEventListener('touchcancel',()=>{sw=null},{passive:true});
+
 // shared mode: fetch the part of the viewed month that is older than the live sync window (once per month)
 function ensureMonth(){
   if(!db)return;
