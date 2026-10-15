@@ -166,7 +166,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <h3>What "past 7 days" means</h3>
  <p>The 7 full days before today. Today never counts towards its own averages. Days with nothing logged are skipped, and a suggestion needs at least one day of data (otherwise it says "no data yet").</p>
  <h3>Nap suggestions</h3>
- <p>For each nap number (1st, 2nd, 3rd…) the app averages the start time and the length of that nap over the past 7 days. The number of naps planned is your "Target naps/day", or more if you have logged more.</p>
+ <p>For each nap number (1st, 2nd, 3rd…) the app looks at the past 7 days and works out her usual awake window before that nap (from the end of the previous sleep) and her usual nap length. The next nap is placed that awake window after the previous sleep ended, so a late wake-up or a long nap moves everything after it. Recent days count more than older ones: a day's weight halves every 4 days. When there is no awake-window data yet, the usual start time is used instead. The number of naps planned is your "Target naps/day", or more if you have logged more.</p>
  <h3>Wake-up</h3>
  <p>Shown as the average wake-up time of the past 7 nights, or the real time once this morning's night sleep has ended.</p>
  <h3>Nap time target</h3>
@@ -176,7 +176,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <h3>Awake window limits</h3>
  <p>Every awake window, from wake-up to the first nap, between naps, and before bedtime, is kept between 30 minutes and 3h 30m. A suggested nap never starts more than 3h 30m after the previous sleep ended. If the averages would give a longer wait, the nap is moved earlier.</p>
  <h3>Bedtime</h3>
- <p>Your target bedtime is the goal. The estimate lands exactly on it whenever the naps allow, and it can move up to 30 minutes either way if that is needed to respect the awake limits. If that is still not enough, the naps still to come are moved together, as little as possible, earlier or later than usual (the plan says by how much). If there are too few naps to stay under 3h 30m awake until bedtime, bedtime is moved earlier instead and the plan suggests adding a nap.</p>
+ <p>Your target bedtime is the goal. The estimate lands on it whenever the naps allow, and it can move up to 30 minutes either way if that is needed to respect the awake limits. It also leans a little (about a third) towards the end of the last nap plus the usual gap before bedtime from recent days, always staying within those limits. If that is still not enough, the naps still to come are moved together, as little as possible, earlier or later than usual (the plan says by how much). If there are too few naps to stay under 3h 30m awake until bedtime, bedtime is moved earlier instead and the plan suggests adding a nap.</p>
  <h3>Notifications</h3>
  <p>The app saves the time of the next nap or bedtime minus 30 minutes. A small job on GitHub checks about every 5 minutes (sometimes later) and sends a push to every phone with notifications turned on, saying how long is left. Each nap or bedtime is notified at most once. The notification is cancelled when the plan changes, for example when a nap starts early, and nothing is sent if the event is already less than 30 minutes away when the plan is made or if it is too late to be useful.</p>
  <h3>Symbols</h3>
@@ -268,11 +268,30 @@ const naps=()=>entries.filter(e=>e.type==='nap').sort((a,b)=>a.start-b.start);
 const byDay=l=>{const m={};l.forEach(e=>(m[sod(e.start)]??=[]).push(e));return m};
 const win7=()=>{const t=sod(Date.now());return[t-7*DAY,t]};
 
-// average start + length of the n-th nap of the day over the past 7 days
+// Recent days count more: a day's weight halves every 4 days (tested on the logged history: this tracks changes sooner).
+const rw=day=>Math.pow(.5,Math.round((sod(Date.now())-day)/DAY)/4);
+const wavg=(xs)=>{let a=0,b=0;xs.forEach(([v,w])=>{a+=v*w;b+=w});return a/b};
+// the night that ended on a given day = that morning's wake-up
+const wakeOf=day=>entries.find(e=>e.type==='night'&&e.end&&sod(e.end)===day);
+// the n-th nap of the day: usual start, usual length, and the usual awake window before it (from the end of the previous sleep).
+// The awake window is what the plan is built on: a late wake-up or a long nap moves everything after it.
 function suggest(n){
+  const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),xs=[],gs=[];
+  for(const d in m)if(+d>=f&&+d<t&&m[d][n-1]){
+    const e=m[d][n-1],w=rw(+d);xs.push([e,w]);
+    const pe=n===1?(wakeOf(+d)||{}).end:m[d][n-2].end;
+    if(pe&&e.start>pe)gs.push([(e.start-pe)/6e4,w]);
+  }
+  return xs.length?{start:wavg(xs.map(([e,w])=>[tod(e.start),w])),len:wavg(xs.map(([e,w])=>[(e.end-e.start)/6e4,w])),gap:gs.length?wavg(gs):null,n:xs.length}:null;
+}
+// usual time between the last nap of the day and bedtime (recent days weighted more)
+function bedGap(){
   const[f,t]=win7(),m=byDay(naps().filter(e=>e.end)),xs=[];
-  for(const d in m)if(+d>=f&&+d<t&&m[d][n-1])xs.push(m[d][n-1]);
-  return xs.length?{start:avg(xs.map(e=>tod(e.start))),len:avg(xs.map(e=>(e.end-e.start)/6e4)),n:xs.length}:null;
+  for(const d in m)if(+d>=f&&+d<t){
+    const b=entries.find(e=>e.type==='night'&&sod(e.start)===+d),l=m[d][m[d].length-1];
+    if(b&&b.start>l.end)xs.push([(b.start-l.end)/6e4,rw(+d)]);
+  }
+  return xs.length?wavg(xs):null;
 }
 // target for total nap time per day = average of the daily nap totals over the past 7 days (night sleep not counted)
 function napTarget(){
@@ -374,7 +393,7 @@ function render(){
     nums.forEach(n=>{
       const g=gs[n];
       if(!g){out.push({n,nodata:true});pv=null;done=false;return}
-      let s=g.start+d;
+      let s=(pv!=null&&g.gap!=null?pv+g.gap:g.start)+d; // usual awake window after the previous sleep (usual clock time if unknown)
       if(pv!=null)s=Math.max(Math.min(s,pv+MAXAWAKE),pv+MINGAP);
       out.push({n,s,e:s+g.len,add:g.add||0,aw:pv!=null&&s>pv?s-pv:null});pv=s+g.len;
     });
@@ -392,6 +411,12 @@ function render(){
   rows.push(...plan.out);
   let B=null;
   if(best)B=best.ok?Math.min(Math.max(bt,best.x),best.y):(plan.last+MAXAWAKE<lo?plan.last+MAXAWAKE:plan.last+MINGAP);
+  // lean 35% towards last nap + the usual gap to bedtime, but never outside the limits above
+  const bg=bedGap();
+  if(B!=null&&bg!=null&&plan.last!=null){
+    const lo2=best&&best.ok?best.x:plan.last+MINGAP,hi2=best&&best.ok?best.y:plan.last+MAXAWAKE;
+    if(best&&best.ok)B=Math.min(Math.max(.65*B+.35*(plan.last+bg),lo2),hi2);
+  }
   const bn=entries.find(e=>e.type==='night'&&sod(e.start)===today);
 
   // "Next nap in …" / "Bedtime in …" under the ring (only while awake)
