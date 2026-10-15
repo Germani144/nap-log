@@ -221,7 +221,12 @@ const $=s=>document.querySelector(s);
 const DAY=864e5,P=n=>String(n).padStart(2,'0');
 const load=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
-let settings=load('nt_settings',{targetNaps:4,bedtime:'19:30'}),entries=load('nt_entries',[]),family=load('nt_family',''),db=null,unsubs=[],famData=null,lastNotifyWrite='';
+// Everything synced from the shared log is checked before use: the page builds HTML from it, so a malformed
+// (or malicious) value must never reach the screen as markup or script. Bad entries are dropped, bad settings reset.
+const okE=e=>!!e&&typeof e.id==='string'&&/^[\w-]{1,64}$/.test(e.id)&&(e.type==='nap'||e.type==='night')&&Number.isFinite(e.start)&&(e.end==null||Number.isFinite(e.end));
+const okS=s=>({targetNaps:Math.min(8,Math.max(1,Math.round(+(s&&s.targetNaps))||4)),bedtime:/^([01]\d|2[0-3]):[0-5]\d$/.test(s&&s.bedtime)?s.bedtime:'19:30'});
+const esc=v=>String(v).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+let settings=okS(load('nt_settings',{})),entries=[].concat(load('nt_entries',[])).filter(okE),family=load('nt_family',''),db=null,unsubs=[],famData=null,lastNotifyWrite='';
 
 const sod=t=>{const d=new Date(t);d.setHours(0,0,0,0);return +d};
 const tod=t=>{const d=new Date(t);return d.getHours()*60+d.getMinutes()};
@@ -256,9 +261,9 @@ function connect(){
     try{firebase.firestore().enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch{}
   }
   db=firebase.firestore();
-  unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};lastNotifyWrite='';const s=famData.settings;if(s){settings=s;save('nt_settings',s);initForm()}render()}));
+  unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};lastNotifyWrite='';const s=famData.settings;if(s){settings=okS(s);save('nt_settings',settings);initForm()}render()}));
   // only sync the last 14 days: all the plan and the 7-day averages need, and it keeps Firestore reads tiny
-  unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data());save('nt_entries',entries);render()}));
+  unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data()).filter(okE);save('nt_entries',entries);render()}));
   setSync('shared');
   refreshSub();renderPush();
 }
@@ -629,8 +634,8 @@ function ensureMonth(){
   if(upto<=from||loadedM.has(from))return;
   loadedM.add(from);
   fam().collection('entries').where('start','>=',from-DAY).where('start','<',upto).get()
-    .then(q=>{q.docs.forEach(d=>hist[d.id]=d.data());histNote=q.size?'':'No older entries found in the shared log for this month.';renderHistory()})
-    .catch(e=>{loadedM.delete(from);histNote='Could not load older days: '+(e&&e.message||e);renderHistory()});
+    .then(q=>{q.docs.forEach(d=>{const e=d.data();if(okE(e))hist[e.id]=e});histNote=q.size?'':'No older entries found in the shared log for this month.';renderHistory()})
+    .catch(e=>{loadedM.delete(from);histNote='Could not load older days: '+esc(e&&e.message||e);renderHistory()});
 }
 function showMonth(y,m){
   viewM=new Date(y,m,1);
@@ -711,7 +716,7 @@ $('#esave').onclick=()=>{
 $('#ecancel').onclick=()=>$('#dlg').close();
 $('#edel').onclick=()=>{if(confirm('Delete this entry?')){removeEntry(ed.id);$('#dlg').close()}};
 $('#ssave').onclick=()=>{
-  settings={targetNaps:+$('#sn').value||4,bedtime:normT($('#sb').value)||settings.bedtime||'19:30'};
+  settings=okS({targetNaps:$('#sn').value,bedtime:normT($('#sb').value)||settings.bedtime});
   save('nt_settings',settings);
   const f=$('#sf').value.trim();
   if(f!==family){family=f;save('nt_family',f);connect()}
