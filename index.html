@@ -71,6 +71,8 @@ button.x.wide{font-weight:400;padding:4px 8px;width:auto;display:inline-block}
 .pushrow{margin-top:4px}
 .bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:0 0 8px}
 .bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
+#swh{position:fixed;top:50%;z-index:50;padding:10px 14px;border-radius:20px;background:var(--card);border:1px solid var(--bd);color:var(--mu);font-weight:600;pointer-events:none;transform:translateY(-50%);transition:color .1s,border-color .1s}#swh.r{right:10px}#swh.l{left:10px}#swh.go{color:var(--ac);border-color:var(--ac)}
+.tabs button.nx{outline:2px solid var(--ac);outline-offset:-2px}
 </style></head>
 <body>
 <h1>😴 Nap Log <span class="mu" id="sync"></span></h1>
@@ -425,18 +427,33 @@ function setTab(t){
   if(t==='hist'){ensureMonth();renderHistory()}
   window.scrollTo(0,0);
 }
-// swipe left/right between Today and History
+// swipe left/right to change tab, with live feedback: the page follows the finger, a label names the next tab,
+// and it lights up once the swipe is long enough to switch.
+const SWT=['today','hist'],SWN={today:'Today',hist:'History'},SWTH=70;
+const swPane=()=>$(tab==='today'?'#v-today':'#v-hist');
+const swBtn=k=>$('#t-'+k);
 let sw=null;
+function swReset(){const p=sw&&sw.p;if(p){p.style.transition='transform .18s,opacity .18s';p.style.transform='';p.style.opacity=''}$('#swh')?.remove();SWT.forEach(k=>swBtn(k)?.classList.remove('nx'));sw=null}
 document.addEventListener('touchstart',e=>{
-  const t=e.touches[0];
-  sw=e.touches.length===1&&!$('#dlg').open&&!e.target.closest('input,select,textarea,dialog')?{x:t.clientX,y:t.clientY,t:Date.now()}:null;
+  sw=null;if(e.touches.length!==1||!(!$('#dlg').open&&!e.target.closest('input,select,textarea,dialog')))return;
+  const t=e.touches[0];sw={x:t.clientX,y:t.clientY,m:1,d:0,p:swPane()};
 },{passive:true});
-document.addEventListener('touchend',e=>{
-  if(!sw)return;const t=e.changedTouches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y,fast=Date.now()-sw.t<700;sw=null;
-  if(!fast||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx)*.5)return;
-  if(dx<0&&tab==='today')setTab('hist');else if(dx>0&&tab==='hist')setTab('today');
+document.addEventListener('touchmove',e=>{
+  if(!sw)return;const t=e.touches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y;
+  if(sw.m===1){if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){sw=null;return}if(Math.abs(dx)<10||Math.abs(dx)<Math.abs(dy)*1.2)return;sw.m=2;sw.p.style.transition='none'}
+  const j=SWT.indexOf(tab)+(dx<0?1:-1),ok=j>=0&&j<SWT.length,k=Math.min(1,Math.abs(dx)/SWTH);sw.d=ok?dx:0;
+  sw.p.style.transform=`translateX(${dx*(ok?.55:.15)}px)`;sw.p.style.opacity=ok?1-.35*k:1;
+  SWT.forEach((x,n)=>swBtn(x)?.classList.toggle('nx',ok&&n===j&&k>=1));
+  let h=$('#swh');if(!h){h=document.createElement('div');h.id='swh';document.body.appendChild(h)}
+  if(ok){h.textContent=(dx<0?'':'‹ ')+SWN[SWT[j]]+(dx<0?' ›':'');h.className=(dx<0?'r':'l')+(k>=1?' go':'');h.style.opacity=Math.min(1,k*1.4)}else h.style.opacity=0;
 },{passive:true});
-document.addEventListener('touchcancel',()=>{sw=null},{passive:true});
+document.addEventListener('touchend',()=>{
+  if(!sw)return;if(sw.m!==2){sw=null;return}
+  const dx=sw.d,j=SWT.indexOf(tab)+(dx<0?1:-1);
+  if(Math.abs(dx)>=SWTH&&j>=0&&j<SWT.length&&!(false)){const p=sw.p;p.style.transition='';p.style.transform='';p.style.opacity='';$('#swh')?.remove();SWT.forEach(k=>swBtn(k)?.classList.remove('nx'));sw=null;setTab(SWT[j]);}
+  else swReset();
+},{passive:true});
+document.addEventListener('touchcancel',swReset,{passive:true});
 
 // shared mode: fetch the part of the viewed month that is older than the live sync window (once per month)
 function ensureMonth(){
