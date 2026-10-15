@@ -4,8 +4,8 @@
  "short_name": "Naps",
  "start_url": ".",
  "display": "standalone",
- "background_color": "#1e1b4b",
- "theme_color": "#1e1b4b",
+ "background_color": "#1F2358",
+ "theme_color": "#1F2358",
  "icons": [
   {
    "src": "icon-192.png",

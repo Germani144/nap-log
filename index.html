@@ -3,87 +3,138 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#111827">
+<meta name="theme-color" content="#1F2358">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <title>Nap Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Young+Serif&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f6f7fb;--card:#fff;--tx:#111827;--mu:#6b7280;--ac:#4f46e5;--ok:#16a34a;--bd:#e5e7eb}
-@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#1e293b;--tx:#f1f5f9;--mu:#94a3b8;--ac:#818cf8;--ok:#4ade80;--bd:#334155}}
+:root{--dusk:#1F2358;--deep:#171A45;--panel:#2A2F70;--milk:#ECE9FF;--mute:#A6A9DA;--line:rgba(236,233,255,.14);--lamp:#FFB547;--lilac:#9C96F2;--ink:#14163A;--ok:#7FE3B8;
+ --bg:var(--dusk);--card:var(--panel);--tx:var(--milk);--mu:var(--mute);--ac:var(--lilac);--bd:var(--line);color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0 auto;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,sans-serif;max-width:520px;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom))}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
-h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:0 0 8px;color:var(--mu);font-weight:600}
-button{font:inherit;border:0;border-radius:10px;padding:12px 14px;background:var(--ac);color:#fff;cursor:pointer}
-button.x{background:transparent;color:var(--mu);padding:4px 8px}
-.row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd)}
-.row:last-child{border:0}
-.mu{color:var(--mu);font-size:14px}.ok{color:var(--ok)}
-.big{font-size:32px;font-weight:700}
-input,select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);width:100%}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-label{font-size:13px;color:var(--mu)}
+html{background:var(--dusk)}
+body{margin:0 auto;background:var(--dusk);color:var(--milk);font:15px/1.35 'Hanken Grotesk',system-ui,sans-serif;max-width:520px;padding:max(26px,env(safe-area-inset-top)) 22px max(40px,env(safe-area-inset-bottom))}
+.serif,h1,h2{font-family:'Young Serif',Georgia,serif;font-weight:400}
+h1{font-size:27px;letter-spacing:-.01em;margin:0}h2{font-size:21px;margin:0}
+header{display:flex;align-items:center;gap:10px}
+.chip{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mute);font-weight:500}
+.chip i{display:block;width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(127,227,184,.18)}
+.chip.local i{background:var(--lamp);box-shadow:0 0 0 3px rgba(255,181,71,.18)}
+button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:12px 20px;background:var(--lamp);color:var(--ink);cursor:pointer}
+button.alt,button.wide{background:transparent;border:1.5px solid var(--lilac);color:var(--milk)}
+button.x{background:transparent;color:var(--mute);font-weight:500;padding:4px 10px}
+button.x.del{color:#ff8a7a}
+button:focus-visible,summary:focus-visible{outline:2px solid var(--milk);outline-offset:2px}
+.mu{color:var(--mute);font-size:14px}.ok{color:var(--ok)}
+.card{background:var(--panel);border-radius:22px;padding:16px;margin:14px 0}
+input,select{font:inherit;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--deep);color:var(--milk);width:100%}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:13px;color:var(--mute)}
 .tap{cursor:pointer}
-.lnk{background:transparent;color:var(--ac);padding:8px 0 0}
-button.x.del{color:#dc2626}
-dialog{border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);width:min(92vw,400px);padding:16px}
-dialog::backdrop{background:rgba(0,0,0,.5)}
-.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:4px;margin:8px 0}
-.tabs button{flex:1;background:transparent;color:var(--mu);padding:8px}
-.tabs button.on{background:var(--ac);color:#fff}
-.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.calhead button{font-size:22px;padding:2px 14px}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
-.cal .h{font-size:12px;color:var(--mu);padding:2px 0}
-.cal button{position:relative;min-height:40px;padding:8px 0;background:transparent;color:var(--tx);border-radius:10px}
-.cal button.today{outline:1.5px solid var(--ac);outline-offset:-1.5px}
-.cal button.sel{background:var(--ac);color:#fff}
-.cal button.dot::after{content:'';position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}
-.cal button.sel.dot::after{background:#fff}
-.lnk{margin-right:16px}
-.clock{display:inline-block;min-width:68%;margin:6px 0 10px;padding:14px 24px;border:2px solid var(--ac);border-radius:20px;box-shadow:0 0 0 6px rgba(129,140,248,.14);font-size:clamp(40px,15vw,64px);font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-#now{text-align:center}
-#now h2{margin-bottom:6px}
-.nowbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
-#algo{margin:10px 0}
-#algo summary{list-style:none;cursor:pointer;text-align:center;padding:12px 14px;border:1.5px solid var(--ac);border-radius:10px;color:var(--ac);font-weight:600}
-#algo summary::-webkit-details-marker{display:none}
-#algo summary::after{content:' ▾'}
-#algo[open] summary::after{content:' ▴'}
-#algo .txt{font-size:14px;line-height:1.5}
+.lnk{background:transparent;color:var(--lilac);padding:8px 0 0;margin-right:16px;font-weight:600}
+dialog{border:0;border-radius:24px;background:var(--panel);color:var(--milk);width:min(92vw,400px);padding:20px}
+dialog::backdrop{background:rgba(10,12,40,.65)}
+dialog h2{font-size:19px;margin:0 0 14px}
+.tabs{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;background:var(--deep);border-radius:999px;padding:4px}
+.tabs button{background:transparent;color:var(--mute);padding:10px 0;font-weight:600}
+.tabs button.on{background:var(--milk);color:var(--ink)}
+.tabs button.nx{outline:2px solid var(--lamp);outline-offset:-2px}
+/* the day ring */
+.hero{position:relative;margin:22px -22px 0;height:352px;display:flex;align-items:center;justify-content:center}
+.hero .glow{position:absolute;inset:0;background:radial-gradient(closest-side at 50% 52%,rgba(255,181,71,.20),rgba(255,181,71,.07) 60%,transparent 80%)}
+.hero .glow.cool{background:radial-gradient(closest-side at 50% 52%,rgba(156,150,242,.28),rgba(156,150,242,.09) 60%,transparent 80%)}
+.hero svg.ring{position:absolute;left:50%;top:calc(50% - 4px);transform:translate(-50%,-50%);width:min(340px,100vw);height:auto}
+.hero .in{position:relative;text-align:center;margin-top:-8px}
+.hero .k{font-size:15px;color:var(--mute);font-weight:500}
+.hero .big{font-size:clamp(44px,14vw,54px);line-height:1;margin:6px 0 8px;letter-spacing:-.02em;font-family:'Young Serif',Georgia,serif;font-variant-numeric:tabular-nums}
+.hero .s{font-size:14px;color:var(--mute)}
+.hero.empty .big{font-size:26px}
+.next{text-align:center;margin-top:2px;font-size:17px;min-height:1.35em}
+.next b{color:var(--lamp);font-weight:700}
+.sub2{text-align:center;color:var(--mute);font-size:14px;margin-top:6px;min-height:1.35em}
+.nowbtns{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-top:18px}
+.nowbtns.one{grid-template-columns:1fr}
+.nowbtns button{height:58px;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px}
+.zz{font-family:'Apple Color Emoji','Noto Color Emoji','Segoe UI Emoji',sans-serif;font-size:20px;filter:url(#zzd);line-height:1}
+/* timeline */
+.sec{margin-top:34px}
+.tl{position:relative;margin-top:14px;padding-left:34px}
+.tl:before{content:'';position:absolute;left:9px;top:14px;bottom:14px;width:2px;background:var(--line)}
+.it{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:11px 0;min-height:44px}
+.it .nd{position:absolute;left:-33px;top:12px;width:20px;height:20px;border-radius:50%;background:var(--lilac);display:flex;align-items:center;justify-content:center}
+.it .nd.bd{background:var(--dusk);border:2px dashed var(--lamp)}
+.it .nd.nd0{background:var(--dusk);border:2px dashed var(--mute)}
+.it .t{font-weight:600;line-height:20px}
+.it .r{text-align:right;color:var(--mute);font-size:14px;line-height:20px}.it .r b{color:var(--milk);font-weight:600}
+.foot{margin-top:8px;font-size:13px;color:var(--mute);padding-left:34px}
+.sec>.lnk{padding-left:34px;margin-top:6px}
+/* folds */
+.folds{margin-top:30px;border-top:1px solid var(--line)}
+details.fold{border-bottom:1px solid var(--line)}
+details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:16px 0;font-weight:600}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:'';width:9px;height:9px;border-right:2px solid var(--mute);border-bottom:2px solid var(--mute);transform:rotate(45deg) translate(-2px,-2px)}
+details.fold[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+details.fold .in{padding:0 0 18px}
+details.fold .in p{margin:12px 0 0}
+#algo .txt{font-size:14px;line-height:1.5;padding-bottom:16px}
 #algo .txt h3{font-size:14px;margin:14px 0 4px}
 #algo .txt h3:first-child{margin-top:0}
 #algo .txt p{margin:4px 0}
-.row>.mu{text-align:right}
-.next{margin-top:12px;font-size:17px}
-.next b{font-size:19px}
-#setd{padding:0}
-#setd summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:14px;font-size:15px;font-weight:600;color:var(--mu)}
-#setd summary::-webkit-details-marker{display:none}
-#setd summary::after{content:'▾'}
-#setd[open] summary::after{content:'▴'}
-#setd .in{padding:0 14px 14px}
 #pushbox{text-align:center}
 #pushbox .mu{margin-top:8px}
-button.wide{display:block;width:100%;padding:14px;font-size:16px;font-weight:600}
-button.x.wide{font-weight:400;padding:4px 8px;width:auto;display:inline-block}
+button.wide{display:block;width:100%;padding:14px;font-size:16px}
+button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;border:0}
 .pushrow{margin-top:4px}
-.bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:0 0 8px}
-.bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
+/* history */
+.calp{margin-top:24px;background:var(--panel);border-radius:26px;padding:20px 14px 16px}
+.calhead{display:flex;align-items:center;justify-content:space-between;padding:0 4px}
+.calhead b{font-family:'Young Serif',Georgia,serif;font-weight:400;font-size:22px}
+.calhead button{font-size:22px;padding:2px 14px;font-weight:500}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);row-gap:4px;text-align:center;margin-top:12px}
+.cal .h{font-size:12px;color:var(--mute);padding:2px 0 6px;font-weight:600}
+.cal button{position:relative;height:56px;padding:6px 0 0;background:transparent;color:var(--milk);border-radius:15px;font-weight:500;display:block}
+.cal button u{position:absolute;bottom:7px;left:50%;margin-left:-3.5px;width:7px;border-radius:4px;background:var(--lilac)}
+.cal button.today{box-shadow:inset 0 0 0 1.5px var(--milk)}
+.cal button.sel{background:var(--lamp);color:var(--ink);font-weight:700}
+.cal button.sel u{background:var(--ink)}
+.leg{margin-top:12px;padding:0 6px;font-size:12.5px;color:var(--mute)}
+#day{margin-top:30px}
+#day h2{font-size:25px}
+#day .sum{margin-top:4px;color:var(--mute)}
+.strip{position:relative;height:56px;margin-top:18px}
+.strip .ax{position:absolute;left:0;right:0;top:20px;height:24px;border-radius:12px;background:var(--deep)}
+.strip .blk{position:absolute;top:20px;height:24px;border-radius:12px;background:var(--lilac)}
+.strip .tick{position:absolute;top:48px;font-size:11px;color:var(--mute);transform:translateX(-50%)}
+.strip .bed{position:absolute;top:16px;transform:translateX(-50%)}
 @keyframes slr{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}@keyframes sll{from{transform:translateX(-40px);opacity:.3}to{transform:none;opacity:1}}
 .slr{animation:slr .2s ease-out}.sll{animation:sll .2s ease-out}
-#swh{position:fixed;top:50%;z-index:50;padding:10px 14px;border-radius:20px;background:var(--card);border:1px solid var(--bd);color:var(--mu);font-weight:600;pointer-events:none;transform:translateY(-50%);transition:color .1s,border-color .1s}#swh.r{right:10px}#swh.l{left:10px}#swh.go{color:var(--ac);border-color:var(--ac)}
-.tabs button.nx{outline:2px solid var(--ac);outline-offset:-2px}
+#swh{position:fixed;top:50%;z-index:50;padding:10px 14px;border-radius:20px;background:var(--panel);border:1px solid var(--line);color:var(--mute);font-weight:600;pointer-events:none;transform:translateY(-50%);transition:color .1s,border-color .1s}#swh.r{right:10px}#swh.l{left:10px}#swh.go{color:var(--lamp);border-color:var(--lamp)}
+@media(prefers-reduced-motion:reduce){.slr,.sll{animation:none}}
+.addrow{padding-left:34px}
 </style></head>
 <body>
-<h1>😴 Nap Log <span class="mu" id="sync"></span></h1>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<filter id="zzd" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 .122  0 0 0 0 .137  0 0 0 0 .345  0 0 0 1 0"/></filter>
+<filter id="zza" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .71  0 0 0 0 .278  0 0 0 1 0"/></filter>
+</defs></svg>
+<header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="chip" id="sync"><i></i>…</span></header>
 <div class="tabs"><button id="t-today" class="on" onclick="setTab('today')">Today</button><button id="t-hist" onclick="setTab('hist')">History</button></div>
 
 <div id="v-today">
-<div class="card" id="now"></div>
-<div class="card"><h2>Today's plan</h2><div id="plan"></div><button class="lnk" onclick="openAdd('nap')">＋ Add extra nap</button></div>
-<details class="card" id="setd"><summary>⚙ Settings</summary>
+<div class="hero" id="hero"></div>
+<div class="next" id="nextev"></div>
+<div class="sub2" id="sub2"></div>
+<div class="nowbtns" id="nowbtns"></div>
+
+<section class="sec"><h2 id="plantitle">Today's plan</h2>
+<div class="tl" id="plan"></div><div id="planfoot"></div>
+<button class="lnk" id="addnap" onclick="openAdd('nap')">＋ Add extra nap</button></section>
+
+<div class="folds">
+<details class="fold" id="setd"><summary>Settings</summary>
 <div class="in">
  <div class="grid">
   <div><label>Target naps/day</label><input type="number" id="sn" min="1" max="8"></div>
@@ -94,19 +145,24 @@ button.x.wide{font-weight:400;padding:4px 8px;width:auto;display:inline-block}
 </div>
 </details>
 
-<div class="card" id="pushbox">
+<details class="fold" id="pushd"><summary>Notifications</summary>
+<div class="in" id="pushbox">
  <button id="pushbtn" class="wide">🔔 Enable push notifications</button>
  <div class="mu" id="pushstat">…</div>
  <div class="pushrow"><button class="x" id="pushtest" hidden>Send test</button></div>
  <div class="mu" id="pushmsg"></div>
 </div>
+</details>
 
-<details id="algo"><summary>🧠 Algorithm: how it works</summary>
-<div class="card txt">
- <h3>The clock</h3>
- <p>"Awake for" counts from the end of the last nap or night sleep, whichever ended most recently. While a nap or night is running it switches to "Asleep for".</p>
+<details class="fold" id="algo"><summary>How the plan works</summary>
+<div class="txt">
+ <h3>The ring</h3>
+ <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The darker band shows how far the day has come, with the current time at its end. In the middle, "Awake for" counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running it switches to "Asleep for".</p>
+ <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a plain dot.</p>
+ <h3>The night ring</h3>
+ <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
  <h3>Next nap / bedtime</h3>
- <p>Under the clock, while she is awake: the time until the next nap in the plan for today, or until bedtime once all planned naps are done. If that time has passed it says "overdue by ...". It is hidden while she sleeps, and when there is not enough data for the next nap.</p>
+ <p>Under the ring, while she is awake: the time until the next nap in the plan for today, or until bedtime once all planned naps are done. If that time has passed it says "overdue by ...". It is hidden while she sleeps, and when there is not enough data for the next nap.</p>
  <h3>What "past 7 days" means</h3>
  <p>The 7 full days before today. Today never counts towards its own averages. Days with nothing logged are skipped, and a suggestion needs at least one day of data (otherwise it says "no data yet").</p>
  <h3>Nap suggestions</h3>
@@ -128,10 +184,11 @@ button.x.wide{font-weight:400;padding:4px 8px;width:auto;display:inline-block}
 </div>
 </details>
 </div>
+</div>
 
 <div id="v-hist" hidden>
-<div class="card" id="cal"></div>
-<div class="card" id="day"></div>
+<div class="calp" id="cal"></div>
+<div id="day"></div>
 </div>
 
 <dialog id="dlg">
@@ -180,6 +237,7 @@ const findE=id=>entries.find(x=>x.id===id)||hist[id];
 
 // ---------- storage / sync ----------
 const fam=()=>db.collection('families').doc(family);
+const setSync=(t,local)=>{const e=$('#sync');e.className='chip'+(local?' local':'');e.innerHTML='<i></i>'+t};
 function putEntry(e){
   if(db){
     fam().collection('entries').doc(e.id).set(e);
@@ -192,7 +250,7 @@ function removeEntry(id){
 }
 function connect(){
   unsubs.forEach(f=>f());unsubs=[];db=null;famData=null;
-  if(typeof firebase==='undefined'||!FIREBASE_CONFIG||!family){$('#sync').textContent='· local only';return render()}
+  if(typeof firebase==='undefined'||!FIREBASE_CONFIG||!family){setSync('local only',true);return render()}
   if(!firebase.apps.length){
     firebase.initializeApp(FIREBASE_CONFIG);
     try{firebase.firestore().enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch{}
@@ -201,7 +259,7 @@ function connect(){
   unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};lastNotifyWrite='';const s=famData.settings;if(s){settings=s;save('nt_settings',s);initForm()}render()}));
   // only sync the last 14 days: all the plan and the 7-day averages need, and it keeps Firestore reads tiny
   unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data());save('nt_entries',entries);render()}));
-  $('#sync').textContent='· shared';
+  setSync('shared');
   refreshSub();renderPush();
 }
 
@@ -247,19 +305,47 @@ function openAdd(type,day){
   $('#edel').style.display='none';$('#dlg').showModal();
 }
 
+// ---------- day dial ----------
+// The ring is the day: wake-up (sun) to bedtime (moon) along a 290 degree arc. Angles are degrees clockwise from the top.
+const GR=128,GST=215,GSW=290,GHW=15,GFONT="'Apple Color Emoji','Noto Color Emoji','Segoe UI Emoji',sans-serif",GSANS="'Hanken Grotesk',system-ui,sans-serif";
+const f1=n=>n.toFixed(1);
+const gpt=(r,t)=>{const a=t*Math.PI/180;return[150+r*Math.sin(a),150-r*Math.cos(a)]};
+const garc=(r,t1,t2,sw=1)=>{const p=gpt(r,t2);return`A${r} ${r} 0 ${Math.abs(t2-t1)>180?1:0} ${sw} ${f1(p[0])} ${f1(p[1])}`};
+const gline=(t1,t2,col,w)=>{if(t2-t1<.05)return'';const p=gpt(GR,t1);return`<path d="M${f1(p[0])} ${f1(p[1])} ${garc(GR,t1,t2)}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`};
+// A nap bar between two angles. Rule: the bar is only drawn as a capsule when it is at least 30px long, and the 💤 is
+// only added when it is at least 38px long. Anything shorter is a plain circle, so the emoji never spills outside the nap.
+function gcap(t1,t2,dashed){
+  const px=GR*(t2-t1)*Math.PI/180,fill=dashed?'#1F2358':'#9C96F2',st=dashed?' stroke="#FFB547" stroke-width="2.2" stroke-dasharray="4 4"':'',mid=(t1+t2)/2;
+  if(px<30){const p=gpt(GR,mid);return`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${GHW}" fill="${fill}"${st}/>`}
+  const d0=GHW/GR*180/Math.PI,a1=t1+d0,a2=t2-d0,o1=gpt(GR+GHW,a1),i2=gpt(GR-GHW,a2);
+  let s=`<path d="M${f1(o1[0])} ${f1(o1[1])} ${garc(GR+GHW,a1,a2)} A${GHW} ${GHW} 0 0 1 ${f1(i2[0])} ${f1(i2[1])} ${garc(GR-GHW,a2,a1,0)} A${GHW} ${GHW} 0 0 1 ${f1(o1[0])} ${f1(o1[1])}Z" fill="${fill}"${st}/>`;
+  if(px>=38){const p=gpt(GR,mid);s+=`<text x="${f1(p[0])}" y="${f1(p[1]+6)}" text-anchor="middle" font-size="17" font-family="${GFONT}" filter="url(#${dashed?'zza':'zzd'})">💤</text>`}
+  return s;
+}
+const gsun=(x,y,c)=>`<g transform="translate(${f1(x-10)} ${f1(y-10)})" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"><circle cx="10" cy="10" r="3.6" fill="${c}" stroke="none"/><path d="M10 2.2v2.4M10 15.4v2.4M2.2 10h2.4M15.4 10h2.4M4.5 4.5l1.7 1.7M13.8 13.8l1.7 1.7M4.5 15.5l1.7-1.7M13.8 6.2l1.7-1.7"/></g>`;
+const gmoon=(x,y,c)=>`<g transform="translate(${f1(x-9)} ${f1(y-9)}) scale(.9)"><path d="M13.5 3a8 8 0 1 0 3.5 14 6.5 6.5 0 0 1-3.5-14z" fill="${c}"/></g>`;
+const gdisc=(t,icon,col,dash)=>{const p=gpt(GR,t);return`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="19" fill="#1F2358" stroke="${col}" stroke-width="2.5"${dash?' stroke-dasharray="4 3.5"':''}/>`+icon(p[0],p[1],col)};
+const gtext=(x,y,t,col,w,sz)=>`<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" font-family="${GSANS}" font-weight="${w||600}" font-size="${sz||13}" fill="${col}">${t}</text>`;
+const gunder=(t,txt,col)=>{const p=gpt(GR,t);return gtext(p[0],p[1]+38,txt,col)};
+const gnow=(t,txt)=>{const p=gpt(GR+34,t);return gtext(p[0],p[1]+4,txt,'#FFB547',700,12.5)};
+const GDEFS='<defs><linearGradient id="cool" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8C86EE"/><stop offset="1" stop-color="#C4BFFF"/></linearGradient></defs>';
+const IC={
+  sun:'<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#14163A" stroke-width="2.2" stroke-linecap="round"><circle cx="10" cy="10" r="3.4" fill="#14163A" stroke="none"/><path d="M10 1.8v2.6M10 15.6v2.6M1.8 10h2.6M15.6 10h2.6M4.2 4.2l1.8 1.8M14 14l1.8 1.8M4.2 15.8L6 14M14 6l1.8-1.8"/></svg>',
+  check:'<svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#14163A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>',
+  moon:'<svg width="13" height="13" viewBox="0 0 20 20"><path d="M13.5 3a8 8 0 1 0 3.5 14 6.5 6.5 0 0 1-3.5-14z" fill="#14163A"/></svg>',
+  sunA:'<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#FFB547" stroke-width="2.2" stroke-linecap="round"><circle cx="10" cy="10" r="3.4" fill="#FFB547" stroke="none"/><path d="M10 1.8v2.6M10 15.6v2.6M1.8 10h2.6M15.6 10h2.6M4.2 4.2l1.8 1.8M14 14l1.8 1.8M4.2 15.8L6 14M14 6l1.8-1.8"/></svg>',
+  moonA:'<svg width="12" height="12" viewBox="0 0 20 20"><path d="M13.5 3a8 8 0 1 0 3.5 14 6.5 6.5 0 0 1-3.5-14z" fill="#FFB547"/></svg>'
+};
+// one timeline row: node icon, label, right-hand details
+const tlRow=(icon,cls,t,r,click)=>`<div class="it${click?' tap':''}"${click?` onclick="${click}"`:''}><div class="nd ${cls||''}">${icon}</div><span class="t">${t}</span><span class="r">${r}</span></div>`;
+
 // ---------- rendering ----------
 function render(){
   const run=entries.find(e=>!e.end);
-  if(run){
-    $('#now').innerHTML=`<h2>Asleep for</h2><div class="clock">${dur((Date.now()-run.start)/6e4)}</div><div class="mu">since ${hm(tod(run.start))} · ${run.type==='nap'?'nap':'night sleep'}</div><div class="nowbtns"><button onclick="stopE('${run.id}')">End ${run.type==='nap'?'nap':'night sleep'}</button></div>`;
-  }else{
-    const last=entries.filter(e=>e.end).sort((a,b)=>b.end-a.end)[0];
-    $('#now').innerHTML=`<h2>Awake${last?' for':''}</h2>${last?`<div class="clock">${dur((Date.now()-last.end)/6e4)}</div><div class="mu">since ${hm(tod(last.end))}</div>`:'<div class="mu">No entries yet</div>'}<div id="nextev" class="next"></div><div class="nowbtns"><button onclick="startE('nap')">Start nap</button><button onclick="startE('night')">Start night</button></div>`;
-  }
 
   // plan: wake-up -> naps (actual or suggested) -> bedtime. All times are minutes of the day.
   const MAXAWAKE=210,MINGAP=30,MAXNAP=180,BEDFLEX=30; // awake windows stay within 30m-3.5h; a lengthened nap is capped at 3h; bedtime may move 30m from the target
-  const today=sod(Date.now()),nowM=tod(Date.now()),tn=naps().filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
+  const nowT=Date.now(),today=sod(nowT),nowM=tod(nowT),tn=naps().filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
   const we=entries.find(e=>e.type==='night'&&e.end&&e.end>=today),T=napTarget();
   const exp=a=>{ // end of a logged nap; one still running is expected to last its average length
     if(a.end)return tod(a.end);
@@ -275,12 +361,7 @@ function render(){
     if(def>0)rem.forEach(n=>{const add=Math.min(def*gs[n].len/S,MAXNAP-gs[n].len);if(add>0){gs[n].add=add;gs[n].len+=add}});
   }
 
-  let prev=wakeEst(),h='';
-  if(T!=null){
-    const done=tn.reduce((x,a)=>x+((a.end||Date.now())-a.start)/6e4,0);
-    h+=`<div class="row" style="border:0;padding-bottom:4px"><span>Nap time today</span><span class="mu">${dur(done)} of ~${dur(T)}</span></div><div class="bar"><i style="width:${Math.min(100,done/T*100)}%"></i></div>`;
-  }
-  if(prev!=null)h+=we?`<div class="row tap" onclick="openEdit('${we.id}')"><span><b class="ok">✓</b> Wake-up</span><span class="mu">${hm(prev)} ›</span></div>`:`<div class="row"><span>Wake-up</span><span class="mu">~${hm(prev)}</span></div>`;
+  const wk0=wakeEst();let prev=wk0;
 
   // naps already logged keep their real times
   const rows=[];
@@ -311,25 +392,9 @@ function render(){
   rows.push(...plan.out);
   let B=null;
   if(best)B=best.ok?Math.min(Math.max(bt,best.x),best.y):(plan.last+MAXAWAKE<lo?plan.last+MAXAWAKE:plan.last+MINGAP);
-
-  rows.forEach(r=>{
-    if(r.nodata){h+=`<div class="row"><span>Nap ${r.n}</span><span class="mu">no data yet</span></div>`;return}
-    const a=r.a,span=a&&!a.end?'now':hm(r.e)+' ('+dur(r.e-r.s)+(r.add>=5?', +'+dur(r.add):'')+')',aw=r.aw!=null?` · awake&nbsp;${dur(r.aw)}`:'';
-    h+=`<div class="row${a?' tap':''}"${a?` onclick="openEdit('${a.id}')"`:''}><span>${a?'<b class="ok">✓</b> ':''}Nap ${r.n}</span><span class="mu">${a?'':'~'}${hm(r.s)}–${span}${aw}${a?' ›':''}</span></div>`;
-  });
   const bn=entries.find(e=>e.type==='night'&&sod(e.start)===today);
-  if(bn)h+=`<div class="row tap" onclick="openEdit('${bn.id}')"><span><b class="ok">✓</b> Bedtime</span><span class="mu">${hm(tod(bn.start))} · target ${settings.bedtime} ›</span></div>`;
-  else{
-    const dev=B!=null?Math.round(B-bt):0;
-    const t=B!=null?`~${hm(B)} · ${dev===0?'on target':'target '+settings.bedtime+' ('+(dev>0?'+':'−')+dur(Math.abs(dev))+')'} · awake&nbsp;${dur(B-plan.last)}`:`target ${settings.bedtime}`;
-    h+=`<div class="row tap" onclick="openAdd('night')"><span>Bedtime</span><span class="mu">${t} ›</span></div>`;
-    if(B!=null&&B<lo-1)h+=`<div class="mu" style="margin-top:6px">⚠ Not enough naps to stay under 3h 30m awake until your target bedtime. Consider adding a nap.</div>`;
-  }
-  if(shift&&!bn)h+=`<div class="mu" style="margin-top:6px">Naps moved ${dur(Math.abs(shift))} ${shift>0?'later':'earlier'} than usual to fit bedtime</div>`;
-  h+=`<div class="mu" style="margin-top:6px">~ = based on the past 7 days · tap a row to edit</div>`;
-  $('#plan').innerHTML=h;
 
-  // "Next nap in …" / "Bedtime in …" under the clock (only while awake)
+  // "Next nap in …" / "Bedtime in …" under the ring (only while awake)
   let nx='',want=null;
   if(!run&&!bn){
     const r=rows.find(x=>!x.a);let label,t,k,nm;
@@ -342,7 +407,82 @@ function render(){
       want={key:k+'-'+isoDay(today),at:ev-30*60000,event:ev,label:nm,time:hm(t)}; // notify 30 min before
     }
   }
-  const ne=$('#nextev');if(ne)ne.innerHTML=nx;
+
+  let svg='',cool=false,k='',big='',small='',sub='',btns='',one=false,empty=false,tl='',foot='',title="Today's plan",showAdd=true;
+  const napDone=tn.reduce((x,a)=>x+((a.end||nowT)-a.start)/6e4,0);
+
+  if(run&&run.type==='night'){
+    // the ring becomes a loading ring for the expected night: the average of the nights in the last 8 days
+    cool=true;showAdd=false;title='Tonight';one=true;
+    const ns=entries.filter(e=>e.type==='night'&&e.end&&e.end>=nowT-8*DAY),avgN=ns.length?avg(ns.map(e=>(e.end-e.start)/6e4)):630;
+    const el=(nowT-run.start)/6e4,left=avgN-el,th=m=>GST+GSW*Math.min(1,Math.max(0,m/avgN)),wakeT=run.start+avgN*6e4;
+    const ppm=GR*GSW*Math.PI/180/avgN;
+    svg=GDEFS+gline(th(0),th(avgN),'#171A45',22)+(el>.5?gline(th(0),th(Math.min(el,avgN)),'url(#cool)',22):'')
+      +(el*ppm>30&&left*ppm>30?gnow(th(el),hm(tod(nowT))):'')
+      +gdisc(th(0),gmoon,'#B9B4FF',false)+gdisc(th(avgN),gsun,'#FFB547',true)
+      +gunder(th(0),hm(tod(run.start)),'#ECE9FF')+gunder(th(avgN),'~'+hm(tod(wakeT)),'#A6A9DA');
+    k='Asleep for';big=dur(el);small='since '+hm(tod(run.start));
+    nx=left>0?`Expected wake-up in <b>${dur(left)}</b> <span class="mu">~${hm(tod(wakeT))}</span>`:'<span class="mu">Past the usual wake-up time</span>';
+    const nd=tn.filter(e=>e.end).reduce((x,e)=>x+(e.end-e.start)/6e4,0);
+    sub=nd>0?'Naps today: '+dur(nd):'';
+    btns=`<button onclick="stopE('${run.id}')">Wake up</button>`;
+    if(we)tl+=tlRow(IC.sun,'','Wake-up',`<b>${hm(tod(we.end))}</b>`,`openEdit('${we.id}')`);
+    tn.filter(e=>e.end).forEach((e,i)=>tl+=tlRow(IC.check,'','Nap '+(i+1),`<b>${hm(tod(e.start))}–${hm(tod(e.end))}</b> &nbsp;${dur((e.end-e.start)/6e4)}`,`openEdit('${e.id}')`));
+    tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(run.start))}</b>`,`openEdit('${run.id}')`);
+    tl+=tlRow(IC.sunA,'bd','Wake-up',`<b>~${hm(tod(wakeT))}</b><br>after about ${dur(avgN)}`);
+    foot='~ = based on the nights of the past 8 days · tap a row to edit';
+  }else{
+    let a=wk0!=null?wk0:420,b=bn?tod(bn.start):(B!=null?B:bt);
+    const sp=rows.filter(r=>!r.nodata);
+    sp.forEach(r=>{a=Math.min(a,r.s);b=Math.max(b,r.e)});
+    if(b<a+240)b=a+240;
+    const th=m=>GST+GSW*Math.min(1,Math.max(0,(m-a)/(b-a))),ppm=GR*GSW*Math.PI/180/(b-a);
+    svg=GDEFS+gline(th(a),th(b),'#171A45',22)+(nowM>a?gline(th(a),th(Math.min(nowM,b)),'#343A8C',22):'');
+    sp.forEach(r=>{
+      if(r.a&&!r.a.end)svg+=gcap(th(r.s),th(Math.max(nowM,r.s)),false);
+      else svg+=gcap(th(r.s),th(r.e),!r.a);
+    });
+    if(nowM>a&&nowM<b&&(nowM-a)*ppm>30&&(b-nowM)*ppm>30)svg+=gnow(th(nowM),hm(nowM));
+    svg+=gdisc(th(a),gsun,'#FFB547',!we)+gdisc(th(b),gmoon,'#FFB547',!bn)
+      +gunder(th(a),(we?'':'~')+hm(a),we?'#ECE9FF':'#A6A9DA')+gunder(th(b),(bn?'':'~')+hm(b),bn?'#ECE9FF':'#A6A9DA');
+    if(run){
+      cool=true;one=true;k='Asleep for';big=dur((nowT-run.start)/6e4);small='since '+hm(tod(run.start))+' · nap';
+      btns=`<button onclick="stopE('${run.id}')">End nap</button>`;
+    }else{
+      const last=entries.filter(e=>e.end).sort((x,y)=>y.end-x.end)[0];
+      if(last){k='Awake for';big=dur((nowT-last.end)/6e4);small='since '+hm(tod(last.end))+(last.type==='nap'&&tn.includes(last)?', after nap '+(tn.indexOf(last)+1):last.type==='night'?', after night sleep':'')}
+      else{big='No entries yet';empty=true}
+      btns=`<button onclick="startE('nap')"><span class="zz">💤</span>Start nap</button><button class="alt" onclick="startE('night')">Start night</button>`;
+    }
+    sub=T!=null?`Nap time today: ${dur(napDone)} of about ${dur(T)}`:'';
+
+    if(wk0!=null)tl+=we?tlRow(IC.sun,'','Wake-up',`<b>${hm(wk0)}</b>`,`openEdit('${we.id}')`):tlRow(IC.sunA,'bd','Wake-up',`<b>~${hm(wk0)}</b>`);
+    rows.forEach(r=>{
+      if(r.nodata){tl+=tlRow('','nd0','Nap '+r.n,'no data yet');return}
+      const x=r.a,aw=r.aw!=null?`<br>awake ${dur(r.aw)} first`:'';
+      if(x)tl+=tlRow(IC.check,'','Nap '+r.n,`<b>${hm(r.s)}–${x.end?hm(r.e):'now'}</b> &nbsp;${dur((x.end?r.e:nowM)-r.s)}${aw}`,`openEdit('${x.id}')`);
+      else tl+=tlRow('','bd','Nap '+r.n,`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}${r.add>=5?' (+'+dur(r.add)+')':''}${aw}`);
+    });
+    if(bn)tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(bn.start))}</b><br>target ${settings.bedtime}`,`openEdit('${bn.id}')`);
+    else{
+      const dev=B!=null?Math.round(B-bt):0;
+      const t=B!=null?`<b>~${hm(B)}</b><br>${dev===0?'on target':'target '+settings.bedtime+' ('+(dev>0?'+':'−')+dur(Math.abs(dev))+')'} · awake&nbsp;${dur(B-plan.last)}`:`<b>target ${settings.bedtime}</b>`;
+      tl+=tlRow(IC.moonA,'bd','Bedtime',t,"openAdd('night')");
+      if(B!=null&&B<lo-1)foot+='⚠ Not enough naps to stay under 3h 30m awake until your target bedtime. Consider adding a nap.<br>';
+    }
+    if(shift&&!bn)foot+=`Naps moved ${dur(Math.abs(shift))} ${shift>0?'later':'earlier'} than usual to fit bedtime<br>`;
+    foot+='~ = based on the past 7 days · tap a row to edit';
+  }
+
+  const hero=$('#hero');
+  hero.className='hero'+(empty?' empty':'');
+  hero.innerHTML=`<div class="glow${cool?' cool':''}"></div><svg class="ring" viewBox="-20 -20 340 350" aria-hidden="true">${svg}</svg><div class="in"><div class="k">${k}</div><div class="big">${big}</div><div class="s">${small}</div></div>`;
+  $('#nextev').innerHTML=nx;
+  $('#sub2').textContent=sub;
+  const nb=$('#nowbtns');nb.className='nowbtns'+(one?' one':'');nb.innerHTML=btns;
+  $('#plantitle').textContent=title;
+  $('#plan').innerHTML=tl;$('#planfoot').innerHTML=`<div class="foot">${foot}</div>`;
+  $('#addnap').hidden=!showAdd;
   syncNotify(want);
 
   renderHistory();
@@ -478,28 +618,40 @@ function renderHistory(){
   if(tab!=='hist')return;
   const y=viewM.getFullYear(),m=viewM.getMonth(),lead=(new Date(y,m,1).getDay()+6)%7,dim=new Date(y,m+1,0).getDate(),all=allE(),has=new Set(),today=sod(Date.now()),now=new Date();
   all.forEach(e=>{has.add(sod(e.start));if(e.type==='night'&&e.end)has.add(sod(e.end))});
+  const tot={};all.forEach(e=>{if(e.type==='nap'&&e.end)tot[sod(e.start)]=(tot[sod(e.start)]||0)+(e.end-e.start)/6e4});
   let c=['Mo','Tu','We','Th','Fr','Sa','Su'].map(x=>`<div class="h">${x}</div>`).join('')+'<span></span>'.repeat(lead);
   for(let d=1;d<=dim;d++){
-    const t=+new Date(y,m,d);
-    c+=`<button class="${[t===selDay?'sel':'',t===today?'today':'',has.has(t)?'dot':''].join(' ')}" onclick="pickDay(${t})">${d}</button>`;
+    const t=+new Date(y,m,d),v=tot[t],bar=v&&t<today?`<u style="height:${Math.round(Math.min(12,Math.max(4,(v-120)/150*8+5)))}px"></u>`:'';
+    c+=`<button class="${[t===selDay?'sel':'',t===today?'today':'',has.has(t)?'dot':''].join(' ')}" onclick="pickDay(${t})">${d}${bar}</button>`;
   }
-  $('#cal').innerHTML=`<div class="calhead"><button class="x" onclick="showMonth(${y},${m-1})">‹</button><b>${viewM.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</b><button class="x" onclick="showMonth(${y},${m+1})">›</button></div><div class="cal">${c}</div><button class="lnk" onclick="showMonth(${now.getFullYear()},${now.getMonth()})">Today</button>`;
+  $('#cal').innerHTML=`<div class="calhead"><button class="x" aria-label="Previous month" onclick="showMonth(${y},${m-1})">‹</button><b>${viewM.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</b><button class="x" aria-label="Next month" onclick="showMonth(${y},${m+1})">›</button></div><div class="cal">${c}</div><div class="leg">Each bar is that day's total nap time. <button class="lnk" style="padding:0;margin:0 0 0 8px" onclick="showMonth(${now.getFullYear()},${now.getMonth()})">Go to today</button></div>`;
 
   // selected day: wake-up (night that ended this day), naps, bedtime (night that started this day)
   const d=selDay,
     ns=all.filter(e=>e.type==='nap'&&sod(e.start)===d).sort((a,b)=>a.start-b.start),
     wk=all.find(e=>e.type==='night'&&e.end&&sod(e.end)===d),
-    bd=all.find(e=>e.type==='night'&&sod(e.start)===d),
-    row=(id,l,r)=>`<div class="row tap" onclick="openEdit('${id}')"><span>${l}</span><span class="mu">${r} ›</span></div>`;
-  let h='';
-  if(wk)h+=row(wk.id,'Wake-up',hm(tod(wk.end))+' · slept '+dur((wk.end-wk.start)/6e4));
-  ns.forEach((e,i)=>h+=row(e.id,'Nap '+(i+1),hm(tod(e.start))+'–'+(e.end?hm(tod(e.end))+' ('+dur((e.end-e.start)/6e4)+')':'ongoing')));
-  if(bd)h+=row(bd.id,'Bedtime',hm(tod(bd.start))+(bd.end?'':' · sleeping'));
-  if(!h)h='<div class="mu">Nothing logged for this day</div>';
-  else if(ns.length)h+=`<div class="mu" style="margin-top:6px">${ns.length} nap${ns.length>1?'s':''} · ${dur(ns.filter(e=>e.end).reduce((s,e)=>s+(e.end-e.start)/6e4,0))} total</div>`;
-  h+=`<button class="lnk" onclick="openAdd('nap',${d})">＋ Add nap</button>`+(bd?'':`<button class="lnk" onclick="openAdd('night',${d})">＋ Log bedtime</button>`);
+    bd=all.find(e=>e.type==='night'&&sod(e.start)===d);
+  let tl='';
+  if(wk)tl+=tlRow(IC.sun,'','Wake-up',`<b>${hm(tod(wk.end))}</b> &nbsp;slept ${dur((wk.end-wk.start)/6e4)}`,`openEdit('${wk.id}')`);
+  ns.forEach((e,i)=>tl+=tlRow(IC.check,'','Nap '+(i+1),e.end?`<b>${hm(tod(e.start))}–${hm(tod(e.end))}</b> &nbsp;${dur((e.end-e.start)/6e4)}`:`<b>${hm(tod(e.start))}</b> &nbsp;ongoing`,`openEdit('${e.id}')`));
+  if(bd)tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(bd.start))}</b>${bd.end?'':' &nbsp;sleeping'}`,`openEdit('${bd.id}')`);
+  const total=ns.filter(e=>e.end).reduce((s,e)=>s+(e.end-e.start)/6e4,0);
+  // 06:00-20:00 strip of the day
+  const X=mm=>Math.min(100,Math.max(0,(mm-360)/840*100));
+  let strip='';
+  if(tl){
+    strip='<div class="strip"><div class="ax"></div>';
+    ns.filter(e=>e.end).forEach(e=>{strip+=`<div class="blk" style="left:${X(tod(e.start)).toFixed(2)}%;width:${Math.max(.8,X(tod(e.end))-X(tod(e.start))).toFixed(2)}%"></div>`});
+    if(bd)strip+=`<div class="bed" style="left:${X(tod(bd.start)).toFixed(2)}%"><svg width="26" height="26" viewBox="0 0 20 20"><path d="M13.5 3a8 8 0 1 0 3.5 14 6.5 6.5 0 0 1-3.5-14z" fill="#9C96F2" stroke="#1F2358" stroke-width="1.2"/></svg></div>`;
+    [6,9,12,15,18].forEach(h=>strip+=`<span class="tick" style="left:${X(h*60).toFixed(2)}%">${h}</span>`);
+    strip+='</div>';
+  }
+  let h=`<h2>${new Date(d).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>`;
+  if(tl)h+=`<div class="sum">${ns.length?ns.length+' nap'+(ns.length>1?'s':'')+', '+dur(total)+' in total':'No naps logged'}</div>${strip}<div class="tl">${tl}</div>`;
+  else h+='<div class="sum">Nothing logged for this day</div>';
+  h+=`<div class="addrow"><button class="lnk" onclick="openAdd('nap',${d})">＋ Add nap</button>`+(bd?'':`<button class="lnk" onclick="openAdd('night',${d})">＋ Log bedtime</button>`)+'</div>';
   if(histNote&&d<today-14*DAY)h+=`<div class="mu" style="margin-top:8px">${histNote}</div>`;
-  $('#day').innerHTML=`<h2>${new Date(d).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>`+h;
+  $('#day').innerHTML=h;
 }
 
 function initForm(){
