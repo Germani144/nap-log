@@ -170,7 +170,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <details class="fold" id="algo"><summary>How the plan works</summary>
 <div class="txt">
  <h3>The ring</h3>
- <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for", and on the ring the nap shows as a dotted outline over its expected length that fills up as she sleeps.</p>
+ <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for", and on the ring the nap shows as a dotted outline up to its target that fills up as she sleeps. The middle also shows the time left until the target, or how far past it she is.</p>
  <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a dot with a smaller 💤.</p>
  <h3>The night ring</h3>
  <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
@@ -184,8 +184,10 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <p>Shown as the average wake-up time of the past 7 nights, or the real time once this morning's night sleep has ended.</p>
  <h3>Nap time target</h3>
  <p>The average total nap time per day over the past 7 days. Night sleep is not counted.</p>
+ <h3>Target for the nap in progress</h3>
+ <p>While she naps, the nap gets a target length: today's nap time target, minus the naps already done today, minus the usual length of the naps still to come. It is kept between 20 minutes and 3 hours (without enough data it is just her usual length for that nap). So after long naps the last one is kept short, protecting bedtime, and after short naps the nap she is in can catch up. It is advice: the plan assumes she wakes at the target, and if she sleeps on, everything is planned from the current time.</p>
  <h3>Catching up after short naps</h3>
- <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is never stretched beyond 3 hours, so on a very short day the target may not be reached. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its usual end, or until now if it is already longer.</p>
+ <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is never stretched beyond 3 hours, so on a very short day the target may not be reached. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its target (see above), or until now if it is already longer.</p>
  <h3>Awake window limits</h3>
  <p>Every awake window, from wake-up to the first nap, between naps, and before bedtime, is kept between 30 minutes and 3h 30m. A suggested nap never starts more than 3h 30m after the previous sleep ended. If the averages would give a longer wait, the nap is moved earlier.</p>
  <h3>Bedtime</h3>
@@ -230,7 +232,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.10';
+const VER='2.11';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -408,6 +410,7 @@ function render(){
     // expected start and end times of the naps still to come, written along the ring just outside each bar.
     // A label is skipped when it would collide with another label or with the sun/moon discs (nap times win over "now").
     const LR=GR+GHW+13,blk=[[th(a),34],[th(b),34]],room=t=>blk.every(([q,g])=>Math.abs(q-t)*Math.PI/180*LR>=g);
+    if(pl.cur&&pl.cur.end>nowM&&pl.cur.end<b){const t=th(pl.cur.end);if(room(t)){svg+=gtan(t,hm(pl.cur.end));blk.push([t,40])}} // target end of the nap in progress
     sp.filter(r=>!r.a).forEach(r=>[r.s,r.e].forEach(m=>{const t=th(m);if(m>a&&m<b&&room(t)){svg+=gtan(t,hm(m));blk.push([t,40])}}));
     if(nowM>a&&nowM<b&&room(th(nowM)))svg+=gnow(th(nowM),hm(nowM));
     // "now" is always marked: a small amber dot at the end of the elapsed band (even when its time label has no room)
@@ -415,7 +418,9 @@ function render(){
     svg+=gdisc(th(a),gsun,'#FFB547',!we)+gdisc(th(b),gmoon,'#FFB547',!bn)
       +gunder(th(a),(we?'':'~')+hm(a),we?'#ECE9FF':'#A6A9DA')+gunder(th(b),(bn?'':'~')+hm(b),bn?'#ECE9FF':'#A6A9DA');
     if(run){
-      cool=true;one=true;k='Asleep for';big=dur((nowT-run.start)/6e4);small='since '+hm(tod(run.start))+' · nap';
+      cool=true;one=true;k='Asleep for';big=dur((nowT-run.start)/6e4);small='since '+hm(tod(run.start))+' · nap '+(tn.indexOf(run)+1);
+      // the nap's target (what is left of the day's nap-time goal): time left until it, or how far past it she is
+      if(pl.cur){const d=Math.round(pl.cur.end-nowM),mn=x=>x<60?x+' min':dur(x);at=d>0?'target +'+mn(d):'past target by '+mn(-d)}
       btns=`<button onclick="stopE('${run.id}')">End nap</button>`;
     }else{
       const last=entries.filter(e=>e.end).sort((x,y)=>y.end-x.end)[0];
@@ -436,7 +441,7 @@ function render(){
     rows.forEach(r=>{
       if(r.nodata){tl+=tlRow('','nd0','Nap '+r.n,'no data yet');return}
       const x=r.a,aw=r.aw!=null?`<br>awake ${dur(r.aw)} first`:'';
-      if(x)tl+=tlRow(IC.check,'','Nap '+r.n,`<b>${hm(r.s)}–${x.end?hm(r.e):'now'}</b> &nbsp;${dur((x.end?r.e:nowM)-r.s)}${aw}`,`openEdit('${x.id}')`);
+      if(x)tl+=tlRow(IC.check,'','Nap '+r.n,`<b>${hm(r.s)}–${x.end?hm(r.e):'now'}</b> &nbsp;${dur((x.end?r.e:nowM)-r.s)}${!x.end&&pl.cur?'<br>target '+dur(pl.cur.len)+' (~'+hm(pl.cur.end)+')':''}${aw}`,`openEdit('${x.id}')`);
       else tl+=tlRow('','bd','Nap '+r.n,`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}${r.add>=5?' (+'+dur(r.add)+')':''}${aw}`);
     });
     if(bn)tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(bn.start))}</b><br>target ${settings.bedtime}`,`openEdit('${bn.id}')`);

@@ -86,3 +86,19 @@ test('predFor: what a starting nap or night was predicted to be',async()=>{
   const pn=predFor(q,'night');assert.equal(pn.len,660);assert.ok(Math.abs(pn.s-at(0,19,30))<=30*6e4);
   assert.equal(predFor(makePlan([],at(0,9,0),S),'nap'),null);   // no data, no prediction
 });
+
+test('nap in progress: target = day goal − naps done − usual later naps, kept between 20 min and 3 h',()=>{
+  // usual day: 1h + 1h30 + 45m = 3h15 of naps
+  const long=makePlan([...week(),nap(0,8,30,10,30),nap(0,12,0,14,0),nap(0,16,0,null)],at(0,16,10),S);
+  assert.equal(Math.round(long.cur.len),20);                       // 4h done already: only a short catnap left
+  const short=makePlan([...week(),nap(0,8,30,9,0),nap(0,12,0,12,30),nap(0,16,0,null)],at(0,16,10),S);
+  assert.equal(Math.round(short.cur.len),135);                     // 1h done: this nap catches up (3h15 − 1h)
+  const first=makePlan([...week(),nap(0,8,30,null)],at(0,8,40),S);
+  assert.equal(Math.round(first.cur.len),60);                      // on a normal day it is the usual length
+  assert.equal(makePlan([nap(0,8,30,null)],at(0,8,40),S).cur,null); // no data, no target
+});
+
+test('past the target the plan counts from now',()=>{
+  const p=makePlan([...week(),nap(0,8,30,10,30),nap(0,12,0,14,0),nap(0,16,0,null)],at(0,17,0),S);
+  assert.equal(p.rows[2].e,17*60);
+});

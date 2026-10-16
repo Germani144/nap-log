@@ -64,6 +64,9 @@ The full explanation is in the app under **How the plan works**. In short:
 
 - **Next nap** = end of the previous sleep + her usual awake window before that nap (past 7 days,
   recent days weighted more: a day's weight halves every 4 days). Awake windows are kept between 30 min and 3h 30m.
+- **Nap in progress** gets a target length: today's nap-time target − naps already done today − the usual length of
+  the naps still to come, kept between 20 min and 3 h. Shown as "target +x min" / "past target by x min". The plan assumes
+  she wakes at the target; past it, everything is planned from now.
 - **Nap length** = the usual length of that nap, lengthened if earlier naps were short so the day reaches the
   usual total nap time (a nap is never stretched beyond 3 hours).
 - **Bedtime** = the target bedtime, allowed to move 30 min either way to respect the awake limits, leaning about a
@@ -72,6 +75,8 @@ The full explanation is in the app under **How the plan works**. In short:
 
 These choices were backtested on the logged history (46 days, predicting each day from the days before it):
 next-nap error went from about 45 to 16 minutes, bedtime from about 25 to 20 minutes (`tools/backtest.mjs`).
+The target for the nap in progress (v2.11) was checked the same way 30 minutes into each nap: bedtime predicted during
+the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 to 28.4 minutes (a small cost).
 
 ## Tests and backtest
 
@@ -94,7 +99,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.10`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.11`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
@@ -102,6 +107,6 @@ before or after the suggestion (a hint of how much the suggestions steer you).
   💤 at full size from 38px long; shorter naps (and dots) get a smaller 💤 that fits inside them.
   Suggested naps get their expected start and end times written along the ring; a label is skipped when it would
   collide with another label or the sun/moon discs, and nap times take priority over the current-time label.
-- A nap in progress is a dotted outline over its expected length (usual length of that nap), filling up as she sleeps.
+- A nap in progress is a dotted outline up to its target end, filling up as she sleeps.
 - The middle of the ring shows the countdown to the next nap or bedtime, its expected time ("at ~10:29") and the
   awake time underneath.
