@@ -127,7 +127,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <filter id="zzd" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 .122  0 0 0 0 .137  0 0 0 0 .345  0 0 0 1 0"/></filter>
 <filter id="zza" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .71  0 0 0 0 .278  0 0 0 1 0"/></filter>
 </defs></svg>
-<header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver">v2.1</span><span class="chip" id="sync"><i></i>…</span></header>
+<header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver" id="ver"></span><span class="chip" id="sync"><i></i>…</span></header>
 <div class="tabs"><button id="t-today" class="on" onclick="setTab('today')">Today</button><button id="t-hist" onclick="setTab('hist')">History</button></div>
 
 <div id="v-today">
@@ -223,6 +223,8 @@ const FIREBASE_CONFIG = {
 };
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
+// App version: shown next to the title and must match the cache name in sw.js
+const VER='2.2';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -270,7 +272,12 @@ function connect(){
 }
 
 // ---------- actions ----------
-function startE(type){putEntry({id:uid(),type,start:Date.now(),end:null})}
+// starting a nap or night also saves what the app had predicted for it, with the app version (see predFor in plan.js)
+function startE(type){
+  const now=Date.now(),e={id:uid(),type,start:now,end:null},p=predFor(makePlan(entries,now,settings),type);
+  if(p)e.pred={...p,v:VER};
+  putEntry(e);
+}
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
 let ed=null;
 function openEdit(id){
@@ -635,6 +642,7 @@ $('#ssave').onclick=()=>{
 
 initForm();$('#setd').open=!family; // collapsed once a family code is set
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+$('#ver').textContent='v'+VER;
 connect();render();renderPush();setInterval(render,30000);
 </script>
 </body></html>

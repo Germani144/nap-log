@@ -19,6 +19,7 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 | `.github/workflows/notify.yml` | Runs the sender every 5 minutes (GitHub often runs it much less often) |
 | `tests/plan.test.mjs` | Tests for the plan maths |
 | `tools/backtest.mjs` | Replays a logged history through the plan maths and reports the prediction error |
+| `tools/accuracy.mjs` | Reports the real-world accuracy of each app version from the saved predictions (`pred`) |
 | `CLAUDE.md` | Working notes for Claude sessions on this repo |
 
 ## How sharing works
@@ -27,7 +28,9 @@ There is no login. Both phones enter the same **family code** in Settings, and t
 Firebase Firestore (free plan) under `families/{code}`:
 
 - `families/{code}`: settings (`targetNaps`, `bedtime`) and the next planned notification (`notify*` fields)
-- `families/{code}/entries/{id}`: `{id, type: 'nap' | 'night', start, end}` with times in milliseconds; `end` is `null` while sleeping
+- `families/{code}/entries/{id}`: `{id, type: 'nap' | 'night', start, end, pred}` with times in milliseconds; `end` is `null` while sleeping.
+  `pred` is only on entries started with the Start button (from v2.2): what the app predicted at that moment,
+  `{s: predicted start, len: predicted length in minutes, n: nap number, v: app version}`. Used to measure real-world accuracy.
 - `families/{code}/subs/{id}`: push subscriptions, one per phone
 
 The family code is effectively the password, so it must be long and random, and it is never committed or logged.
@@ -75,6 +78,7 @@ next-nap error went from about 45 to 16 minutes, bedtime from about 25 to 20 min
 ```
 TZ=Europe/Copenhagen node --test tests/plan.test.mjs
 TZ=Europe/Copenhagen node tools/backtest.mjs history.json
+TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
 ```
 
 `makePlan(entries, now, settings)` in `plan.js` is pure: it only uses its inputs, so tests can feed it any history
@@ -82,11 +86,15 @@ and any "now". `index.html` only draws what it returns. The backtest needs an ex
 array of `{id, type, start, end}`); it holds personal data, so keep it out of the repo (`history*.json` is ignored).
 Run both before and after changing the plan logic.
 
+The backtest replays history with today's code and settings. `accuracy.mjs` instead uses the predictions the app
+actually made at the time (`pred`), so it also reflects old settings and versions, and shows how often naps start
+before or after the suggestion (a hint of how much the suggestions steer you).
+
 ## Notes for changing the code
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
-  places: the `ver` label next to the title in `index.html` (so you can see which version a phone is running) and the
-  cache name in `sw.js` (`nap-v2.1`), or phones keep showing the old version.
+  places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
+  with each prediction) and the cache name in `sw.js` (`nap-v2.2`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.

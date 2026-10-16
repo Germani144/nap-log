@@ -77,3 +77,12 @@ test('the result only depends on the inputs',()=>{
   const E=week(),a=JSON.stringify(makePlan(E,at(0,10,0),S)),b=JSON.stringify(makePlan(E,at(0,10,0),S));
   assert.equal(a,b);
 });
+
+test('predFor: what a starting nap or night was predicted to be',async()=>{
+  const {predFor}=createRequire(import.meta.url)('../plan.js');
+  const p=makePlan(week(),at(0,8,25),S);
+  assert.deepEqual(predFor(p,'nap'),{s:at(0,8,30),len:60,n:1});
+  const q=makePlan([...week(),nap(0,8,30,9,30),nap(0,12,0,13,30),nap(0,16,0,16,45)],at(0,19,20),S);
+  const pn=predFor(q,'night');assert.equal(pn.len,660);assert.ok(Math.abs(pn.s-at(0,19,30))<=30*6e4);
+  assert.equal(predFor(makePlan([],at(0,9,0),S),'nap'),null);   // no data, no prediction
+});
