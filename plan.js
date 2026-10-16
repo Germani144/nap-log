@@ -53,10 +53,19 @@ function makePlan(E,nowT,settings){
 
   const run=E.find(e=>!e.end);
   const tn=naps.filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
-  const exp=a=>{ // end of a logged nap; one still running is expected to last its average length
+  // target length of a nap in progress: what is left of the day's nap-time target after the other naps today and
+  // the usual length of the naps still to come (between 20 min and 3 h); just its usual length when there is no target
+  const later=n=>{let x=0;for(let k=n+1;k<=N;k++){const g=suggest(k);if(g)x+=g.len}return x};
+  const runTarget=a=>{
+    const n=tn.indexOf(a)+1,g=suggest(n);
+    if(T==null)return g?g.len:null;
+    const others=tn.filter(x=>x!==a).reduce((s,x)=>s+((x.end||nowT)-x.start)/6e4,0);
+    return Math.min(MAXNAP,Math.max(20,T-others-later(n)));
+  };
+  const exp=a=>{ // end of a logged nap; one still running is expected to last until its target
     if(a.end)return tod(a.end);
-    const g=suggest(tn.indexOf(a)+1);
-    return Math.max(nowM,g?tod(a.start)+g.len:nowM);
+    const L=runTarget(a);
+    return Math.max(nowM,L!=null?tod(a.start)+L:nowM);
   };
   // suggestions for the naps still to come, lengthened when earlier naps were short so the day reaches the target nap time
   const gs={};
@@ -113,7 +122,8 @@ function makePlan(E,nowT,settings){
   // expected night length: the average of the nights in the last 8 days
   const nts=E.filter(e=>e.type==='night'&&e.end&&e.end>=nowT-8*DAY),avgN=nts.length?avg(nts.map(e=>(e.end-e.start)/6e4)):630;
   const napDone=tn.reduce((x,a)=>x+((a.end||nowT)-a.start)/6e4,0);
-  return{now:nowT,today,nowM,run,we,wk0,T,tn,rows,last:plan.last,B,bt,lo,shift,bn,next,want,avgN,napDone};
+  const ra=tn.find(e=>!e.end),cur=ra&&runTarget(ra)!=null?{len:runTarget(ra),end:tod(ra.start)+runTarget(ra)}:null;
+  return{cur,now:nowT,today,nowM,run,we,wk0,T,tn,rows,last:plan.last,B,bt,lo,shift,bn,next,want,avgN,napDone};
 }
 
 // What the plan predicted for a nap or night that is being started now, saved with the entry so the real-world
