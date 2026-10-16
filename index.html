@@ -53,6 +53,7 @@ dialog h2{font-size:19px;margin:0 0 14px}
 .hero .in{position:relative;text-align:center;margin-top:-8px}
 .hero .k{font-size:15px;color:var(--mute);font-weight:500}
 .hero .big{font-size:clamp(44px,14vw,54px);line-height:1;margin:6px 0 8px;letter-spacing:-.02em;font-family:'Young Serif',Georgia,serif;font-variant-numeric:tabular-nums}
+.hero .aw{font-size:17px;font-weight:500;margin:-2px 0 4px}
 .hero .s{font-size:14px;color:var(--mute)}
 .hero.empty .big{font-size:26px}
 .next{text-align:center;margin-top:2px;font-size:17px;min-height:1.35em}
@@ -167,12 +168,12 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <details class="fold" id="algo"><summary>How the plan works</summary>
 <div class="txt">
  <h3>The ring</h3>
- <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The darker band shows how far the day has come, with the current time at its end. In the middle, "Awake for" counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running it switches to "Asleep for".</p>
+ <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The darker band shows how far the day has come, with the current time at its end. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for".</p>
  <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a plain dot.</p>
  <h3>The night ring</h3>
  <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
  <h3>Next nap / bedtime</h3>
- <p>Under the ring, while she is awake: the time until the next nap in the plan for today, or until bedtime once all planned naps are done. If that time has passed it says "overdue by ...". It is hidden while she sleeps, and when there is not enough data for the next nap.</p>
+ <p>In the ring, while she is awake: the time until the next nap in the plan for today, or until bedtime once all planned naps are done (its expected time is under the ring). If that time has passed it says "overdue by ...". It is hidden while she sleeps, and when there is not enough data for the next nap.</p>
  <h3>What "past 7 days" means</h3>
  <p>The 7 full days before today. Today never counts towards its own averages. Days with nothing logged are skipped, and a suggestion needs at least one day of data (otherwise it says "no data yet").</p>
  <h3>Nap suggestions</h3>
@@ -227,7 +228,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.3';
+const VER='2.4';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -320,6 +321,8 @@ const gmoon=(x,y,c)=>`<g transform="translate(${f1(x-9)} ${f1(y-9)}) scale(.9)">
 const gdisc=(t,icon,col,dash)=>{const p=gpt(GR,t);return`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="19" fill="#1F2358" stroke="${col}" stroke-width="2.5"${dash?' stroke-dasharray="4 3.5"':''}/>`+icon(p[0],p[1],col)};
 const gtext=(x,y,t,col,w,sz)=>`<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" font-family="${GSANS}" font-weight="${w||600}" font-size="${sz||13}" fill="${col}">${t}</text>`;
 const gunder=(t,txt,col)=>{const p=gpt(GR,t);return gtext(p[0],p[1]+38,txt,col)};
+// text written along the ring (rotated to follow it, never upside down)
+const gtan=(t,txt)=>{const p=gpt(GR+GHW+13,t),r=((t%360)+360)%360,rot=r>90&&r<270?r-180:r;return`<text x="${f1(p[0])}" y="${f1(p[1])}" transform="rotate(${f1(rot)} ${f1(p[0])} ${f1(p[1])})" text-anchor="middle" dominant-baseline="central" font-family="${GSANS}" font-weight="600" font-size="12" fill="#FFB547" opacity=".85">${txt}</text>`};
 const gnow=(t,txt)=>{const p=gpt(GR+34,t);return gtext(p[0],p[1]+4,txt,'#FFB547',700,12.5)};
 const GDEFS='<defs><linearGradient id="cool" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8C86EE"/><stop offset="1" stop-color="#C4BFFF"/></linearGradient></defs>';
 const IC={
@@ -351,11 +354,11 @@ function render(){
   let nx='';
   if(pl.next){
     const{label,t}=pl.next,d=Math.round(t-nowM);
-    nx=(d>0?`${label} in <b>${dur(d)}</b>`:d>-1?`${label} <b>now</b>`:`${label} <b>overdue by ${dur(-d)}</b>`)+` <span class="mu">~${hm(t)}</span>`;
+    nx=d>-1?`${label} at <b>~${hm(t)}</b>`:`${label} was due <b>~${hm(t)}</b>`;
   }
 
   daySpan='';
-  let svg='',cool=false,k='',big='',small='',sub='',btns='',one=false,empty=false,tl='',foot='',title="Today's plan",showAdd=true;
+  let awl='',svg='',cool=false,k='',big='',small='',sub='',btns='',one=false,empty=false,tl='',foot='',title="Today's plan",showAdd=true;
 
   if(run&&run.type==='night'){
     // the ring becomes a loading ring for the expected night: the average of the nights in the last 8 days
@@ -390,7 +393,11 @@ function render(){
       if(r.a&&!r.a.end)svg+=gcap(th(r.s),th(Math.max(nowM,r.s)),false);
       else svg+=gcap(th(r.s),th(r.e),!r.a);
     });
-    if(nowM>a&&nowM<b&&(nowM-a)*ppm>30&&(b-nowM)*ppm>30)svg+=gnow(th(nowM),hm(nowM));
+    // expected start and end times of the naps still to come, written along the ring just outside each bar.
+    // A label is skipped when it would collide with another label or with the sun/moon discs (nap times win over "now").
+    const LR=GR+GHW+13,blk=[[th(a),34],[th(b),34]],room=t=>blk.every(([q,g])=>Math.abs(q-t)*Math.PI/180*LR>=g);
+    sp.filter(r=>!r.a).forEach(r=>[r.s,r.e].forEach(m=>{const t=th(m);if(m>a&&m<b&&room(t)){svg+=gtan(t,hm(m));blk.push([t,40])}}));
+    if(nowM>a&&nowM<b&&room(th(nowM)))svg+=gnow(th(nowM),hm(nowM));
     svg+=gdisc(th(a),gsun,'#FFB547',!we)+gdisc(th(b),gmoon,'#FFB547',!bn)
       +gunder(th(a),(we?'':'~')+hm(a),we?'#ECE9FF':'#A6A9DA')+gunder(th(b),(bn?'':'~')+hm(b),bn?'#ECE9FF':'#A6A9DA');
     if(run){
@@ -400,6 +407,12 @@ function render(){
       const last=entries.filter(e=>e.end).sort((x,y)=>y.end-x.end)[0];
       if(last){k='Awake for';big=dur((nowT-last.end)/6e4);small='since '+hm(tod(last.end))+(last.type==='nap'&&tn.includes(last)?', after nap '+(tn.indexOf(last)+1):last.type==='night'?', after night sleep':'')}
       else{big='No entries yet';empty=true}
+      // with a next nap or bedtime, the countdown takes the middle and the awake time moves underneath, smaller
+      if(last&&pl.next){
+        const{label,t}=pl.next,d=Math.round(t-nowM);
+        awl=k+' '+big;
+        k=d>0?label+' in':d>-1?label:label+' overdue by';big=d>0?dur(d):d>-1?'now':dur(-d);
+      }
       btns=`<button onclick="startE('nap')"><span class="zz">💤</span>Start nap</button><button class="alt" onclick="startE('night')">Start night</button>`;
     }
     sub=T!=null?`Nap time today: ${dur(napDone)} of about ${dur(T)}`:'';
@@ -424,7 +437,7 @@ function render(){
 
   const hero=$('#hero');
   hero.className='hero'+(empty?' empty':'');
-  hero.innerHTML=`<div class="glow${cool?' cool':''}"></div><svg class="ring" viewBox="-20 -20 340 350" aria-hidden="true">${svg}</svg><div class="in"><div class="k">${k}</div><div class="big">${big}</div><div class="s">${small}</div></div>`;
+  hero.innerHTML=`<div class="glow${cool?' cool':''}"></div><svg class="ring" viewBox="-20 -20 340 350" aria-hidden="true">${svg}</svg><div class="in"><div class="k">${k}</div><div class="big">${big}</div>${awl?`<div class="aw">${awl}</div>`:''}<div class="s">${small}</div></div>`;
   $('#nextev').innerHTML=nx;
   $('#sub2').textContent=sub;
   const nb=$('#nowbtns');nb.className='nowbtns'+(one?' one':'');nb.innerHTML=btns;
