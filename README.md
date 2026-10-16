@@ -99,7 +99,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.11`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.12`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
@@ -108,5 +108,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
   Suggested naps get their expected start and end times written along the ring; a label is skipped when it would
   collide with another label or the sun/moon discs, and nap times take priority over the current-time label.
 - A nap in progress is a dotted outline up to its target end, filling up as she sleeps.
+- Logged naps, the sun (wake-up) and the moon (bedtime) on the ring open the same edit box as their plan rows.
+- The edit box opens without focusing a time field, so the keyboard only appears when a time is tapped.
 - The middle of the ring shows the countdown to the next nap or bedtime, its expected time ("at ~10:29") and the
   awake time underneath.
