@@ -1,4 +1,4 @@
-const C='nap-v2.13';
+const C='nap-v2.14';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','plan.js'])));self.skipWaiting()});
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;
@@ -9,7 +9,7 @@ self.addEventListener('fetch',e=>{
 self.addEventListener('push',e=>{
   let d={};
   try{d=e.data.json()}catch{d={body:e.data?e.data.text():''}}
-  e.waitUntil(self.registration.showNotification(d.title||'Nap Log',{body:d.body||'',icon:'icon-192.png',badge:'icon-192.png',tag:d.tag||'naplog',renotify:true}));
+  e.waitUntil(self.registration.showNotification(d.title||'Nap Log',{body:d.body||'',icon:'icon-192.png',badge:'badge-96.png',tag:d.tag||'naplog',renotify:true}));
 });
 self.addEventListener('notificationclick',e=>{
   e.notification.close();
