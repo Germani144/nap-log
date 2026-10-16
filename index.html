@@ -42,6 +42,7 @@ label{font-size:13px;color:var(--mute)}
 dialog{border:0;border-radius:24px;background:var(--panel);color:var(--milk);width:min(92vw,400px);padding:20px}
 dialog::backdrop{background:rgba(10,12,40,.65)}
 dialog h2{font-size:19px;margin:0 0 14px}
+#dt:focus{outline:none}
 .tabs{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;background:var(--deep);border-radius:999px;padding:4px}
 .tabs button{background:transparent;color:var(--mute);padding:10px 0;font-weight:600}
 .tabs button.on{background:var(--milk);color:var(--ink)}
@@ -51,6 +52,7 @@ dialog h2{font-size:19px;margin:0 0 14px}
 .hero .glow{position:absolute;inset:0;background:radial-gradient(closest-side at 50% 52%,rgba(255,181,71,.20),rgba(255,181,71,.07) 60%,transparent 80%)}
 .hero .glow.cool{background:radial-gradient(closest-side at 50% 52%,rgba(156,150,242,.28),rgba(156,150,242,.09) 60%,transparent 80%)}
 .hero svg.ring{overflow:visible;position:absolute;left:50%;top:calc(50% - 4px);transform:translate(-50%,-50%);width:min(340px,100vw);height:auto}
+.hero svg .hit{cursor:pointer}
 .hero .in{position:relative;text-align:center;margin-top:-22px}
 .hero .k{font-size:15px;color:var(--mute);font-weight:500}
 .hero .big{font-size:clamp(44px,14vw,54px);line-height:1;margin:6px 0 8px;letter-spacing:-.02em;font-family:'Fraunces',Georgia,serif;font-weight:500;font-variation-settings:'SOFT' 100,'WONK' 0;font-variant-numeric:tabular-nums}
@@ -170,7 +172,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <details class="fold" id="algo"><summary>How the plan works</summary>
 <div class="txt">
  <h3>The ring</h3>
- <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for", and on the ring the nap shows as a dotted outline up to its target that fills up as she sleeps. The middle also shows the time left until the target, or how far past it she is.</p>
+ <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Tap a logged nap, the sun or the moon on the ring to edit it, just like its row in the plan. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for", and on the ring the nap shows as a dotted outline up to its target that fills up as she sleeps. The middle also shows the time left until the target, or how far past it she is.</p>
  <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a dot with a smaller 💤.</p>
  <h3>The night ring</h3>
  <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
@@ -207,7 +209,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 </div>
 
 <dialog id="dlg">
- <h2 id="dt"></h2>
+ <h2 id="dt" tabindex="-1" autofocus></h2>
  <div class="grid">
   <div><label>Start</label><input type="text" id="es" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
   <div><label>End</label><input type="text" id="ee" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
@@ -232,7 +234,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.11';
+const VER='2.12';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -288,19 +290,21 @@ function startE(type){
 }
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
 let ed=null;
+// open the edit box without focusing a time field, so the keyboard only appears when a time is tapped
+function openDlg(){$('#dlg').showModal();const f=document.activeElement;if(f&&f.matches('input'))f.blur()}
 function openEdit(id){
   const e=findE(id);if(!e)return;
   ed={id,type:e.type,day:sod(e.start),wasOpen:!e.end};
   $('#dt').textContent=(e.type==='nap'?'Nap':'Night sleep')+' · '+isoDay(e.start).slice(5);
   $('#es').value=hm(tod(e.start));$('#ee').value=e.end?hm(tod(e.end)):'';
-  $('#edel').style.display='';$('#dlg').showModal();
+  $('#edel').style.display='';openDlg();
 }
 function openAdd(type,day){
   const t0=!day||day===sod(Date.now());day=day||sod(Date.now());
   ed={id:null,type,day,wasOpen:t0}; // only today's entry may stay open-ended (in progress)
   $('#dt').textContent=(type==='nap'?(t0?'Add extra nap':'Add nap'):'Log bedtime')+(t0?'':' · '+isoDay(day).slice(5));
   $('#es').value=type==='night'?settings.bedtime:'';$('#ee').value='';
-  $('#edel').style.display='none';$('#dlg').showModal();
+  $('#edel').style.display='none';openDlg();
 }
 
 // ---------- day dial ----------
@@ -380,7 +384,7 @@ function render(){
     const ppm=GR*GSW*Math.PI/180/avgN;
     svg=GDEFS+gline(th(0),th(avgN),'#171A45',22)+(el>.5?gline(th(0),th(Math.min(el,avgN)),'url(#cool)',22):'')
       +(el*ppm>30&&left*ppm>30?gnow(th(el),hm(tod(nowT))):'')
-      +gdisc(th(0),gmoon,'#B9B4FF',false)+gdisc(th(avgN),gsun,'#FFB547',true)
+      +`<g class="hit" onclick="openEdit('${run.id}')">${gdisc(th(0),gmoon,'#B9B4FF',false)}</g>`+gdisc(th(avgN),gsun,'#FFB547',true)
       +gunder(th(0),hm(tod(run.start)),'#ECE9FF')+gunder(th(avgN),'~'+hm(tod(wakeT)),'#A6A9DA');
     k='Asleep for';big=dur(el);small='since '+hm(tod(run.start));
     nx=left>0?`Expected wake-up in <b>${dur(left)}</b> <span class="mu">~${hm(tod(wakeT))}</span>`:'<span class="mu">Past the usual wake-up time</span>';
@@ -402,10 +406,13 @@ function render(){
     if(b<a+240)b=a+240;
     const th=m=>GST+GSW*Math.min(1,Math.max(0,(m-a)/(b-a))),ppm=GR*GSW*Math.PI/180/(b-a);
     svg=GDEFS+gline(th(a),th(b),'#171A45',22)+(nowM>a?gline(th(a),th(Math.min(nowM,b)),'#343A8C',22):'');
+    // tapping a nap, the sun or the moon on the ring opens the same edit box as its row in the plan
+    const hit=(click,inner)=>click?`<g class="hit" onclick="${click}">${inner}</g>`:inner;
     sp.forEach(r=>{
+      const ck=r.a?`openEdit('${r.a.id}')`:'';
       // a nap in progress: a dotted outline over its whole expected length, with the filled bubble growing inside it
-      if(r.a&&!r.a.end)svg+=gshape(th(r.s),th(Math.max(r.e,nowM)),GHW,' fill="#1F2358" stroke="#9C96F2" stroke-width="2.2" stroke-dasharray="3 4" stroke-linecap="round"')+gcap(th(r.s),th(Math.max(nowM,r.s)),false);
-      else svg+=gcap(th(r.s),th(r.e),!r.a);
+      if(r.a&&!r.a.end)svg+=hit(ck,gshape(th(r.s),th(Math.max(r.e,nowM)),GHW,' fill="#1F2358" stroke="#9C96F2" stroke-width="2.2" stroke-dasharray="3 4" stroke-linecap="round"')+gcap(th(r.s),th(Math.max(nowM,r.s)),false));
+      else svg+=hit(ck,gcap(th(r.s),th(r.e),!r.a));
     });
     // expected start and end times of the naps still to come, written along the ring just outside each bar.
     // A label is skipped when it would collide with another label or with the sun/moon discs (nap times win over "now").
@@ -415,7 +422,7 @@ function render(){
     if(nowM>a&&nowM<b&&room(th(nowM)))svg+=gnow(th(nowM),hm(nowM));
     // "now" is always marked: a small amber dot at the end of the elapsed band (even when its time label has no room)
     if(!run&&nowM>a&&nowM<b){const p=gpt(GR,th(nowM));svg+=`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="7" fill="#FFB547" stroke="#1F2358" stroke-width="3"/>`}
-    svg+=gdisc(th(a),gsun,'#FFB547',!we)+gdisc(th(b),gmoon,'#FFB547',!bn)
+    svg+=hit(we?`openEdit('${we.id}')`:'',gdisc(th(a),gsun,'#FFB547',!we))+hit(bn?`openEdit('${bn.id}')`:"openAdd('night')",gdisc(th(b),gmoon,'#FFB547',!bn))
       +gunder(th(a),(we?'':'~')+hm(a),we?'#ECE9FF':'#A6A9DA')+gunder(th(b),(bn?'':'~')+hm(b),bn?'#ECE9FF':'#A6A9DA');
     if(run){
       cool=true;one=true;k='Asleep for';big=dur((nowT-run.start)/6e4);small='since '+hm(tod(run.start))+' · nap '+(tn.indexOf(run)+1);
