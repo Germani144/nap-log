@@ -11,6 +11,8 @@ const API_KEY = 'AIzaSyDDKYM5tvjTixUdBq0BAd9-recAyoL6TE4'; // public web key, sa
 const VAPID_PUBLIC_KEY = 'BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 const SITE = 'https://germani144.github.io/nap-log/';
 const FS = process.env.FS_BASE || `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+// Each message also becomes a run annotation (visible without opening the log). Counts and statuses only, never codes or times.
+const log = m => console.log('::notice::' + m);
 const GRACE = 3 * 60e3; // do not send in the last 3 minutes before the event itself: too late to be useful
 
 const code = process.env.FAMILY_CODE;
@@ -29,21 +31,21 @@ const famPath = `families/${encodeURIComponent(code)}`;
 
 async function main() {
   const r = await fetch(url(famPath));
-  if (r.status === 404) return console.log('No family document yet.');
-  if (!r.ok) return console.log('Could not read Firestore (HTTP ' + r.status + '), will retry next run.');
+  if (r.status === 404) return log('No family document yet.');
+  if (!r.ok) return log('Could not read Firestore (HTTP ' + r.status + '), will retry next run.');
   const f = (await r.json()).fields || {};
   const n = {
     at: val(f.notifyAt) || 0, event: val(f.notifyEvent) || 0, key: val(f.notifyKey) || '',
     label: val(f.notifyLabel) || '', time: val(f.notifyTime) || '', text: val(f.notifyText) || '', sent: val(f.notifySent) || '',
   };
 
-  if (!n.at || !n.key) return console.log('Nothing scheduled.');
-  if (n.sent === n.key) return console.log('Already sent.');
-  if (now < n.at) return console.log('Not due yet.');
-  if (n.event ? now > n.event - GRACE : now - n.at > 30 * 60e3) return console.log('Too late to be useful, skipping.');
+  if (!n.at || !n.key) return log('Nothing scheduled.');
+  if (n.sent === n.key) return log('Already sent.');
+  if (now < n.at) return log('Not due yet.');
+  if (n.event ? now > n.event - GRACE : now - n.at > 30 * 60e3) return log('Too late to be useful, skipping.');
 
   const l = await fetch(url(famPath + '/subs', 'pageSize=50&'));
-  if (!l.ok) return console.log('Could not read subscriptions (HTTP ' + l.status + '), will retry next run.');
+  if (!l.ok) return log('Could not read subscriptions (HTTP ' + l.status + '), will retry next run.');
   const subs = ((await l.json()).documents || []).map(d => {
     try { return { id: d.name.split('/').pop(), sub: JSON.parse(val(d.fields.sub)) }; } catch { return null; }
   }).filter(Boolean);
@@ -60,7 +62,7 @@ async function main() {
       ok++;
     } catch (e) {
       if (e.statusCode === 404 || e.statusCode === 410) dead.push(s.id); // phone unsubscribed or app removed
-      else { failed++; console.log('Push failed with status ' + (e.statusCode || 'error')); }
+      else { failed++; log('Push failed with status ' + (e.statusCode || 'error')); }
     }
   }
   for (const id of dead) await fetch(url(`${famPath}/subs/${id}`), { method: 'DELETE' }).catch(() => {});
@@ -72,7 +74,7 @@ async function main() {
       body: JSON.stringify({ fields: { notifySent: { stringValue: n.key } } }),
     });
   }
-  console.log(`Sent ${ok}, failed ${failed}, removed ${dead.length} dead subscription(s) of ${subs.length}.`);
+  log(`Sent ${ok}, failed ${failed}, removed ${dead.length} dead subscription(s) of ${subs.length}.`);
 }
 
-main().catch(e => { console.log('Unexpected error: ' + (e && e.message)); });
+main().catch(e => { log('Unexpected error: ' + (e && e.message)); });
