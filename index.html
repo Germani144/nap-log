@@ -13,7 +13,8 @@
 <style>
 :root{--dusk:#1F2358;--deep:#171A45;--panel:#2A2F70;--milk:#ECE9FF;--mute:#A6A9DA;--line:rgba(236,233,255,.14);--lamp:#FFB547;--lilac:#9C96F2;--ink:#14163A;--ok:#7FE3B8;
  --bg:var(--dusk);--card:var(--panel);--tx:var(--milk);--mu:var(--mute);--ac:var(--lilac);--bd:var(--line);color-scheme:dark}
-*{box-sizing:border-box}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent} /* no blue tap box on Android */
+.it.tap:active,.hero svg .hit:active{opacity:.6} /* gentle press feedback instead */
 html{background:var(--dusk)}
 /* the page never scrolls sideways: tab swipes are handled in script, and the sliding panes must not widen the page */
 html,body{overflow-x:hidden;overflow-x:clip}
@@ -234,7 +235,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.12';
+const VER='2.13';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
