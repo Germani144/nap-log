@@ -170,7 +170,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <details class="fold" id="algo"><summary>How the plan works</summary>
 <div class="txt">
  <h3>The ring</h3>
- <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The darker band shows how far the day has come, with the current time at its end. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for".</p>
+ <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for".</p>
  <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a plain dot.</p>
  <h3>The night ring</h3>
  <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
@@ -230,7 +230,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.7';
+const VER='2.8';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -400,6 +400,8 @@ function render(){
     const LR=GR+GHW+13,blk=[[th(a),34],[th(b),34]],room=t=>blk.every(([q,g])=>Math.abs(q-t)*Math.PI/180*LR>=g);
     sp.filter(r=>!r.a).forEach(r=>[r.s,r.e].forEach(m=>{const t=th(m);if(m>a&&m<b&&room(t)){svg+=gtan(t,hm(m));blk.push([t,40])}}));
     if(nowM>a&&nowM<b&&room(th(nowM)))svg+=gnow(th(nowM),hm(nowM));
+    // "now" is always marked: a small amber dot at the end of the elapsed band (even when its time label has no room)
+    if(!run&&nowM>a&&nowM<b){const p=gpt(GR,th(nowM));svg+=`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="7" fill="#FFB547" stroke="#1F2358" stroke-width="3"/>`}
     svg+=gdisc(th(a),gsun,'#FFB547',!we)+gdisc(th(b),gmoon,'#FFB547',!bn)
       +gunder(th(a),(we?'':'~')+hm(a),we?'#ECE9FF':'#A6A9DA')+gunder(th(b),(bn?'':'~')+hm(b),bn?'#ECE9FF':'#A6A9DA');
     if(run){
