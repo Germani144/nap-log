@@ -52,9 +52,12 @@ because the page builds HTML from it.
 3. Secrets live only in the repo's Actions secrets: `FAMILY_CODE` and `VAPID_PRIVATE_KEY`. The repo is public,
    so the sender only logs counts, never codes or times.
 
-Known limitation: GitHub's scheduler often runs the job only every few hours, so notifications can arrive late
-or not at all. Planned fix: an external trigger (for example cron-job.org calling the workflow dispatch API with a
-fine-grained token limited to this repo).
+Timing: GitHub's own scheduler often runs the job only every few hours, so an external timer on cron-job.org starts
+the workflow every 5 minutes through the workflow dispatch API (`POST .../actions/workflows/notify.yml/dispatches`
+with body `{"ref":"main"}`), using a fine-grained GitHub token limited to this repo with Actions read/write. The token
+lives only in cron-job.org. GitHub's schedule stays on as a backup; doubles are harmless because each notification is
+sent once (`notifySent`) and runs never overlap (`concurrency`). If notifications stop, check the cron-job.org history
+first: an expired token shows up there as HTTP 401.
 
 On iPhone, push only works when the app is opened from its home-screen icon (iOS 16.4 or later).
 
