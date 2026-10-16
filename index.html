@@ -171,7 +171,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <div class="txt">
  <h3>The ring</h3>
  <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for".</p>
- <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a plain dot.</p>
+ <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a dot with a smaller 💤.</p>
  <h3>The night ring</h3>
  <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
  <h3>Next nap / bedtime</h3>
@@ -230,7 +230,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.8';
+const VER='2.9';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -308,14 +308,16 @@ const f1=n=>n.toFixed(1);
 const gpt=(r,t)=>{const a=t*Math.PI/180;return[150+r*Math.sin(a),150-r*Math.cos(a)]};
 const garc=(r,t1,t2,sw=1)=>{const p=gpt(r,t2);return`A${r} ${r} 0 ${Math.abs(t2-t1)>180?1:0} ${sw} ${f1(p[0])} ${f1(p[1])}`};
 const gline=(t1,t2,col,w)=>{if(t2-t1<.05)return'';const p=gpt(GR,t1);return`<path d="M${f1(p[0])} ${f1(p[1])} ${garc(GR,t1,t2)}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`};
-// A nap bar between two angles. Rule: the bar is only drawn as a capsule when it is at least 30px long, and the 💤 is
-// only added when it is at least 38px long. Anything shorter is a plain circle, so the emoji never spills outside the nap.
+// A nap bar between two angles. Rule: the bar is only drawn as a capsule when it is at least 30px long; anything shorter
+// is a dot. The 💤 is full size from 38px and small (13px, which fits inside the 30px dot) below that, so every nap is
+// recognisable as a nap and the emoji never spills outside it.
 function gcap(t1,t2,dashed){
   const px=GR*(t2-t1)*Math.PI/180,fill=dashed?'#1F2358':'#9C96F2',st=dashed?' stroke="#FFB547" stroke-width="2.2" stroke-dasharray="4 4"':'',mid=(t1+t2)/2;
-  if(px<30){const p=gpt(GR,mid);return`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${GHW}" fill="${fill}"${st}/>`}
+  const zz=(sz,dy)=>{const p=gpt(GR,mid);return`<text x="${f1(p[0])}" y="${f1(p[1]+dy)}" text-anchor="middle" font-size="${sz}" font-family="${GFONT}" filter="url(#${dashed?'zza':'zzd'})">💤</text>`};
+  if(px<30){const p=gpt(GR,mid);return`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${GHW}" fill="${fill}"${st}/>`+zz(13,4.6)} // a short nap: a dot with a small 💤 that fits inside it
   const d0=GHW/GR*180/Math.PI,a1=t1+d0,a2=t2-d0,o1=gpt(GR+GHW,a1),i2=gpt(GR-GHW,a2);
   let s=`<path d="M${f1(o1[0])} ${f1(o1[1])} ${garc(GR+GHW,a1,a2)} A${GHW} ${GHW} 0 0 1 ${f1(i2[0])} ${f1(i2[1])} ${garc(GR-GHW,a2,a1,0)} A${GHW} ${GHW} 0 0 1 ${f1(o1[0])} ${f1(o1[1])}Z" fill="${fill}"${st}/>`;
-  if(px>=38){const p=gpt(GR,mid);s+=`<text x="${f1(p[0])}" y="${f1(p[1]+6)}" text-anchor="middle" font-size="17" font-family="${GFONT}" filter="url(#${dashed?'zza':'zzd'})">💤</text>`}
+  s+=px>=38?zz(17,6):zz(13,4.6);
   return s;
 }
 const gsun=(x,y,c)=>`<g transform="translate(${f1(x-10)} ${f1(y-10)})" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"><circle cx="10" cy="10" r="3.6" fill="${c}" stroke="none"/><path d="M10 2.2v2.4M10 15.4v2.4M2.2 10h2.4M15.4 10h2.4M4.5 4.5l1.7 1.7M13.8 13.8l1.7 1.7M4.5 15.5l1.7-1.7M13.8 6.2l1.7-1.7"/></g>`;
