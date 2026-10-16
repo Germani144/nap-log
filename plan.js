@@ -116,4 +116,13 @@ function makePlan(E,nowT,settings){
   return{now:nowT,today,nowM,run,we,wk0,T,tn,rows,last:plan.last,B,bt,lo,shift,bn,next,want,avgN,napDone};
 }
 
-if(typeof module!=='undefined')module.exports={makePlan,sod,tod,hm,dur,avg,isoDay,DAY};
+// What the plan predicted for a nap or night that is being started now, saved with the entry so the real-world
+// accuracy of each app version can be measured later (tools/accuracy.mjs). s = predicted start (ms),
+// len = predicted length (min), n = nap number. null when there was no prediction (no data, or bedtime already logged).
+function predFor(p,type){
+  if(type==='nap'){const r=p.rows.find(x=>!x.a&&!x.nodata);return r?{s:Math.round(p.today+r.s*6e4),len:Math.round(r.e-r.s),n:r.n}:null}
+  if(type==='night')return p.bn||p.B==null?null:{s:Math.round(p.today+p.B*6e4),len:Math.round(p.avgN)};
+  return null;
+}
+
+if(typeof module!=='undefined')module.exports={makePlan,predFor,sod,tod,hm,dur,avg,isoDay,DAY};
