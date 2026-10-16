@@ -170,7 +170,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <details class="fold" id="algo"><summary>How the plan works</summary>
 <div class="txt">
  <h3>The ring</h3>
- <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for".</p>
+ <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for", and on the ring the nap shows as a dotted outline over its expected length that fills up as she sleeps.</p>
  <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a dot with a smaller 💤.</p>
  <h3>The night ring</h3>
  <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
@@ -230,7 +230,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.9';
+const VER='2.10';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -308,6 +308,13 @@ const f1=n=>n.toFixed(1);
 const gpt=(r,t)=>{const a=t*Math.PI/180;return[150+r*Math.sin(a),150-r*Math.cos(a)]};
 const garc=(r,t1,t2,sw=1)=>{const p=gpt(r,t2);return`A${r} ${r} 0 ${Math.abs(t2-t1)>180?1:0} ${sw} ${f1(p[0])} ${f1(p[1])}`};
 const gline=(t1,t2,col,w)=>{if(t2-t1<.05)return'';const p=gpt(GR,t1);return`<path d="M${f1(p[0])} ${f1(p[1])} ${garc(GR,t1,t2)}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`};
+// The outline of a capsule between two angles (half-height hw), or a circle when it is too short; attrs styles it.
+function gshape(t1,t2,hw,attrs){
+  const px=GR*(t2-t1)*Math.PI/180;
+  if(px<2*hw){const p=gpt(GR,(t1+t2)/2);return`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${hw}"${attrs}/>`}
+  const d0=hw/GR*180/Math.PI,a1=t1+d0,a2=t2-d0,o1=gpt(GR+hw,a1),i2=gpt(GR-hw,a2);
+  return`<path d="M${f1(o1[0])} ${f1(o1[1])} ${garc(GR+hw,a1,a2)} A${hw} ${hw} 0 0 1 ${f1(i2[0])} ${f1(i2[1])} ${garc(GR-hw,a2,a1,0)} A${hw} ${hw} 0 0 1 ${f1(o1[0])} ${f1(o1[1])}Z"${attrs}/>`;
+}
 // A nap bar between two angles. Rule: the bar is only drawn as a capsule when it is at least 30px long; anything shorter
 // is a dot. The 💤 is full size from 38px and small (13px, which fits inside the 30px dot) below that, so every nap is
 // recognisable as a nap and the emoji never spills outside it.
@@ -394,7 +401,8 @@ function render(){
     const th=m=>GST+GSW*Math.min(1,Math.max(0,(m-a)/(b-a))),ppm=GR*GSW*Math.PI/180/(b-a);
     svg=GDEFS+gline(th(a),th(b),'#171A45',22)+(nowM>a?gline(th(a),th(Math.min(nowM,b)),'#343A8C',22):'');
     sp.forEach(r=>{
-      if(r.a&&!r.a.end)svg+=gcap(th(r.s),th(Math.max(nowM,r.s)),false);
+      // a nap in progress: a dotted outline over its whole expected length, with the filled bubble growing inside it
+      if(r.a&&!r.a.end)svg+=gshape(th(r.s),th(Math.max(r.e,nowM)),GHW,' fill="#1F2358" stroke="#9C96F2" stroke-width="2.2" stroke-dasharray="3 4" stroke-linecap="round"')+gcap(th(r.s),th(Math.max(nowM,r.s)),false);
       else svg+=gcap(th(r.s),th(r.e),!r.a);
     });
     // expected start and end times of the naps still to come, written along the ring just outside each bar.
