@@ -145,3 +145,9 @@ test('with an added nap, the awake windows shrink so the next nap also comes ear
   const w=[four.rows[2].s-four.rows[1].e,four.rows[3].s-four.rows[2].e,four.B-four.rows[3].e];
   assert.ok(Math.max(...w)-Math.min(...w)<=1,'windows '+w.map(Math.round));          // evenly spread
 });
+
+test('a 4th nap in progress beyond her usual naps is a bridge nap: target at most 45 min',()=>{
+  const E=[...week(),nap(0,8,30,8,50),nap(0,12,0,12,20),nap(0,14,30,15,10),nap(0,17,0,null)];
+  const p=makePlan(E,at(0,17,10),{...S,extraNaps:1});
+  assert.ok(p.cur.len<=45,'target '+p.cur.len);assert.ok(p.B<=19*60+45,'bedtime '+hm(p.B));   // no late bedtime after a bridge nap
+});

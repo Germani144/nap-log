@@ -62,9 +62,11 @@ function makePlan(E,nowT,settings){
   const later=n=>{let x=0;for(let k=n+1;k<=N;k++){const g=sugB(k);if(g)x+=g.len}return x};
   const runTarget=a=>{
     const n=tn.indexOf(a)+1,g=sugB(n);
-    if(T==null)return g?g.len:null;
+    // a nap beyond her usual number (added, or no data for that nap number) is a bridge nap: at most 45 min, as planned
+    const cap=g&&g.from?Math.min(45,g.len):MAXNAP;
+    if(T==null)return g?Math.min(g.len,cap):null;
     const others=tn.filter(x=>x!==a).reduce((s,x)=>s+((x.end||nowT)-x.start)/6e4,0);
-    return Math.min(MAXNAP,Math.max(20,T-others-later(n))); // (the 1.5× cap below did not help here in the backtest)
+    return Math.min(cap,Math.max(20,T-others-later(n))); // (the 1.5× cap below did not help here in the backtest)
   };
   const exp=a=>{ // end of a logged nap; one still running is expected to last until its target
     if(a.end)return tod(a.end);
@@ -137,8 +139,9 @@ function makePlan(E,nowT,settings){
   // lean 35% towards last nap + the usual gap to bedtime, but never outside the limits above (not after a bridge-style nap,
   // whose gap to bedtime is shorter than usual)
   const bg=bedGap();
-  const lastRow=plan.out[plan.out.length-1];
-  if(B!=null&&bg!=null&&plan.last!=null&&best&&best.ok&&!(lastRow&&lastRow.from))B=Math.min(Math.max(.65*B+.35*(plan.last+bg),best.x),best.y);
+  const lastRow=plan.out.length?plan.out[plan.out.length-1]:rows[rows.length-1],sg=lastRow&&sugB(lastRow.n);
+  const bridgeLast=!!(lastRow&&(lastRow.from||(lastRow.a&&!lastRow.a.end&&sg&&sg.from))); // last nap (planned, or in progress) is beyond her usual naps
+  if(B!=null&&bg!=null&&plan.last!=null&&best&&best.ok&&!bridgeLast)B=Math.min(Math.max(.65*B+.35*(plan.last+bg),best.x),best.y);
   if(extra)B=bt; // with a bridge nap the last awake window is short and bedtime stays on its target
   const bn=E.find(e=>e.type==='night'&&sod(e.start)===today);
 
