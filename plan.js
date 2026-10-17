@@ -135,4 +135,12 @@ function predFor(p,type){
   return null;
 }
 
-if(typeof module!=='undefined')module.exports={makePlan,predFor,sod,tod,hm,dur,avg,isoDay,DAY};
+// What the plan would have predicted for an entry just before it started, using only what was logged before it.
+// The result is the same whether the entry is started live with the button or filled in later by hand, so logging
+// late still records expected vs actual times.
+function predBefore(E,e,settings){
+  const t=e.start-6e4,seen=E.filter(x=>x.id!==e.id&&x.start<t).map(x=>x.end&&x.end>t?{...x,end:null}:x);
+  return predFor(makePlan(seen,t,settings),e.type);
+}
+
+if(typeof module!=='undefined')module.exports={makePlan,predFor,predBefore,sod,tod,hm,dur,avg,isoDay,DAY};

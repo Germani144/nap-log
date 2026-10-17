@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 const file=process.argv[2];if(!file){console.error('usage: node tools/accuracy.mjs entries.json');process.exit(1)}
 const E=JSON.parse(fs.readFileSync(file,'utf8')).filter(e=>e.pred&&e.end);
-if(!E.length){console.log('No finished entries with saved predictions yet (they are saved from v2.2 on).');process.exit(0)}
+if(!E.length){console.log('No finished entries with saved predictions yet (they are saved from v2.15 on, for button and hand-filled entries alike).');process.exit(0)}
 const groups={};
 for(const e of E)(groups[`v${e.pred.v} ${e.type}`]??=[]).push(e);
 const mean=a=>a.reduce((x,y)=>x+y,0)/a.length,f=x=>x.toFixed(0);
