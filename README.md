@@ -73,6 +73,9 @@ The full explanation is in the app under **How the plan works**. In short:
 - **Catch-up** after short naps stretches the remaining naps to at most 1.5× their usual length (and 3 h). If 15+ min are
   still missing, an **extra ("bridge") nap** of 30–45 min is suggested halfway between the last nap and the target bedtime,
   only with 75 min to 3h 30m awake on each side; bedtime then stays on target.
+- A suggested extra nap shows as a pulsing dashed bubble with a + on the ring and an "Extra nap? ＋ Add" row; tapping
+  either adds it. The ring then animates from the old plan to the new one (`animatePlan`); the same happens after editing
+  or deleting an entry (`markAnim` before the change, the animation runs on the next render).
 - **＋ Add extra nap** adds a nap to today's plan without times (family document field `extraNaps: {day, n}`, today
   only); the plan re-times the remaining naps. **＋ Log a nap** enters real times.
 - A nap number with **no data** in the past 7 days is planned like a bridge nap: at most 45 min (or the last nap
@@ -113,7 +116,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.17`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.19`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
