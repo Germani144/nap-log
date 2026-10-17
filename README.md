@@ -69,6 +69,11 @@ The full explanation is in the app under **How the plan works**. In short:
 
 - **Next nap** = end of the previous sleep + her usual awake window before that nap (past 7 days,
   recent days weighted more: a day's weight halves every 4 days). Awake windows are kept between 30 min and 3h 30m.
+- **Catch-up** after short naps stretches the remaining naps to at most 1.5× their usual length (and 3 h). If 15+ min are
+  still missing, an **extra ("bridge") nap** of 30–45 min is suggested halfway between the last nap and the target bedtime,
+  only with 75 min to 3h 30m awake on each side; bedtime then stays on target.
+- A nap number with **no data** in the past 7 days is planned like a bridge nap: at most 45 min (or the last nap
+  number's usual length), halfway between the previous nap and bedtime.
 - **Nap in progress** gets a target length: today's nap-time target − naps already done today − the usual length of
   the naps still to come, kept between 20 min and 3 h. Shown as "target +x min" / "past target by x min". The plan assumes
   she wakes at the target; past it, everything is planned from now.
@@ -80,6 +85,7 @@ The full explanation is in the app under **How the plan works**. In short:
 
 These choices were backtested on the logged history (46 days, predicting each day from the days before it):
 next-nap error went from about 45 to 16 minutes, bedtime from about 25 to 20 minutes (`tools/backtest.mjs`).
+The 1.5× catch-up cap and the extra nap (v2.16) brought the next nap to about 15.2 and bedtime to about 19.7 minutes.
 The target for the nap in progress (v2.11) was checked the same way 30 minutes into each nap: bedtime predicted during
 the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 to 28.4 minutes (a small cost).
 
@@ -104,7 +110,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.15`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.16`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
