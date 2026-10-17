@@ -181,4 +181,21 @@ function predBefore(E,e,settings){
   return predFor(makePlan(seen,t,settings),e.type);
 }
 
-if(typeof module!=='undefined')module.exports={makePlan,predFor,predBefore,sod,tod,hm,dur,avg,isoDay,DAY};
+// Per-day figures for the Statistics tab, for the `days` full days before `today` (today itself is not complete yet).
+// Times are minutes of the day (a bedtime after midnight counts as 24:xx); lengths are minutes.
+//   wake: morning wake-up · bed: bedtime · night: length of the night that started that evening
+//   naps: [{s, e, len}] in order · napSum: total nap time · awake: wake-up to bedtime minus naps
+function dailyStats(E,today,days){
+  const out=[];
+  for(let i=days;i>=1;i--){
+    const day=sod(today-i*DAY+12*36e5); // noon-based so daylight-saving days still land on the right date
+    const naps=E.filter(e=>e.type==='nap'&&e.end&&sod(e.start)===day).sort((a,b)=>a.start-b.start).map(e=>({s:tod(e.start),e:tod(e.end),len:(e.end-e.start)/6e4}));
+    const wn=E.find(e=>e.type==='night'&&e.end&&sod(e.end)===day),bn=E.find(e=>e.type==='night'&&sod(e.start)===day);
+    const wake=wn?tod(wn.end):null;let bed=bn?tod(bn.start):null;if(bed!=null&&bed<12*60)bed+=24*60;
+    const night=bn&&bn.end?(bn.end-bn.start)/6e4:null,napSum=naps.length?naps.reduce((x,n)=>x+n.len,0):null;
+    out.push({day,wake,bed,night,naps,napSum,awake:wake!=null&&bed!=null?bed-wake-(napSum||0):null});
+  }
+  return out;
+}
+
+if(typeof module!=='undefined')module.exports={makePlan,predFor,predBefore,dailyStats,sod,tod,hm,dur,avg,isoDay,DAY};

@@ -47,7 +47,7 @@ dialog{border:0;border-radius:24px;background:var(--panel);color:var(--milk);wid
 dialog::backdrop{background:rgba(10,12,40,.65)}
 dialog h2{font-size:19px;margin:0 0 14px}
 #dt:focus{outline:none}
-.tabs{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;background:var(--deep);border-radius:999px;padding:4px}
+.tabs{margin-top:18px;display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--deep);border-radius:999px;padding:4px}
 .tabs button{background:transparent;color:var(--mute);padding:10px 0;font-weight:600}
 .tabs button.on{background:var(--milk);color:var(--ink)}
 .tabs button.nx{outline:2px solid var(--lamp);outline-offset:-2px}
@@ -92,6 +92,25 @@ dialog h2{font-size:19px;margin:0 0 14px}
 @keyframes flash{from{color:var(--lamp)}to{color:var(--milk)}}.it.flash .r b{animation:flash 1.6s ease-out} /* changed times fade from amber to white, no box */
 @keyframes enter{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}.it.enter{animation:enter .6s ease-out}
 @media(prefers-reduced-motion:reduce){.hero svg .sugx,.it.flash .r b,.it.enter{animation:none}}
+.seg{display:inline-grid;grid-auto-flow:column;gap:4px;background:var(--deep);border-radius:999px;padding:4px;margin-top:22px}
+.seg button{background:transparent;color:var(--mute);padding:6px 14px;font-size:14px;font-weight:600}
+.seg button.on{background:var(--panel);color:var(--milk)}
+.chart{margin-top:28px}
+.chart h2{font-size:20px}
+.csub{color:var(--mute);font-size:13.5px;margin-top:2px}
+.csub b,.leg2 b{color:var(--milk);font-weight:600}
+.leg2{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:13px}
+.leg2 span{display:inline-flex;align-items:center;gap:6px}
+.leg2 i,.tip i{display:inline-block;width:12px;height:3px;border-radius:2px}
+.cwrap{position:relative;margin-top:8px}
+.cs{display:block;width:100%;height:auto;touch-action:pan-y;overflow:visible}
+.cs .grid{stroke:rgba(236,233,255,.09);stroke-width:1}
+.cs .ax{fill:var(--mute);font-size:10.5px;font-family:'Hanken Grotesk',system-ui,sans-serif}
+.cs .xh{stroke:rgba(236,233,255,.45);stroke-width:1;stroke-dasharray:3 3}
+.tip{position:absolute;top:0;min-width:140px;background:var(--deep);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:12.5px;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.tip b{display:block;margin-bottom:4px;font-weight:600}
+.tip div{display:flex;align-items:center;gap:6px;color:var(--mute)}.tip div span{margin-left:auto;padding-left:10px;color:var(--milk);font-weight:600}
+.nodata{padding:28px 0;text-align:center}
 .foot{margin-top:12px;font-size:13px;line-height:1.6;color:var(--mute);text-align:center}
 .sec>.lnk{padding-left:34px;margin-top:6px}
 /* folds */
@@ -145,7 +164,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <filter id="zza" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .71  0 0 0 0 .278  0 0 0 1 0"/></filter>
 </defs></svg>
 <header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver" id="ver"></span><span class="chip" id="sync"><i></i>…</span></header>
-<div class="tabs"><button id="t-today" class="on" onclick="setTab('today')">Today</button><button id="t-hist" onclick="setTab('hist')">History</button></div>
+<div class="tabs"><button id="t-today" class="on" onclick="setTab('today')">Today</button><button id="t-hist" onclick="setTab('hist')">History</button><button id="t-stats" onclick="setTab('stats')">Statistics</button></div>
 
 <div id="v-today">
 <div class="hero" id="hero"></div>
@@ -220,6 +239,8 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 </div>
 </div>
 
+<div id="v-stats" hidden><div id="stats"></div></div>
+
 <div id="v-hist" hidden>
 <div class="calp" id="cal"></div>
 <div id="day"></div>
@@ -251,7 +272,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.28';
+const VER='3.0';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -556,7 +577,7 @@ function render(){
   if(pendingAnim&&Date.now()-pendingAnim.t<4000){const p=pendingAnim;pendingAnim=null;animatePlan(p.before,p.list)}
   else markRows(); // a redraw during the animation keeps the glow on the changed rows
 
-  renderHistory();
+  renderHistory();renderStats();
 }
 
 // ---------- notifications ----------
@@ -635,24 +656,114 @@ $('#pushtest').onclick=()=>{
   $('#pushmsg').textContent='Test queued. It arrives within about 5-10 minutes, sometimes later.';
 };
 
+// ---------- statistics tab ----------
+// Charts of the last 7/14/30 full days, drawn as inline SVG. Colours were checked for colour-blind separation and
+// contrast on the app's dark background (dataviz validator). One scale per chart: night sleep has its own chart.
+const SC={n1:'#3987e5',n2:'#d95926',n3:'#199e70',n4:'#c98500',bed:'#d55181',awake:'#c98500',naps:'#199e70',night:'#9085e9'};
+let statsN=(()=>{try{return +localStorage.getItem('nt_statsN')||30}catch{return 30}})(),recentLoaded=false;
+function setStatsN(n){statsN=n;try{localStorage.setItem('nt_statsN',n)}catch{}renderStats()}
+// shared mode: the live sync covers 14 days, so the older part of the last 30 days is fetched once
+function ensureRecent(){
+  if(!db||recentLoaded)return;recentLoaded=true;
+  const t=sod(Date.now());
+  fam().collection('entries').where('start','>=',t-32*DAY).where('start','<',t-14*DAY).get()
+    .then(q=>{q.docs.forEach(d=>{const e=d.data();if(okE(e))hist[e.id]=e});renderStats()}).catch(()=>{recentLoaded=false});
+}
+const dlabel=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const mean=a=>{const v=a.filter(x=>x!=null);return v.length?v.reduce((s,x)=>s+x,0)/v.length:null};
+// a line chart: series [{name, color, vals: one value per day or null}], fmt formats a value
+function lineChart(key,title,sub,days,series,fmt,step){
+  const W=340,H=190,L=44,R=10,T=10,B=24,pw=W-L-R,ph=H-T-B,n=days.length;
+  const all=series.flatMap(s=>s.vals).filter(v=>v!=null);
+  if(!all.length)return chartBox(key,title,sub,'<div class="mu nodata">Not enough data yet for this range.</div>');
+  let lo=Math.floor((Math.min(...all)-step*.3)/step)*step,hi=Math.ceil((Math.max(...all)+step*.3)/step)*step;if(hi-lo<step*2)hi=lo+step*2;
+  const X=i=>L+(n<2?pw/2:i*pw/(n-1)),Y=v=>T+ph-(v-lo)/(hi-lo)*ph;
+  let g='';
+  const tickStep=Math.max(step,Math.ceil((hi-lo)/step/5)*step);
+  for(let v=lo;v<=hi+1e-6;v+=tickStep)g+=`<line x1="${L}" x2="${W-R}" y1="${f1(Y(v))}" y2="${f1(Y(v))}" class="grid"/><text x="${L-6}" y="${f1(Y(v)+4)}" class="ax" text-anchor="end">${fmt(v)}</text>`;
+  const xs=n<=7?days.map((_,i)=>i):[0,Math.round((n-1)/3),Math.round(2*(n-1)/3),n-1];
+  xs.forEach(i=>g+=`<text x="${f1(X(i))}" y="${H-6}" class="ax" text-anchor="${i===0?'start':i===n-1?'end':'middle'}">${dlabel(days[i].day)}</text>`);
+  series.forEach(s=>{
+    let d='',pen=false;
+    s.vals.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?'L':'M')+f1(X(i))+' '+f1(Y(v));pen=true});
+    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.vals.forEach((v,i)=>{if(v!=null&&s.vals[i-1]==null&&s.vals[i+1]==null)g+=`<circle cx="${f1(X(i))}" cy="${f1(Y(v))}" r="3" fill="${s.color}"/>`}); // lone days stay visible
+  });
+  return chartBox(key,title,sub,`<svg viewBox="0 0 ${W} ${H}" class="cs">${g}<g class="hov"></g></svg>`,series,fmt,{X,Y,n,days,L,R,T,B,W,H,pw});
+}
+// stacked bars per day: [{name,color,vals}] from the bottom up, values in minutes
+function barChart(key,title,sub,days,series){
+  const W=340,H=190,L=44,R=10,T=10,B=24,pw=W-L-R,ph=H-T-B,n=days.length,hi=24*60;
+  const tot=days.map((_,i)=>series.reduce((x,s)=>x+(s.vals[i]||0),0));
+  if(!tot.some(x=>x>0))return chartBox(key,title,sub,'<div class="mu nodata">Not enough data yet for this range.</div>');
+  const bw=pw/n,Y=v=>T+ph-v/hi*ph,X=i=>L+i*bw+bw/2;
+  let g='';[0,6,12,18,24].forEach(h=>g+=`<line x1="${L}" x2="${W-R}" y1="${f1(Y(h*60))}" y2="${f1(Y(h*60))}" class="grid"/><text x="${L-6}" y="${f1(Y(h*60)+4)}" class="ax" text-anchor="end">${h}h</text>`);
+  const xs=n<=7?days.map((_,i)=>i):[0,Math.round((n-1)/3),Math.round(2*(n-1)/3),n-1];
+  xs.forEach(i=>g+=`<text x="${f1(i===0?L:i===n-1?W-R:X(i))}" y="${H-6}" class="ax" text-anchor="${i===0?'start':i===n-1?'end':'middle'}">${dlabel(days[i].day)}</text>`);
+  days.forEach((_,i)=>{
+    if(series.some(s=>s.vals[i]==null))return; // only complete days are stacked
+    let base=0;const w=Math.max(2,bw-2),x=L+i*bw+1;
+    series.forEach(s=>{const v=s.vals[i];const y1=Y(base+v),y0=Y(base);
+      g+=`<rect x="${f1(x)}" y="${f1(y1+2)}" width="${f1(w)}" height="${f1(Math.max(0,y0-y1-2))}" rx="${Math.min(2,w/2)}" fill="${s.color}"/>`;base+=v});
+  });
+  return chartBox(key,title,sub,`<svg viewBox="0 0 ${W} ${H}" class="cs">${g}<g class="hov"></g></svg>`,series,v=>dur(v),{X,Y:null,n,days,L,R,T,B,W,H,pw,bars:true});
+}
+const charts={};
+function chartBox(key,title,sub,body,series,fmt,geo){
+  if(series){charts[key]={series,fmt,geo}}else delete charts[key];
+  if(series&&series.length===1){const m=mean(series[0].vals);if(m!=null)sub+=` · average <b>${fmt(m)}</b>`} // one series: no legend box, the title names it
+  const leg=series&&series.length>1?`<div class="leg2">${series.map(s=>{const m=mean(s.vals);return`<span><i style="background:${s.color}"></i>${s.name}${m!=null?` <b>${fmt(m)}</b>`:''}</span>`}).join('')}</div>`:'';
+  return`<section class="chart" data-k="${key}"><h2>${title}</h2><div class="csub">${sub}</div>${leg}<div class="cwrap">${body}<div class="tip" hidden></div></div></section>`;
+}
+// hover / touch: a crosshair on the nearest day and a tooltip with every series' value for that day
+function chartHover(ev){
+  const sec=ev.target.closest('.chart');if(!sec)return;const c=charts[sec.dataset.k];if(!c)return;
+  const svg=sec.querySelector('svg'),r=svg.getBoundingClientRect(),G=c.geo,sx=(ev.clientX-r.left)/r.width*G.W;
+  let i=G.bars?Math.floor((sx-G.L)/(G.pw/G.n)):Math.round((sx-G.L)/(G.pw/Math.max(1,G.n-1)));i=Math.max(0,Math.min(G.n-1,i));
+  const x=G.X(i),hov=sec.querySelector('.hov');
+  let h=`<line x1="${f1(x)}" x2="${f1(x)}" y1="${G.T}" y2="${G.H-G.B}" class="xh"/>`;
+  if(G.Y)c.series.forEach(s=>{const v=s.vals[i];if(v!=null)h+=`<circle cx="${f1(x)}" cy="${f1(G.Y(v))}" r="4.5" fill="${s.color}" stroke="#1F2358" stroke-width="2"/>`});
+  hov.innerHTML=h;
+  const tip=sec.querySelector('.tip');
+  tip.innerHTML=`<b>${new Date(G.days[i].day).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</b>`+c.series.map(s=>`<div><i style="background:${s.color}"></i>${s.name}<span>${s.vals[i]==null?'–':c.fmt(s.vals[i])}</span></div>`).join('');
+  tip.hidden=false;const px=x/G.W*r.width;tip.style.left=Math.min(Math.max(px-70,0),r.width-150)+'px';
+}
+function chartLeave(ev){const sec=ev.target.closest('.chart');if(!sec)return;sec.querySelector('.hov').innerHTML='';sec.querySelector('.tip').hidden=true}
+function renderStats(){
+  if(tab!=='stats')return;
+  const days=dailyStats(allE(),sod(Date.now()),statsN),nm=i=>'Nap '+(i+1);
+  const napS=k=>days.map(d=>d.naps[k]?d.naps[k].s:null),napE=k=>days.map(d=>d.naps[k]?d.naps[k].e:null),napL=k=>days.map(d=>d.naps[k]?d.naps[k].len:null);
+  const maxN=Math.min(4,Math.max(0,...days.map(d=>d.naps.length))),ks=[...Array(maxN).keys()],col=[SC.n1,SC.n2,SC.n3,SC.n4];
+  const tfmt=v=>hm(v);
+  let h=`<div class="seg">${[7,14,30].map(n=>`<button class="${n===statsN?'on':''}" onclick="setStatsN(${n})">${n} days</button>`).join('')}</div>`;
+  h+=lineChart('start','When she falls asleep','Start of each nap and bedtime, per day',days,[...ks.map(k=>({name:nm(k),color:col[k],vals:napS(k)})),{name:'Bedtime',color:SC.bed,vals:days.map(d=>d.bed)}],tfmt,60);
+  h+=lineChart('wake','When she wakes up','Morning wake-up and the end of each nap, per day',days,[{name:'Morning',color:SC.bed,vals:days.map(d=>d.wake)},...ks.map(k=>({name:nm(k),color:col[k],vals:napE(k)}))],tfmt,60);
+  h+=lineChart('len','How long naps last','Length of each nap, per day',days,ks.map(k=>({name:nm(k),color:col[k],vals:napL(k)})),v=>dur(v),30);
+  h+=lineChart('night','Night sleep','From bedtime to the next morning\'s wake-up',days,[{name:'Night',color:SC.night,vals:days.map(d=>d.night)}],v=>dur(v),60);
+  h+=barChart('day','Her day','Awake, napping and night sleep, per day (complete days only)',days,[{name:'Night sleep',color:SC.night,vals:days.map(d=>d.night)},{name:'Naps',color:SC.naps,vals:days.map(d=>d.napSum)},{name:'Awake',color:SC.awake,vals:days.map(d=>d.awake)}]);
+  h+=`<div class="foot">Bold numbers are the averages over the period. Touch a chart to see each day.</div>`;
+  const el=$('#stats');el.innerHTML=h;
+  el.querySelectorAll('.chart svg').forEach(s=>{s.addEventListener('pointermove',chartHover);s.addEventListener('pointerdown',chartHover);s.addEventListener('pointerleave',chartLeave)});
+}
+
 // ---------- history tab ----------
 const loadedM=new Set();let histNote='';
 function setTab(t){
   tab=t;
-  $('#v-today').hidden=t!=='today';$('#v-hist').hidden=t!=='hist';
-  $('#t-today').classList.toggle('on',t==='today');$('#t-hist').classList.toggle('on',t==='hist');
-  if(t==='hist'){ensureMonth();renderHistory()}else drawDaySpan();
+  $('#v-today').hidden=t!=='today';$('#v-hist').hidden=t!=='hist';$('#v-stats').hidden=t!=='stats';
+  $('#t-today').classList.toggle('on',t==='today');$('#t-hist').classList.toggle('on',t==='hist');$('#t-stats').classList.toggle('on',t==='stats');
+  if(t==='hist'){ensureMonth();renderHistory()}else if(t==='stats'){ensureRecent();renderStats()}else drawDaySpan();
   window.scrollTo(0,0);
 }
 // swipe left/right to change tab, with live feedback: the page follows the finger, a label names the next tab,
 // and it lights up once the swipe is long enough to switch.
-const SWT=['today','hist'],SWN={today:'Today',hist:'History'},SWTH=70;
-const swPane=()=>$(tab==='today'?'#v-today':'#v-hist');
+const SWT=['today','hist','stats'],SWN={today:'Today',hist:'History',stats:'Statistics'},SWTH=70;
+const swPane=()=>$('#v-'+tab);
 const swBtn=k=>$('#t-'+k);
 let sw=null;
 function swReset(){const p=sw&&sw.p;if(p){p.style.transition='transform .18s,opacity .18s';p.style.transform='';p.style.opacity=''}$('#swh')?.remove();SWT.forEach(k=>swBtn(k)?.classList.remove('nx'));sw=null}
 document.addEventListener('touchstart',e=>{
-  sw=null;if(e.touches.length!==1||!(!$('#dlg').open&&!e.target.closest('input,select,textarea,dialog')))return;
+  sw=null;if(e.touches.length!==1||!(!$('#dlg').open&&!e.target.closest('input,select,textarea,dialog,.chart svg')))return;
   const t=e.touches[0];sw={x:t.clientX,y:t.clientY,m:1,d:0,p:swPane()};
 },{passive:true});
 document.addEventListener('touchmove',e=>{
