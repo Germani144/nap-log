@@ -251,7 +251,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.22';
+const VER='2.23';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -319,9 +319,15 @@ const planSnap=()=>Object.fromEntries([...document.querySelectorAll('#plan .it')
 // ring element and rows on every frame, so it survives the extra redraws that arrive from the database in shared mode.
 let anim=null;
 const reduceMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+// rows redrawn mid-animation continue where they were (negative delay) instead of starting over, so nothing flickers
 function markRows(){
-  if(!anim||performance.now()-anim.t0>1500)return;
-  document.querySelectorAll('#plan .it').forEach(el=>{const k=el.querySelector('.t').textContent;if(!(k in anim.list))el.classList.add('enter');else if(anim.list[k]!==el.querySelector('.r').textContent)el.classList.add('flash')});
+  if(!anim)return;
+  const el0=performance.now()-anim.t0;
+  document.querySelectorAll('#plan .it').forEach(el=>{
+    const k=el.querySelector('.t').textContent,b=el.querySelector('.r b');
+    if(!(k in anim.list)){if(el0<600){el.classList.add('enter');el.style.animationDelay=-el0+'ms'}}
+    else if(anim.list[k]!==el.querySelector('.r').textContent&&el0<1600){el.classList.add('flash');if(b)b.style.animationDelay=-el0+'ms'}
+  });
 }
 function animatePlan(before,beforeList){
   if(reduceMotion())return;
