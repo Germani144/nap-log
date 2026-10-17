@@ -196,7 +196,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <h3>Nap time target</h3>
  <p>The average total nap time per day over the past 7 days. Night sleep is not counted.</p>
  <h3>Target for the nap in progress</h3>
- <p>While she naps, the nap gets a target length: today's nap time target, minus the naps already done today, minus the usual length of the naps still to come. It is kept between 20 minutes and 3 hours (without enough data it is just her usual length for that nap). So after long naps the last one is kept short, protecting bedtime, and after short naps the nap she is in can catch up. It is advice: the plan assumes she wakes at the target, and if she sleeps on, everything is planned from the current time.</p>
+ <p>While she naps, the nap gets a target length: today's nap time target, minus the naps already done today, minus the usual length of the naps still to come. It is kept between 20 minutes and 3 hours (without enough data it is just her usual length for that nap). So after long naps the last one is kept short, protecting bedtime, and after short naps the nap she is in can catch up. A nap beyond her usual number of naps (an added nap, or one she has not had lately) is treated as a short bridge nap, so its target is at most 45 minutes. It is advice: the plan assumes she wakes at the target, and if she sleeps on, everything is planned from the current time.</p>
  <h3>Catching up after short naps</h3>
  <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is stretched to at most 1.5 times its usual length (and never beyond 3 hours), because babies rarely make up a short day in one very long nap. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its target (see above), or until now if it is already longer.</p>
  <h3>Adding an extra nap</h3>
@@ -251,7 +251,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.25';
+const VER='2.26';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);

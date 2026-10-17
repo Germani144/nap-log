@@ -85,7 +85,8 @@ The full explanation is in the app under **How the plan works**. In short:
   number's usual length), halfway between the previous nap and bedtime.
 - **Nap in progress** gets a target length: today's nap-time target − naps already done today − the usual length of
   the naps still to come, kept between 20 min and 3 h. Shown as "target +x min" / "past target by x min". The plan assumes
-  she wakes at the target; past it, everything is planned from now.
+  she wakes at the target; past it, everything is planned from now. A nap in progress beyond her usual number of naps is a bridge
+  nap: target at most 45 min.
 - **Nap length** = the usual length of that nap, lengthened if earlier naps were short so the day reaches the
   usual total nap time (a nap is never stretched beyond 3 hours).
 - **Bedtime** = the target bedtime, allowed to move 30 min either way to respect the awake limits, leaning about a
@@ -119,7 +120,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.25`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.26`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
