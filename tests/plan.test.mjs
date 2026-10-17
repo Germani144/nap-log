@@ -151,3 +151,10 @@ test('a 4th nap in progress beyond her usual naps is a bridge nap: target at mos
   const p=makePlan(E,at(0,17,10),{...S,extraNaps:1});
   assert.ok(p.cur.len<=45,'target '+p.cur.len);assert.ok(p.B<=19*60+45,'bedtime '+hm(p.B));   // no late bedtime after a bridge nap
 });
+
+test('an added nap is a bridge nap even when there is data for that nap number',()=>{
+  // a week with 4 naps a day, target set to 3, a 4th nap in progress late in the afternoon
+  const W=[];for(let d=-7;d<0;d++)W.push(night(d-1,19,30,6,30),nap(d,8,30,9,30),nap(d,12,0,13,0),nap(d,15,0,16,0),nap(d,17,0,17,40));W.push(night(-1,19,30,6,30));
+  const p=makePlan([...W,nap(0,8,30,8,50),nap(0,12,0,12,20),nap(0,15,0,15,30),nap(0,17,0,null)],at(0,17,10),{...S,extraNaps:1});
+  assert.ok(p.cur.len<=45,'target '+p.cur.len);assert.ok(p.B<=19*60+45,'bedtime '+hm(p.B));
+});
