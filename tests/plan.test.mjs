@@ -133,5 +133,7 @@ test('extraNaps adds a nap to today\'s plan and the remaining naps are re-sized'
   const E=[...week(),nap(0,8,30,8,50),nap(0,12,0,12,20)],t=at(0,12,30);
   const base=makePlan(E,t,S),more=makePlan(E,t,{...S,extraNaps:1});
   assert.equal(more.rows.filter(r=>!r.a&&!r.extra).length,base.rows.filter(r=>!r.a&&!r.extra).length+1);
-  assert.ok(more.rows[2].e-more.rows[2].s<base.rows[2].e-base.rows[2].s);       // nap 3 gets shorter
+  assert.ok(more.rows[2].e-more.rows[2].s<=base.rows[2].e-base.rows[2].s);      // nap 3 is not longer (here both hit the 1.5x cap)
+  const E2=[...week(),nap(0,8,30,9,20),nap(0,12,0,13,10)],a2=makePlan(E2,at(0,13,20),S),b2=makePlan(E2,at(0,13,20),{...S,extraNaps:1});
+  assert.ok(b2.rows[2].e-b2.rows[2].s<a2.rows[2].e-a2.rows[2].s);               // below the cap, nap 3 gets shorter
 });
