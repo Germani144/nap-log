@@ -89,9 +89,9 @@ dialog h2{font-size:19px;margin:0 0 14px}
 .dayspan span{position:absolute;right:-1px;top:50%;transform:translate(50%,-50%);background:var(--dusk);padding:2px 8px;font-size:13px;color:var(--mute);white-space:nowrap}
 .pill{display:inline-block;margin-left:6px;padding:2px 10px;border-radius:999px;background:var(--lamp);color:var(--ink);font-weight:700;font-size:13px}
 @keyframes sugx{0%,100%{opacity:.55}50%{opacity:1}}.hero svg .sugx{animation:sugx 2.4s ease-in-out infinite}
-@keyframes flash{from{background:rgba(255,181,71,.22)}to{background:transparent}}.it.flash{animation:flash 1.4s ease-out;border-radius:12px}
+@keyframes flash{from{color:var(--lamp)}to{color:var(--milk)}}.it.flash .r b{animation:flash 1.6s ease-out} /* changed times fade from amber to white, no box */
 @keyframes enter{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}.it.enter{animation:enter .6s ease-out}
-@media(prefers-reduced-motion:reduce){.hero svg .sugx,.it.flash,.it.enter{animation:none}}
+@media(prefers-reduced-motion:reduce){.hero svg .sugx,.it.flash .r b,.it.enter{animation:none}}
 .foot{margin-top:12px;font-size:13px;line-height:1.6;color:var(--mute);text-align:center}
 .sec>.lnk{padding-left:34px;margin-top:6px}
 /* folds */
@@ -200,7 +200,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <h3>Catching up after short naps</h3>
  <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is stretched to at most 1.5 times its usual length (and never beyond 3 hours), because babies rarely make up a short day in one very long nap. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its target (see above), or until now if it is already longer.</p>
  <h3>Adding an extra nap</h3>
- <p>"＋ Add extra nap" adds a nap to today's plan without entering any times: the plan gets one more nap, the naps still to come are re-timed and re-sized (a later nap usually gets shorter) and the new one appears. Tapping a suggested extra nap does the same: it shows as a faint pulsing bubble with a + on the ring and as "Extra nap?" with an Add button in the plan. When a nap is added, or you edit or delete a nap or bedtime and the plan changes, the ring animates into the new plan and the changed rows in the list light up briefly. It only applies to today, on both phones. "＋ Log a nap" is for entering a nap's real times.</p>
+ <p>"＋ Add extra nap" adds a nap to today's plan without entering any times: the plan gets one more nap, the naps still to come are re-timed and re-sized (a later nap usually gets shorter) and the new one appears. Tapping a suggested extra nap does the same: it shows as a faint pulsing bubble with a + on the ring and as "Extra nap?" with an Add button in the plan. When a nap is added, or you edit or delete a nap or bedtime and the plan changes, the ring animates into the new plan and the changed times in the list briefly turn amber. It only applies to today, on both phones. "＋ Log a nap" is for entering a nap's real times.</p>
  <h3>Extra nap</h3>
  <p>If 15 minutes or more are still missing after that, the plan suggests a short extra nap (30 to 45 minutes) halfway between the last nap and your target bedtime, a "bridge nap". It is only suggested when there are at least 75 minutes and at most 3h 30m awake on each side of it, and bedtime then stays on its target.</p>
  <h3>Naps without data</h3>
@@ -251,7 +251,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.21';
+const VER='2.22';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -314,22 +314,32 @@ const planSettings=()=>({...settings,extraNaps:extraToday()});
 let ringDraw=null,ringRows=null;
 // what each plan row says, to see which rows changed after the plan was rearranged
 const planSnap=()=>Object.fromEntries([...document.querySelectorAll('#plan .it')].map(el=>[el.querySelector('.t').textContent,el.querySelector('.r').textContent]));
-// after adding or removing an extra nap: the ring morphs from the old plan to the new one (naps shrink, slide, appear)
-// and in the list the new row slides in while rows whose times changed briefly glow
-function animatePlan(before,beforeList){
-  const calm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(!calm)document.querySelectorAll('#plan .it').forEach(el=>{const k=el.querySelector('.t').textContent;if(!(k in beforeList))el.classList.add('enter');else if(beforeList[k]!==el.querySelector('.r').textContent)el.classList.add('flash')});
-  const svgEl=$('#hero svg.ring');if(calm||!ringDraw||!before||!svgEl)return;
-  const after=ringRows,old={};before.forEach(r=>{old[r.n]=r});
-  const fin=svgEl.innerHTML,t0=performance.now(),D=700;
-  const step=now=>{
-    let t=Math.min(1,(now-t0)/D);const k=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
-    const rows=after.map(r=>{const o=old[r.n];if(o)return{...r,s:o.s+(r.s-o.s)*k,e:o.e+(r.e-o.e)*k};const m=(r.s+r.e)/2,h=(r.e-r.s)/2*k;return{...r,s:m-h,e:m+h}});
-    svgEl.innerHTML=ringDraw(rows);
-    if(t<1)requestAnimationFrame(step);else svgEl.innerHTML=fin;
-  };
-  requestAnimationFrame(step);
+// after adding an extra nap or editing an entry: the ring morphs from the old plan to the new one (naps shrink, slide,
+// appear) and in the list new rows slide in while rows whose times changed briefly glow. The animation reads the current
+// ring element and rows on every frame, so it survives the extra redraws that arrive from the database in shared mode.
+let anim=null;
+const reduceMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function markRows(){
+  if(!anim||performance.now()-anim.t0>1500)return;
+  document.querySelectorAll('#plan .it').forEach(el=>{const k=el.querySelector('.t').textContent;if(!(k in anim.list))el.classList.add('enter');else if(anim.list[k]!==el.querySelector('.r').textContent)el.classList.add('flash')});
 }
+function animatePlan(before,beforeList){
+  if(reduceMotion())return;
+  anim={before,list:beforeList,t0:performance.now()};markRows();
+  if(!ringDraw||!before)return;
+  const old={};before.forEach(r=>{old[r.n]=r});const D=700;
+  const step=now=>{
+    if(!anim)return;
+    let t=Math.min(1,(now-anim.t0)/D);const k=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    const svgEl=$('#hero svg.ring');
+    if(svgEl&&ringDraw&&ringRows&&t<1){
+      const rows=ringRows.map(r=>{const o=old[r.n];if(o)return{...r,s:o.s+(r.s-o.s)*k,e:o.e+(r.e-o.e)*k};const m=(r.s+r.e)/2,h=(r.e-r.s)/2*k;return{...r,s:m-h,e:m+h}});
+      svgEl.innerHTML=ringDraw(rows);requestAnimationFrame(step);
+    }else{animRing=false;render()}   // done: one normal redraw puts the labels back
+  };
+  animRing=true;requestAnimationFrame(step);
+}
+let animRing=false;
 // changes made by hand (adding an extra nap, editing or deleting an entry) animate the plan on the next render.
 // In shared mode that render comes a moment later, when the change arrives back from the database.
 let pendingAnim=null;
@@ -538,6 +548,7 @@ function render(){
   $('#addnap').hidden=!showAdd;$('#xless').hidden=!extraToday();
   syncNotify(pl.want);
   if(pendingAnim&&Date.now()-pendingAnim.t<4000){const p=pendingAnim;pendingAnim=null;animatePlan(p.before,p.list)}
+  else markRows(); // a redraw during the animation keeps the glow on the changed rows
 
   renderHistory();
 }
