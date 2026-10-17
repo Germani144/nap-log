@@ -51,7 +51,8 @@ because the page builds HTML from it.
 
 1. The app works out the next nap or bedtime and writes "notify at T minus 30 min" into the family document.
 2. The GitHub Action runs `sender/notify.mjs`, which reads that document and, when it is due, sends a web push
-   (VAPID) to every saved subscription. Dead subscriptions are removed.
+   (VAPID) to every saved subscription. Dead subscriptions are removed. Rejected subscriptions are also recorded in
+   the family document (`deadSubs`); a phone that still holds one throws it away and subscribes again when the app opens.
 3. Secrets live only in the repo's Actions secrets: `FAMILY_CODE` and `VAPID_PRIVATE_KEY`. The repo is public,
    so the sender only logs counts, never codes or times.
 
@@ -118,7 +119,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.24`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.25`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.

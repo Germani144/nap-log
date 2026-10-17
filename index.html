@@ -251,7 +251,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.24';
+const VER='2.25';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -291,7 +291,7 @@ function connect(){
     try{firebase.firestore().enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch{}
   }
   db=firebase.firestore();
-  unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};lastNotifyWrite='';const s=famData.settings;if(s){settings=okS(s);save('nt_settings',settings);initForm()}render()}));
+  unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};if(famData.deadSubs&&Object.keys(famData.deadSubs).length&&!refreshing){refreshing=true;refreshSub().finally(()=>{refreshing=false})}lastNotifyWrite='';const s=famData.settings;if(s){settings=okS(s);save('nt_settings',settings);initForm()}render()}));
   // only sync the last 14 days: all the plan and the 7-day averages need, and it keeps Firestore reads tiny
   unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data()).filter(okE);save('nt_entries',entries);render()}));
   setSync('shared');
@@ -591,10 +591,14 @@ async function saveSub(sub){
 const pushOff=()=>{try{return localStorage.getItem('nt_pushoff')==='1'}catch{return false}};
 const setPushOff=v=>{try{v?localStorage.setItem('nt_pushoff','1'):localStorage.removeItem('nt_pushoff')}catch{}};
 let pushDbg='';
+let refreshing=false;
 async function refreshSub(){ // keep the saved copy current; quietly re-subscribe if the phone dropped the subscription
   if(!(pushOk&&db&&Notification.permission==='granted'))return;
   try{
     let s=await getSub();
+    // the sender marks subscriptions the push service rejected (deadSubs): drop ours if it is one, then subscribe afresh
+    if(s){const id=await subId(s.endpoint),dead=famData&&famData.deadSubs;
+      if(dead&&dead[id]){try{await s.unsubscribe()}catch{}s=null;fam().set({deadSubs:{[id]:firebase.firestore.FieldValue.delete()}},{merge:true}).catch(()=>{});pushDbg='renewed a subscription the push service had dropped'}}
     if(!s&&!pushOff()){const reg=await navigator.serviceWorker.ready;s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});pushDbg='re-subscribed'}
     if(s)await saveSub(s);
   }catch(e){pushDbg='error: '+(e&&e.message||e)}
