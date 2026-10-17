@@ -195,6 +195,8 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <p>Every awake window, from wake-up to the first nap, between naps, and before bedtime, is kept between 30 minutes and 3h 30m. A suggested nap never starts more than 3h 30m after the previous sleep ended. If the averages would give a longer wait, the nap is moved earlier.</p>
  <h3>Bedtime</h3>
  <p>Your target bedtime is the goal. The estimate lands on it whenever the naps allow, and it can move up to 30 minutes either way if that is needed to respect the awake limits. It also leans a little (about a third) towards the end of the last nap plus the usual gap before bedtime from recent days, always staying within those limits. If that is still not enough, the naps still to come are moved together, as little as possible, earlier or later than usual (the plan says by how much). If there are too few naps to stay under 3h 30m awake until bedtime, bedtime is moved earlier instead and the plan suggests adding a nap.</p>
+ <h3>Expected vs actual</h3>
+ <p>Every nap and night quietly saves what the plan expected for it (start time and length), worked out from what was logged before it. It does not matter whether you use the Start buttons or fill it in later by hand. This is used to check how accurate the plan is and to tune it over time.</p>
  <h3>Notifications</h3>
  <p>The app saves the time of the next nap or bedtime minus 30 minutes. A small job on GitHub checks about every 5 minutes (sometimes later) and sends a push to every phone with notifications turned on, saying how long is left. Each nap or bedtime is notified at most once. The notification is cancelled when the plan changes, for example when a nap starts early, and nothing is sent if the event is already less than 30 minutes away when the plan is made or if it is too late to be useful.</p>
  <h3>Symbols</h3>
@@ -235,7 +237,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.14';
+const VER='2.15';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -283,12 +285,14 @@ function connect(){
 }
 
 // ---------- actions ----------
-// starting a nap or night also saves what the app had predicted for it, with the app version (see predFor in plan.js)
-function startE(type){
-  const now=Date.now(),e={id:uid(),type,start:now,end:null},p=predFor(makePlan(entries,now,settings),type);
-  if(p)e.pred={...p,v:VER};
-  putEntry(e);
-}
+// every nap or night also saves what the app had predicted for it just before it started, with the app version
+// (predBefore in plan.js). It works the same for the Start buttons and for entries filled in later by hand.
+const withPred=(e,old)=>{
+  if(old&&old.pred&&old.start===e.start)return e; // keep the saved prediction while the start time is unchanged
+  const p=predBefore(allE(),e,settings);const{pred,...rest}=e;
+  return p?{...rest,pred:{...p,v:VER}}:rest;
+};
+function startE(type){putEntry(withPred({id:uid(),type,start:Date.now(),end:null}))}
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
 let ed=null;
 // open the edit box without focusing a time field, so the keyboard only appears when a time is tapped
@@ -670,7 +674,7 @@ $('#esave').onclick=()=>{
   if(ev){en=atTime(ed.day,ev);if(en<=st)en+=DAY} // e.g. night sleep crossing midnight
   else if(!ed.wasOpen)return alert('Set an end time, or delete the entry');
   const old=ed.id&&findE(ed.id);
-  putEntry({...(old||{}),id:ed.id||uid(),type:ed.type,start:st,end:en});
+  putEntry(withPred({...(old||{}),id:ed.id||uid(),type:ed.type,start:st,end:en},old));
   $('#dlg').close();
 };
 $('#ecancel').onclick=()=>$('#dlg').close();

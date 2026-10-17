@@ -102,3 +102,11 @@ test('past the target the plan counts from now',()=>{
   const p=makePlan([...week(),nap(0,8,30,10,30),nap(0,12,0,14,0),nap(0,16,0,null)],at(0,17,0),S);
   assert.equal(p.rows[2].e,17*60);
 });
+
+test('predBefore: an entry filled in later gets the same prediction as one started live',async()=>{
+  const {predBefore,predFor}=createRequire(import.meta.url)('../plan.js');
+  const live=predFor(makePlan(week(),at(0,8,40),S),'nap');                        // Start pressed at 08:40
+  const later=[...week(),nap(0,8,40,9,40),nap(0,12,5,null)];                     // filled in at 12:30, with a later nap logged too
+  const e=later.find(x=>x.start===at(0,8,40));
+  assert.deepEqual(predBefore(later,e,S),live);
+});
