@@ -128,3 +128,10 @@ test('catch-up stretches a nap to at most 1.5× its usual length; the rest may b
 test('no extra nap on a normal day',()=>{
   assert.equal(makePlan(week(),at(0,7,0),S).rows.some(r=>r.extra),false);
 });
+
+test('extraNaps adds a nap to today\'s plan and the remaining naps are re-sized',()=>{
+  const E=[...week(),nap(0,8,30,8,50),nap(0,12,0,12,20)],t=at(0,12,30);
+  const base=makePlan(E,t,S),more=makePlan(E,t,{...S,extraNaps:1});
+  assert.equal(more.rows.filter(r=>!r.a&&!r.extra).length,base.rows.filter(r=>!r.a&&!r.extra).length+1);
+  assert.ok(more.rows[2].e-more.rows[2].s<base.rows[2].e-base.rows[2].s);       // nap 3 gets shorter
+});

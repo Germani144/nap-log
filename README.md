@@ -28,7 +28,8 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 There is no login. Both phones enter the same **family code** in Settings, and the app syncs through
 Firebase Firestore (free plan) under `families/{code}`:
 
-- `families/{code}`: settings (`targetNaps`, `bedtime`) and the next planned notification (`notify*` fields)
+- `families/{code}`: settings (`targetNaps`, `bedtime`), extra naps added to today's plan (`extraNaps`) and the next
+  planned notification (`notify*` fields)
 - `families/{code}/entries/{id}`: `{id, type: 'nap' | 'night', start, end, pred}` with times in milliseconds; `end` is `null` while sleeping.
   `pred` (from v2.15 on every new or re-timed entry, whether started with a button or filled in later): what the app
   would have predicted just before it started, from the history logged before it,
@@ -72,6 +73,8 @@ The full explanation is in the app under **How the plan works**. In short:
 - **Catch-up** after short naps stretches the remaining naps to at most 1.5× their usual length (and 3 h). If 15+ min are
   still missing, an **extra ("bridge") nap** of 30–45 min is suggested halfway between the last nap and the target bedtime,
   only with 75 min to 3h 30m awake on each side; bedtime then stays on target.
+- **＋ Add extra nap** adds a nap to today's plan without times (family document field `extraNaps: {day, n}`, today
+  only); the plan re-times the remaining naps. **＋ Log a nap** enters real times.
 - A nap number with **no data** in the past 7 days is planned like a bridge nap: at most 45 min (or the last nap
   number's usual length), halfway between the previous nap and bedtime.
 - **Nap in progress** gets a target length: today's nap-time target − naps already done today − the usual length of
@@ -110,7 +113,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.16`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.17`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
