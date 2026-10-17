@@ -1,8 +1,11 @@
-const C='nap-v2.27';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','plan.js'])));self.skipWaiting()});
+const C='nap-v2.28';
+// Always ask the server for the newest files ('no-cache' revalidates instead of trusting the browser's 10-minute HTTP
+// cache), so index.html and plan.js can never come from different versions. The cache below is only for offline use.
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','plan.js'].map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;
-  e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request)));
+  e.respondWith(fetch(e.request.url,{cache:'no-cache',credentials:'same-origin'}).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request)));
 });
 
 // ---- push notifications (sent by sender/notify.mjs through GitHub Actions)
