@@ -137,3 +137,11 @@ test('extraNaps adds a nap to today\'s plan and the remaining naps are re-sized'
   const E2=[...week(),nap(0,8,30,9,20),nap(0,12,0,13,10)],a2=makePlan(E2,at(0,13,20),S),b2=makePlan(E2,at(0,13,20),{...S,extraNaps:1});
   assert.ok(b2.rows[2].e-b2.rows[2].s<a2.rows[2].e-a2.rows[2].s);               // below the cap, nap 3 gets shorter
 });
+
+test('with an added nap, the awake windows shrink so the next nap also comes earlier',()=>{
+  const E=[...week(),nap(0,8,30,8,50),nap(0,12,0,12,20)],t=at(0,12,30);
+  const three=makePlan(E,t,S),four=makePlan(E,t,{...S,extraNaps:1});
+  assert.ok(four.rows[2].s<three.rows[2].s,'nap 3 at '+hm(four.rows[2].s)+' vs '+hm(three.rows[2].s));
+  const w=[four.rows[2].s-four.rows[1].e,four.rows[3].s-four.rows[2].e,four.B-four.rows[3].e];
+  assert.ok(Math.max(...w)-Math.min(...w)<=1,'windows '+w.map(Math.round));          // evenly spread
+});

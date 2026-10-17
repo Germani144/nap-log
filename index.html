@@ -200,7 +200,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <h3>Catching up after short naps</h3>
  <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is stretched to at most 1.5 times its usual length (and never beyond 3 hours), because babies rarely make up a short day in one very long nap. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its target (see above), or until now if it is already longer.</p>
  <h3>Adding an extra nap</h3>
- <p>"＋ Add extra nap" adds a nap to today's plan without entering any times: the plan gets one more nap, the naps still to come are re-timed and re-sized (a later nap usually gets shorter) and the new one appears. Tapping a suggested extra nap does the same: it shows as a faint pulsing bubble with a + on the ring and as "Extra nap?" with an Add button in the plan. When a nap is added, or you edit or delete a nap or bedtime and the plan changes, the ring animates into the new plan and the changed times in the list briefly turn amber. It only applies to today, on both phones. "＋ Log a nap" is for entering a nap's real times.</p>
+ <p>"＋ Add extra nap" adds a nap to today's plan without entering any times: the plan gets one more nap, the naps still to come are re-timed and re-sized (a later nap usually gets shorter) and the new one appears. With more naps than she usually takes, the time until bedtime is shared evenly over the remaining awake windows (never longer than her usual ones), so the next nap also moves earlier. Tapping a suggested extra nap does the same: it shows as a faint pulsing bubble with a + on the ring and as "Extra nap?" with an Add button in the plan. When a nap is added, or you edit or delete a nap or bedtime and the plan changes, the ring animates into the new plan and the changed times in the list briefly turn amber. It only applies to today, on both phones. "＋ Log a nap" is for entering a nap's real times.</p>
  <h3>Extra nap</h3>
  <p>If 15 minutes or more are still missing after that, the plan suggests a short extra nap (30 to 45 minutes) halfway between the last nap and your target bedtime, a "bridge nap". It is only suggested when there are at least 75 minutes and at most 3h 30m awake on each side of it, and bedtime then stays on its target.</p>
  <h3>Naps without data</h3>
@@ -251,7 +251,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.23';
+const VER='2.24';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);

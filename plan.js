@@ -94,12 +94,17 @@ function makePlan(E,nowT,settings){
   const nums=[];for(let n=tn.length+1;n<=N;n++)nums.push(n);
   const[bh,bm]=(settings.bedtime||'19:30').split(':').map(Number),bt=bh*60+bm,lo=bt-BEDFLEX,hi=bt+BEDFLEX;
   const planFor=nums=>{
+  // More naps than she usually takes (an added or borrowed nap): the time left until bedtime is shared evenly over the
+  // remaining awake windows (each window at most its usual length), so every nap moves a bit earlier, not just the last.
+  const extraDay=nums.some(n=>gs[n]&&gs[n].from);
   const sched=d=>{
     let pv=prev,ok=true;const out=[];
+    const w=extraDay&&pv!=null?(bt-pv-nums.reduce((x,n)=>x+(gs[n]?gs[n].len:0),0))/(nums.length+1):null;
     nums.forEach(n=>{
       const g=gs[n];
       if(!g){out.push({n,nodata:true});pv=null;ok=false;return}
-      let s=(pv!=null&&g.gap!=null?pv+(g.from?Math.max(MINGAP,Math.min(g.gap,(bt-pv-g.len)/2)):g.gap):g.start)+d; // usual clock time if the awake window is unknown
+      const gap=w!=null?Math.max(MINGAP,g.from?w:Math.min(g.gap!=null?g.gap:w,w)):g.from?Math.max(MINGAP,Math.min(g.gap,(bt-pv-g.len)/2)):g.gap;
+      let s=(pv!=null&&gap!=null?pv+gap:g.start)+d; // usual clock time if the awake window is unknown
       if(pv!=null)s=Math.max(Math.min(s,pv+MAXAWAKE),pv+MINGAP);
       out.push({n,s,e:s+g.len,add:g.add||0,aw:pv!=null&&s>pv?s-pv:null,from:g.from,extra:g.extra});pv=s+g.len;
     });
