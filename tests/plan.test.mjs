@@ -110,3 +110,21 @@ test('predBefore: an entry filled in later gets the same prediction as one start
   const e=later.find(x=>x.start===at(0,8,40));
   assert.deepEqual(predBefore(later,e,S),live);
 });
+
+test('a nap number with no data is planned like a bridge nap, so bedtime is still estimated',()=>{
+  const p=makePlan(week(),at(0,7,0),{targetNaps:4,bedtime:'19:30'});
+  const r4=p.rows[3];assert.ok(!r4.nodata);assert.equal(r4.from,3);assert.notEqual(p.B,null);
+  assert.ok(r4.e-r4.s<=45);assert.ok(Math.abs(p.B-(19*60+30))<=30);                // short, and bedtime stays near its target
+});
+
+test('catch-up stretches a nap to at most 1.5× its usual length; the rest may become an extra nap',()=>{
+  // two very short naps: the usual 45m nap 3 can only grow to ~68m
+  const p=makePlan([...week(),nap(0,8,30,8,50),nap(0,12,0,12,20)],at(0,12,30),S);
+  const r3=p.rows[2];assert.ok(r3.e-r3.s<=45*1.5+0.5,'nap 3 is '+(r3.e-r3.s));
+  const x=p.rows.find(r=>r.extra);
+  if(x){assert.ok(x.e-x.s>=30&&x.e-x.s<=45);assert.ok(p.B-x.e>=30)}       // an extra nap, if it fits, leaves room before bedtime
+});
+
+test('no extra nap on a normal day',()=>{
+  assert.equal(makePlan(week(),at(0,7,0),S).rows.some(r=>r.extra),false);
+});

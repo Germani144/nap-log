@@ -190,7 +190,11 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <h3>Target for the nap in progress</h3>
  <p>While she naps, the nap gets a target length: today's nap time target, minus the naps already done today, minus the usual length of the naps still to come. It is kept between 20 minutes and 3 hours (without enough data it is just her usual length for that nap). So after long naps the last one is kept short, protecting bedtime, and after short naps the nap she is in can catch up. It is advice: the plan assumes she wakes at the target, and if she sleeps on, everything is planned from the current time.</p>
  <h3>Catching up after short naps</h3>
- <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is never stretched beyond 3 hours, so on a very short day the target may not be reached. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its target (see above), or until now if it is already longer.</p>
+ <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is stretched to at most 1.5 times its usual length (and never beyond 3 hours), because babies rarely make up a short day in one very long nap. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its target (see above), or until now if it is already longer.</p>
+ <h3>Extra nap</h3>
+ <p>If 15 minutes or more are still missing after that, the plan suggests a short extra nap (30 to 45 minutes) halfway between the last nap and your target bedtime, a "bridge nap". It is only suggested when there are at least 75 minutes and at most 3h 30m awake on each side of it, and bedtime then stays on its target.</p>
+ <h3>Naps without data</h3>
+ <p>If your target number of naps is higher than what she has had lately (say a 4th nap on 3-nap days), that nap is planned like a bridge nap: at most 45 minutes (or the usual length of the last nap that has data, if shorter), halfway between the previous nap and bedtime, so the plan and bedtime can still be worked out.</p>
  <h3>Awake window limits</h3>
  <p>Every awake window, from wake-up to the first nap, between naps, and before bedtime, is kept between 30 minutes and 3h 30m. A suggested nap never starts more than 3h 30m after the previous sleep ended. If the averages would give a longer wait, the nap is moved earlier.</p>
  <h3>Bedtime</h3>
@@ -237,7 +241,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.15';
+const VER='2.16';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -454,7 +458,8 @@ function render(){
       if(r.nodata){tl+=tlRow('','nd0','Nap '+r.n,'no data yet');return}
       const x=r.a,aw=r.aw!=null?`<br>awake ${dur(r.aw)} first`:'';
       if(x)tl+=tlRow(IC.check,'','Nap '+r.n,`<b>${hm(r.s)}–${x.end?hm(r.e):'now'}</b> &nbsp;${dur((x.end?r.e:nowM)-r.s)}${!x.end&&pl.cur?'<br>target '+dur(pl.cur.len)+' (~'+hm(pl.cur.end)+')':''}${aw}`,`openEdit('${x.id}')`);
-      else tl+=tlRow('','bd','Nap '+r.n,`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}${r.add>=5?' (+'+dur(r.add)+')':''}${aw}`);
+      else if(r.extra)tl+=tlRow('','bd','Extra nap?',`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}<br>short naps today: a short bridge nap`);
+      else tl+=tlRow('','bd','Nap '+r.n,`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}${r.add>=5?' (+'+dur(r.add)+')':''}${aw}${r.from?`<br>no nap ${r.n} lately, based on nap ${r.from}`:''}`);
     });
     if(bn)tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(bn.start))}</b><br>target ${settings.bedtime}`,`openEdit('${bn.id}')`);
     else{

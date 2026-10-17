@@ -55,25 +55,33 @@ function makePlan(E,nowT,settings){
   const tn=naps.filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
   // target length of a nap in progress: what is left of the day's nap-time target after the other naps today and
   // the usual length of the naps still to come (between 20 min and 3 h); just its usual length when there is no target
-  const later=n=>{let x=0;for(let k=n+1;k<=N;k++){const g=suggest(k);if(g)x+=g.len}return x};
+  const CAP=1.5; // catching up: a nap is stretched to at most 1.5× its usual length
+  // a nap number with no data in the past 7 days (say a 4th nap on 3-nap days) borrows the awake window and length of
+  // the last nap number that has data, so the plan and bedtime can still be worked out (from = the nap it borrows from)
+  const sugB=n=>{for(let k=n;k>=1;k--){const g=suggest(k);if(g)return k===n?g:{...g,from:k}}return null};
+  const later=n=>{let x=0;for(let k=n+1;k<=N;k++){const g=sugB(k);if(g)x+=g.len}return x};
   const runTarget=a=>{
-    const n=tn.indexOf(a)+1,g=suggest(n);
+    const n=tn.indexOf(a)+1,g=sugB(n);
     if(T==null)return g?g.len:null;
     const others=tn.filter(x=>x!==a).reduce((s,x)=>s+((x.end||nowT)-x.start)/6e4,0);
-    return Math.min(MAXNAP,Math.max(20,T-others-later(n)));
+    return Math.min(MAXNAP,Math.max(20,T-others-later(n))); // (the 1.5× cap below did not help here in the backtest)
   };
   const exp=a=>{ // end of a logged nap; one still running is expected to last until its target
     if(a.end)return tod(a.end);
     const L=runTarget(a);
     return Math.max(nowM,L!=null?tod(a.start)+L:nowM);
   };
-  // suggestions for the naps still to come, lengthened when earlier naps were short so the day reaches the target nap time
+  // suggestions for the naps still to come, lengthened when earlier naps were short so the day reaches the target nap time.
+  // A nap is stretched by at most half its usual length (and never beyond 3 h): babies rarely make up a short day in one
+  // very long nap. What is still missing after that (`left`) may become a suggested extra nap further down.
   const gs={};
-  for(let n=tn.length+1;n<=N;n++){const g=suggest(n);if(g)gs[n]={...g}}
-  const rem=Object.keys(gs).map(Number);
-  if(T!=null&&rem.length){
+  // a borrowed nap (no data for that nap number) is treated like a bridge nap: at most 45 min, halfway to bedtime
+  for(let n=tn.length+1;n<=N;n++){const g=sugB(n);if(g)gs[n]=g.from?{...g,len:Math.min(45,g.len)}:{...g}}
+  const rem=Object.keys(gs).map(Number).filter(n=>!gs[n].from); // bridge-style naps are not stretched
+  let left=0;
+  if(T!=null){
     const A=tn.reduce((x,a)=>x+Math.max(0,exp(a)-tod(a.start)),0),S=rem.reduce((x,n)=>x+gs[n].len,0),def=T-A-S;
-    if(def>0)rem.forEach(n=>{const add=Math.min(def*gs[n].len/S,MAXNAP-gs[n].len);if(add>0){gs[n].add=add;gs[n].len+=add}});
+    if(def>0){left=def;rem.forEach(n=>{const add=Math.min(def*gs[n].len/S,MAXNAP-gs[n].len,(CAP-1)*gs[n].len);if(add>0){gs[n].add=add;gs[n].len+=add;left-=add}})}
   }
 
   let prev=wk0;
@@ -83,39 +91,56 @@ function makePlan(E,nowT,settings){
 
   // naps still to come: their usual awake window after the previous sleep, within the awake limits; d moves them all together
   const nums=[];for(let n=tn.length+1;n<=N;n++)nums.push(n);
+  const[bh,bm]=(settings.bedtime||'19:30').split(':').map(Number),bt=bh*60+bm,lo=bt-BEDFLEX,hi=bt+BEDFLEX;
+  const planFor=nums=>{
   const sched=d=>{
     let pv=prev,ok=true;const out=[];
     nums.forEach(n=>{
       const g=gs[n];
       if(!g){out.push({n,nodata:true});pv=null;ok=false;return}
-      let s=(pv!=null&&g.gap!=null?pv+g.gap:g.start)+d; // usual clock time if the awake window is unknown
+      let s=(pv!=null&&g.gap!=null?pv+(g.from?Math.max(MINGAP,Math.min(g.gap,(bt-pv-g.len)/2)):g.gap):g.start)+d; // usual clock time if the awake window is unknown
       if(pv!=null)s=Math.max(Math.min(s,pv+MAXAWAKE),pv+MINGAP);
-      out.push({n,s,e:s+g.len,add:g.add||0,aw:pv!=null&&s>pv?s-pv:null});pv=s+g.len;
+      out.push({n,s,e:s+g.len,add:g.add||0,aw:pv!=null&&s>pv?s-pv:null,from:g.from,extra:g.extra});pv=s+g.len;
     });
     return{out,last:pv,done:ok};
   };
   // bedtime: the target, allowed to move BEDFLEX either way while the last awake window stays within limits.
   // If that is not possible, the remaining naps are shifted (as little as possible) until it is.
-  const[bh,bm]=(settings.bedtime||'19:30').split(':').map(Number),bt=bh*60+bm,lo=bt-BEDFLEX,hi=bt+BEDFLEX;
   const fit=d=>{const r=sched(d);if(!r.done||r.last==null)return null;const x=Math.max(r.last+MINGAP,lo),y=Math.min(r.last+MAXAWAKE,hi);return{r,x,y,ok:x<=y}};
   let best=fit(0),shift=0;
   if(best&&!best.ok&&nums.length){
     search:for(let k=5;k<=240;k+=5)for(const d of[-k,k]){const f=fit(d);if(f&&f.ok){best=f;shift=d;break search}}
   }
-  const plan=best?best.r:sched(0);
-  rows.push(...plan.out);
+  return{best,shift,plan:best?best.r:sched(0)};
+  };
+  let P=planFor(nums);
+  // extra ("bridge") nap: when stretching could not make up the day's nap time (15+ min missing), suggest a short extra
+  // nap (30-45 min) halfway between the last planned nap and the target bedtime, but only with at least 75 min awake on
+  // each side (so it is never right after a nap or right before bed) and at most 3h 30m. Bedtime then stays on its target.
+  // This also covers days where all planned naps are done too early to reach bedtime.
+  const bn0=E.find(e=>e.type==='night'&&sod(e.start)===today);
+  let extra=null;
+  if(left>=15&&!bn0&&!(run&&run.type==='night')&&P.best&&P.plan.last!=null){
+    const L=Math.min(45,Math.max(30,left)),w=(bt-P.plan.last-L)/2;
+    if(w>=75&&w<=MAXAWAKE)extra={n:N+1,s:P.plan.last+w,e:P.plan.last+w+L,add:0,aw:w,extra:true};
+  }
+  const{best,shift,plan}=P;
+  rows.push(...plan.out);if(extra)rows.push(extra);
   let B=null;
   if(best)B=best.ok?Math.min(Math.max(bt,best.x),best.y):(plan.last+MAXAWAKE<lo?plan.last+MAXAWAKE:plan.last+MINGAP);
-  // lean 35% towards last nap + the usual gap to bedtime, but never outside the limits above
+  // lean 35% towards last nap + the usual gap to bedtime, but never outside the limits above (not after a bridge-style nap,
+  // whose gap to bedtime is shorter than usual)
   const bg=bedGap();
-  if(B!=null&&bg!=null&&plan.last!=null&&best&&best.ok)B=Math.min(Math.max(.65*B+.35*(plan.last+bg),best.x),best.y);
+  const lastRow=plan.out[plan.out.length-1];
+  if(B!=null&&bg!=null&&plan.last!=null&&best&&best.ok&&!(lastRow&&lastRow.from))B=Math.min(Math.max(.65*B+.35*(plan.last+bg),best.x),best.y);
+  if(extra)B=bt; // with a bridge nap the last awake window is short and bedtime stays on its target
   const bn=E.find(e=>e.type==='night'&&sod(e.start)===today);
 
   // the next event while awake, and the notification for it (30 min before)
   let next=null,want=null;
   if(!run&&!bn){
     const r=rows.find(x=>!x.a);
-    if(r&&!r.nodata)next={label:'Next nap',name:'Nap '+r.n,key:'nap'+r.n,t:r.s};
+    if(r&&!r.nodata)next=r.extra?{label:'Extra nap',name:'Extra nap',key:'nap'+r.n,t:r.s}:{label:'Next nap',name:'Nap '+r.n,key:'nap'+r.n,t:r.s};
     else if(!r&&B!=null)next={label:'Bedtime',name:'Bedtime',key:'bed',t:B};
     if(next){const ev=today+next.t*60000;want={key:next.key+'-'+isoDay(today),at:ev-30*60000,event:ev,label:next.name,time:hm(next.t)}}
   }
@@ -123,7 +148,7 @@ function makePlan(E,nowT,settings){
   const nts=E.filter(e=>e.type==='night'&&e.end&&e.end>=nowT-8*DAY),avgN=nts.length?avg(nts.map(e=>(e.end-e.start)/6e4)):630;
   const napDone=tn.reduce((x,a)=>x+((a.end||nowT)-a.start)/6e4,0);
   const ra=tn.find(e=>!e.end),cur=ra&&runTarget(ra)!=null?{len:runTarget(ra),end:tod(ra.start)+runTarget(ra)}:null;
-  return{cur,now:nowT,today,nowM,run,we,wk0,T,tn,rows,last:plan.last,B,bt,lo,shift,bn,next,want,avgN,napDone};
+  return{cur,now:nowT,today,nowM,run,we,wk0,T,tn,rows,last:extra?extra.e:plan.last,B,bt,lo,shift,bn,next,want,avgN,napDone};
 }
 
 // What the plan predicted for a nap or night that is being started now, saved with the entry so the real-world
