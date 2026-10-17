@@ -23,6 +23,14 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 | `tools/accuracy.mjs` | Reports the real-world accuracy of each app version from the saved predictions (`pred`) |
 | `CLAUDE.md` | Working notes for Claude sessions on this repo |
 
+## Statistics tab (v3)
+
+Charts of the last 7, 14 or 30 full days (inline SVG, touch a chart for each day's values):
+when she falls asleep (nap starts and bedtime), when she wakes up (morning and nap ends), how long naps last, night
+sleep, and her day as stacked bars (night sleep, naps, awake). Per-day figures come from `dailyStats` in `plan.js`.
+One scale per chart, so night sleep has its own chart. Colours were checked for colour-blind separation and contrast
+on the dark background. In shared mode the days older than the 14-day live sync are fetched once (`ensureRecent`).
+
 ## How sharing works
 
 There is no login. Both phones enter the same **family code** in Settings, and the app syncs through
@@ -121,7 +129,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.28`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v3.0`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.

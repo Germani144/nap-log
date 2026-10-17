@@ -158,3 +158,12 @@ test('an added nap is a bridge nap even when there is data for that nap number',
   const p=makePlan([...W,nap(0,8,30,8,50),nap(0,12,0,12,20),nap(0,15,0,15,30),nap(0,17,0,null)],at(0,17,10),{...S,extraNaps:1});
   assert.ok(p.cur.len<=45,'target '+p.cur.len);assert.ok(p.B<=19*60+45,'bedtime '+hm(p.B));
 });
+
+test('dailyStats: per-day wake-up, naps, bedtime, night length and awake time',async()=>{
+  const {dailyStats}=createRequire(import.meta.url)('../plan.js');
+  const st=dailyStats(week(),T0,7),d=st[st.length-1];                   // yesterday
+  assert.equal(st.length,7);assert.equal(d.wake,6*60+30);assert.equal(d.bed,19*60+30);
+  assert.deepEqual(d.naps.map(n=>n.len),[60,90,45]);assert.equal(d.napSum,195);
+  assert.equal(d.night,11*60);assert.equal(d.awake,13*60-195);
+  assert.equal(dailyStats([],T0,3).every(x=>x.wake==null&&x.napSum==null),true);
+});
