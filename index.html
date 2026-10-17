@@ -15,6 +15,9 @@
  --bg:var(--dusk);--card:var(--panel);--tx:var(--milk);--mu:var(--mute);--ac:var(--lilac);--bd:var(--line);color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} /* no blue tap box on Android */
 .it.tap:active,.hero svg .hit:active{opacity:.6} /* gentle press feedback instead */
+/* the plan, the ring and the buttons are tapped, not read as text: no blue selection box on quick taps, no focus box after a tap */
+.hero,.it,.tl,.nowbtns,.addrow,.lnk,.tabs{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button:focus:not(:focus-visible),.it:focus{outline:none}
 html{background:var(--dusk)}
 /* the page never scrolls sideways: tab swipes are handled in script, and the sliding panes must not widen the page */
 html,body{overflow-x:hidden;overflow-x:clip}
@@ -248,7 +251,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.20';
+const VER='2.21';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
