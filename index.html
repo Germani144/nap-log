@@ -248,7 +248,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.19';
+const VER='2.20';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -388,8 +388,8 @@ const gmoon=(x,y,c)=>`<g transform="translate(${f1(x-9)} ${f1(y-9)}) scale(.9)">
 const gdisc=(t,icon,col,dash)=>{const p=gpt(GR,t);return`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="19" fill="#1F2358" stroke="${col}" stroke-width="2.5"${dash?' stroke-dasharray="4 3.5"':''}/>`+icon(p[0],p[1],col)};
 const gtext=(x,y,t,col,w,sz)=>`<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" font-family="${GSANS}" font-weight="${w||600}" font-size="${sz||13}" fill="${col}">${t}</text>`;
 const gunder=(t,txt,col)=>{const p=gpt(GR,t);return gtext(p[0],p[1]+38,txt,col)};
-// text written along the ring (rotated to follow it, never upside down)
-const gtan=(t,txt)=>{const p=gpt(GR+GHW+13,t),r=((t%360)+360)%360,rot=r>90&&r<270?r-180:r;return`<text x="${f1(p[0])}" y="${f1(p[1])}" transform="rotate(${f1(rot)} ${f1(p[0])} ${f1(p[1])})" text-anchor="middle" dominant-baseline="central" font-family="${GSANS}" font-weight="600" font-size="12" fill="#FFB547" opacity=".85">${txt}</text>`};
+// text written along the ring, rotated to follow it with the bottom of the letters always facing the ring
+const gtan=(t,txt)=>{const p=gpt(GR+GHW+13,t),rot=((t%360)+360)%360;return`<text x="${f1(p[0])}" y="${f1(p[1])}" transform="rotate(${f1(rot)} ${f1(p[0])} ${f1(p[1])})" text-anchor="middle" dominant-baseline="central" font-family="${GSANS}" font-weight="600" font-size="12" fill="#FFB547" opacity=".85">${txt}</text>`};
 const gnow=(t,txt)=>{const p=gpt(GR+34,t);return gtext(p[0],p[1]+4,txt,'#FFB547',700,12.5)};
 const GDEFS='<defs><linearGradient id="cool" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8C86EE"/><stop offset="1" stop-color="#C4BFFF"/></linearGradient></defs>';
 const IC={
