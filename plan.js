@@ -52,7 +52,7 @@ function makePlan(E,nowT,settings){
   const wk0=we?tod(we.end):wks.length?avg(wks):null;
 
   const run=E.find(e=>!e.end);
-  const tn=naps.filter(e=>sod(e.start)===today),N=Math.max(+settings.targetNaps||0,tn.length);
+  const tn=naps.filter(e=>sod(e.start)===today),N=Math.max((+settings.targetNaps||0)+(+settings.extraNaps||0),tn.length); // extraNaps: naps added to today's plan by hand
   // target length of a nap in progress: what is left of the day's nap-time target after the other naps today and
   // the usual length of the naps still to come (between 20 min and 3 h); just its usual length when there is no target
   const CAP=1.5; // catching up: a nap is stretched to at most 1.5× its usual length
@@ -80,7 +80,8 @@ function makePlan(E,nowT,settings){
   const rem=Object.keys(gs).map(Number).filter(n=>!gs[n].from); // bridge-style naps are not stretched
   let left=0;
   if(T!=null){
-    const A=tn.reduce((x,a)=>x+Math.max(0,exp(a)-tod(a.start)),0),S=rem.reduce((x,n)=>x+gs[n].len,0),def=T-A-S;
+    // every planned nap counts towards the target (bridge-style ones too), but only the regular ones are stretched
+    const A=tn.reduce((x,a)=>x+Math.max(0,exp(a)-tod(a.start)),0),Sall=Object.keys(gs).reduce((x,n)=>x+gs[n].len,0),S=rem.reduce((x,n)=>x+gs[n].len,0),def=T-A-Sall;
     if(def>0){left=def;rem.forEach(n=>{const add=Math.min(def*gs[n].len/S,MAXNAP-gs[n].len,(CAP-1)*gs[n].len);if(add>0){gs[n].add=add;gs[n].len+=add;left-=add}})}
   }
 

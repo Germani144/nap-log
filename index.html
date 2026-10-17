@@ -147,7 +147,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 
 <section class="sec"><h2 id="plantitle">Today's plan</h2>
 <div class="tl" id="plan"></div><div id="planfoot"></div>
-<button class="lnk" id="addnap" onclick="openAdd('nap')">＋ Add extra nap</button></section>
+<div class="addrow" id="addnap"><button class="lnk" id="xbtn" onclick="setExtra(extraToday()+1)">＋ Add extra nap</button><button class="lnk" id="xless" onclick="setExtra(extraToday()-1)" hidden>− Remove extra nap</button><button class="lnk" onclick="openAdd('nap')">＋ Log a nap</button></div></section>
 
 <div class="folds">
 <details class="fold" id="setd"><summary>Settings</summary>
@@ -191,6 +191,8 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <p>While she naps, the nap gets a target length: today's nap time target, minus the naps already done today, minus the usual length of the naps still to come. It is kept between 20 minutes and 3 hours (without enough data it is just her usual length for that nap). So after long naps the last one is kept short, protecting bedtime, and after short naps the nap she is in can catch up. It is advice: the plan assumes she wakes at the target, and if she sleeps on, everything is planned from the current time.</p>
  <h3>Catching up after short naps</h3>
  <p>Naps logged today plus the suggested remaining naps are compared with the target. If they fall short, the missing time is added to the remaining naps, in proportion to how long each usually is (shown as "+20m"). A nap is stretched to at most 1.5 times its usual length (and never beyond 3 hours), because babies rarely make up a short day in one very long nap. Longer-than-usual naps do not shorten later ones. A nap that is running counts until its target (see above), or until now if it is already longer.</p>
+ <h3>Adding an extra nap</h3>
+ <p>"＋ Add extra nap" adds a nap to today's plan without entering any times: the plan gets one more nap, the naps still to come are re-timed and re-sized (a later nap usually gets shorter) and the new one appears. Tapping a suggested "Extra nap?" does the same. It only applies to today, on both phones. "＋ Log a nap" is for entering a nap's real times.</p>
  <h3>Extra nap</h3>
  <p>If 15 minutes or more are still missing after that, the plan suggests a short extra nap (30 to 45 minutes) halfway between the last nap and your target bedtime, a "bridge nap". It is only suggested when there are at least 75 minutes and at most 3h 30m awake on each side of it, and bedtime then stays on its target.</p>
  <h3>Naps without data</h3>
@@ -241,7 +243,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='2.16';
+const VER='2.17';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -293,11 +295,19 @@ function connect(){
 // (predBefore in plan.js). It works the same for the Start buttons and for entries filled in later by hand.
 const withPred=(e,old)=>{
   if(old&&old.pred&&old.start===e.start)return e; // keep the saved prediction while the start time is unchanged
-  const p=predBefore(allE(),e,settings);const{pred,...rest}=e;
+  const p=predBefore(allE(),e,planSettings());const{pred,...rest}=e;
   return p?{...rest,pred:{...p,v:VER}}:rest;
 };
 function startE(type){putEntry(withPred({id:uid(),type,start:Date.now(),end:null}))}
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
+// Extra naps added to today's plan by hand ("＋ Add extra nap"): shared through the family document, reset every day.
+const extraToday=()=>{const x=db?famData&&famData.extraNaps:load('nt_extra',null);return x&&x.day===isoDay(Date.now())?Math.max(0,Math.min(3,Math.round(+x.n)||0)):0};
+const planSettings=()=>({...settings,extraNaps:extraToday()});
+function setExtra(n){
+  const v={day:isoDay(Date.now()),n:Math.max(0,Math.min(3,n))};
+  if(db){famData={...(famData||{}),extraNaps:v};fam().set({extraNaps:v},{merge:true})}else save('nt_extra',v);
+  render();
+}
 let ed=null;
 // open the edit box without focusing a time field, so the keyboard only appears when a time is tapped
 function openDlg(){$('#dlg').showModal();const f=document.activeElement;if(f&&f.matches('input'))f.blur()}
@@ -374,7 +384,7 @@ function drawDaySpan(){
 }
 // ---------- rendering ----------
 function render(){
-  const pl=makePlan(entries,Date.now(),settings);
+  const pl=makePlan(entries,Date.now(),planSettings());
   const{now:nowT,today,nowM,run,we,wk0,T,tn,rows,B,bt,lo,shift,bn,avgN,napDone}=pl;
   // "Next nap in …" / "Bedtime in …" under the ring (only while awake)
   let nx='';
@@ -458,7 +468,7 @@ function render(){
       if(r.nodata){tl+=tlRow('','nd0','Nap '+r.n,'no data yet');return}
       const x=r.a,aw=r.aw!=null?`<br>awake ${dur(r.aw)} first`:'';
       if(x)tl+=tlRow(IC.check,'','Nap '+r.n,`<b>${hm(r.s)}–${x.end?hm(r.e):'now'}</b> &nbsp;${dur((x.end?r.e:nowM)-r.s)}${!x.end&&pl.cur?'<br>target '+dur(pl.cur.len)+' (~'+hm(pl.cur.end)+')':''}${aw}`,`openEdit('${x.id}')`);
-      else if(r.extra)tl+=tlRow('','bd','Extra nap?',`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}<br>short naps today: a short bridge nap`);
+      else if(r.extra)tl+=tlRow('','bd','Extra nap?',`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}<br>short naps today: tap to add it to the plan`,'setExtra(extraToday()+1)');
       else tl+=tlRow('','bd','Nap '+r.n,`<b>~${hm(r.s)}–${hm(r.e)}</b> &nbsp;${dur(r.e-r.s)}${r.add>=5?' (+'+dur(r.add)+')':''}${aw}${r.from?`<br>no nap ${r.n} lately, based on nap ${r.from}`:''}`);
     });
     if(bn)tl+=tlRow(IC.moon,'','Bedtime',`<b>${hm(tod(bn.start))}</b><br>target ${settings.bedtime}`,`openEdit('${bn.id}')`);
@@ -481,7 +491,7 @@ function render(){
   $('#plantitle').textContent=title;
   $('#plan').innerHTML=tl;$('#planfoot').innerHTML=`<div class="foot">${foot}</div>`;
   drawDaySpan();
-  $('#addnap').hidden=!showAdd;
+  $('#addnap').hidden=!showAdd;$('#xless').hidden=!extraToday();
   syncNotify(pl.want);
 
   renderHistory();
