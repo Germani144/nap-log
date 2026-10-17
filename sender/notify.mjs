@@ -66,6 +66,14 @@ async function main() {
     }
   }
   for (const id of dead) await fetch(url(`${famPath}/subs/${id}`), { method: 'DELETE' }).catch(() => {});
+  // tell the phones which subscriptions the push service rejected: a phone that still holds one of them throws it away
+  // and subscribes again the next time the app opens (a phone can keep using a subscription the service has dropped)
+  for (const id of dead) {
+    await fetch(url(famPath, `updateMask.fieldPaths=${encodeURIComponent('deadSubs.`' + id + '`')}&`), {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fields: { deadSubs: { mapValue: { fields: { [id]: { integerValue: String(now) } } } } } }),
+    }).catch(() => {});
+  }
 
   // mark as handled unless every attempt failed for a temporary reason (then the next run retries)
   if (ok > 0 || subs.length === 0 || failed === 0) {
