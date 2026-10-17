@@ -12,7 +12,7 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 |---|---|
 | `index.html` | The app: markup, styles, screen drawing, sync and push |
 | `plan.js` | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code |
-| `sw.js` | Service worker: offline cache (network first) and push notification display |
+| `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications |
 | `manifest.json` | Install info: name, icons, colours |
 | `icon-*.png` | App icons (background must stay `#1F2358`, the app colour, or Android shows a square on the launch screen) |
 | `badge-96.png` | White moon shown as the small icon on notifications (Android draws it in one colour) |
@@ -121,7 +121,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v2.27`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v2.28`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
