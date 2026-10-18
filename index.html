@@ -71,6 +71,7 @@ dialog h2{font-size:19px;margin:0 0 14px}
 .nowbtns.one{grid-template-columns:1fr}
 .nowbtns button{height:58px;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px}
 .zz{font-family:'Apple Color Emoji','Noto Color Emoji','Segoe UI Emoji',sans-serif;font-size:20px;filter:url(#zzd);line-height:1}
+button.alt .zz{filter:url(#zzl)}
 /* timeline */
 .sec{margin-top:34px}
 .tl{position:relative;margin-top:14px;padding-left:34px}
@@ -160,7 +161,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
-<filter id="zzd" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 .122  0 0 0 0 .137  0 0 0 0 .345  0 0 0 1 0"/></filter>
+<filter id="zzd" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 .122  0 0 0 0 .137  0 0 0 0 .345  0 0 0 1 0"/></filter><filter id="zzl" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.925  0 0 0 0 0.914  0 0 0 0 1.000  0 0 0 1 0"/></filter>
 <filter id="zza" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .71  0 0 0 0 .278  0 0 0 1 0"/></filter>
 </defs></svg>
 <header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver" id="ver"></span><span class="chip" id="sync"><i></i>…</span></header>
@@ -272,7 +273,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.0';
+const VER='3.1';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -540,7 +541,9 @@ function render(){
         k=d>0?label+' in':d>-1?label:label+' overdue by';big=d>0?dur(d):d>-1?'now':dur(-d);
         nx=''; // the expected time now sits in the ring, under the countdown
       }
-      btns=`<button onclick="startE('nap')"><span class="zz">💤</span>Start nap</button><button class="alt" onclick="startE('night')">Start night</button>`;
+      // once today's target naps (plus any added extra naps) are done, Start night becomes the main button; same places
+      const napsDone=tn.filter(e=>e.end).length>=settings.targetNaps+extraToday();
+      btns=`<button${napsDone?' class="alt"':''} onclick="startE('nap')"><span class="zz">💤</span>Start nap</button><button${napsDone?'':' class="alt"'} onclick="startE('night')">Start night</button>`;
     }
     sub=T!=null?`Nap time today: ${dur(napDone)} of about ${dur(T)}`:'';
 
