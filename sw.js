@@ -1,4 +1,4 @@
-const C='nap-v3.1';
+const C='nap-v3.2';
 // Always ask the server for the newest files ('no-cache' revalidates instead of trusting the browser's 10-minute HTTP
 // cache), so index.html and plan.js can never come from different versions. The cache below is only for offline use.
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','plan.js'].map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});

@@ -122,7 +122,7 @@ test('catch-up stretches a nap to at most 1.5× its usual length; the rest may b
   const p=makePlan([...week(),nap(0,8,30,8,50),nap(0,12,0,12,20)],at(0,12,30),S);
   const r3=p.rows[2];assert.ok(r3.e-r3.s<=45*1.5+0.5,'nap 3 is '+(r3.e-r3.s));
   const x=p.rows.find(r=>r.extra);
-  if(x){assert.ok(x.e-x.s>=30&&x.e-x.s<=45);assert.ok(p.B-x.e>=30)}       // an extra nap, if it fits, leaves room before bedtime
+  if(x){assert.ok(x.e-x.s>=30&&x.e-x.s<=45);assert.ok(x.s>p.rows[2].e)}
 });
 
 test('no extra nap on a normal day',()=>{
@@ -166,4 +166,15 @@ test('dailyStats: per-day wake-up, naps, bedtime, night length and awake time',a
   assert.deepEqual(d.naps.map(n=>n.len),[60,90,45]);assert.equal(d.napSum,195);
   assert.equal(d.night,11*60);assert.equal(d.awake,13*60-195);
   assert.equal(dailyStats([],T0,3).every(x=>x.wake==null&&x.napSum==null),true);
+});
+
+test('a suggested extra nap is not counted until added: countdown to bedtime, bedtime planned without it',()=>{
+  // like 18 Oct: up 05:57, three naps done by 15:35 with ~35 min of nap time still missing
+  const E=[...week().slice(0,-1),night(-1,19,30,5,57),nap(0,7,58,8,41),nap(0,10,57,12,19),nap(0,15,0,15,35)],t=at(0,16,8);
+  const p=makePlan(E,t,S),x=p.rows.find(r=>r.extra);
+  assert.ok(x,'an extra nap is suggested');
+  assert.equal(p.next.label,'Bedtime');assert.equal(p.next.t,p.B);
+  assert.ok(p.B<=15*60+35+210,'bedtime respects the 3h 30m awake limit: '+hm(p.B)); // no nap after 15:35
+  const q=makePlan(E,t,{...S,extraNaps:1});                                      // once added
+  assert.equal(q.next.label,'Next nap');assert.ok(q.B>p.B,'bedtime moves later with the added nap');
 });

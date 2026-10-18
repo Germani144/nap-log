@@ -127,7 +127,8 @@ function makePlan(E,nowT,settings){
   let P=planFor(nums);
   // extra ("bridge") nap: when stretching could not make up the day's nap time (15+ min missing), suggest a short extra
   // nap (30-45 min) halfway between the last planned nap and the target bedtime, but only with at least 75 min awake on
-  // each side (so it is never right after a nap or right before bed) and at most 3h 30m. Bedtime then stays on its target.
+  // each side (so it is never right after a nap or right before bed) and at most 3h 30m. Until it is added,
+  // bedtime and the countdown ignore it; once added (extraNaps) it becomes a planned nap and bedtime aims for its target.
   // This also covers days where all planned naps are done too early to reach bedtime.
   const bn0=E.find(e=>e.type==='night'&&sod(e.start)===today);
   let extra=null;
@@ -146,13 +147,13 @@ function makePlan(E,nowT,settings){
   // after a nap you added on purpose (planned or in progress) bedtime aims for its target: no lean towards a later bedtime
   const bridgeLast=(+settings.extraNaps||0)>0&&!!(lastRow&&(lastRow.bridge||(lastRow.a&&!lastRow.a.end&&sg&&sg.bridge))); // last nap (planned, or in progress) is beyond her usual naps
   if(B!=null&&bg!=null&&plan.last!=null&&best&&best.ok&&!bridgeLast)B=Math.min(Math.max(.65*B+.35*(plan.last+bg),best.x),best.y);
-  if(extra)B=bt; // with a bridge nap the last awake window is short and bedtime stays on its target
+  // a suggested extra nap is only a suggestion: until it is added (extraNaps), bedtime is planned without it
   const bn=E.find(e=>e.type==='night'&&sod(e.start)===today);
 
   // the next event while awake, and the notification for it (30 min before)
   let next=null,want=null;
   if(!run&&!bn){
-    const r=rows.find(x=>!x.a);
+    const r=rows.find(x=>!x.a&&!x.extra); // a suggested extra nap is not the next event until it is added
     if(r&&!r.nodata)next=r.extra?{label:'Extra nap',name:'Extra nap',key:'nap'+r.n,t:r.s}:{label:'Next nap',name:'Nap '+r.n,key:'nap'+r.n,t:r.s};
     else if(!r&&B!=null)next={label:'Bedtime',name:'Bedtime',key:'bed',t:B};
     if(next){const ev=today+next.t*60000;want={key:next.key+'-'+isoDay(today),at:ev-30*60000,event:ev,label:next.name,time:hm(next.t)}}
@@ -161,7 +162,7 @@ function makePlan(E,nowT,settings){
   const nts=E.filter(e=>e.type==='night'&&e.end&&e.end>=nowT-8*DAY),avgN=nts.length?avg(nts.map(e=>(e.end-e.start)/6e4)):630;
   const napDone=tn.reduce((x,a)=>x+((a.end||nowT)-a.start)/6e4,0);
   const ra=tn.find(e=>!e.end),cur=ra&&runTarget(ra)!=null?{len:runTarget(ra),end:tod(ra.start)+runTarget(ra)}:null;
-  return{cur,now:nowT,today,nowM,run,we,wk0,T,tn,rows,last:extra?extra.e:plan.last,B,bt,lo,shift,bn,next,want,avgN,napDone};
+  return{cur,now:nowT,today,nowM,run,we,wk0,T,tn,rows,last:plan.last,B,bt,lo,shift,bn,next,want,avgN,napDone};
 }
 
 // What the plan predicted for a nap or night that is being started now, saved with the entry so the real-world
