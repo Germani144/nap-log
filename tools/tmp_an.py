@@ -1,6 +1,7 @@
 # TEMPORARY: aggregate-only analysis, removed right after one run. Prints correlations/slopes/counts, never times or codes.
-import json,os,urllib.request,urllib.parse,datetime as dt,numpy as np
+import json,os,sys,io,urllib.request,urllib.parse,datetime as dt,numpy as np
 from scipy import stats
+sys.stdout=io.StringIO()
 KEY='AIzaSyDDKYM5tvjTixUdBq0BAd9-recAyoL6TE4';PID='nap-log-78cb6'
 code=urllib.parse.quote(os.environ['FAMILY_CODE'],safe='')
 base=f'https://firestore.googleapis.com/v1/projects/{PID}/databases/(default)/documents/families/{code}/entries'
@@ -73,3 +74,11 @@ for N in (3,4):
         rep(f'window after nap{k} vs nap{k} length (raw)',L.astype(float),W.astype(float))
     L=np.array([r[f'e{N}']-r[f's{N}'] for r in S],float);W=np.array([r['bed']-r[f'e{N}'] for r in S],float)
     rep(f'gap to bed vs nap{N} length (raw)',L,W)
+
+out=sys.stdout.getvalue().splitlines();sys.stdout=sys.__stdout__
+chunks,cur=[],[]
+for l in out:
+    cur.append(l)
+    if len('%0A'.join(cur))>3000:chunks.append(cur[:-1]);cur=[l]
+chunks.append(cur)
+for c in chunks:print('::notice::'+'%0A'.join(x.replace('%','%25') for x in c))

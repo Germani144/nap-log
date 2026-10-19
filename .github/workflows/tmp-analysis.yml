@@ -20,4 +20,4 @@ jobs:
         env:
           TZ: Europe/Copenhagen
         run: |
-          for w in 25 35 45; do cp plan.js /tmp/p.js; sed -i "s/B=Math.min(Math.max(.65\*B+.35\*(plan.last+bg)/B=Math.min(Math.max((1-.$w)*B+.$w*(plan.last+bg)/" plan.js; echo "lean $w"; node tools/backtest.mjs /tmp/h.json | grep -i bed; cp /tmp/p.js plan.js; done
+          for w in 25 35 45; do cp plan.js /tmp/p.js; sed -i "s/B=Math.min(Math.max(.65\*B+.35\*(plan.last+bg)/B=Math.min(Math.max((1-.$w)*B+.$w*(plan.last+bg)/" plan.js; echo "lean $w"; echo "::notice::lean $w: $(node tools/backtest.mjs /tmp/h.json | grep -i bed | tr '\n' ' ')"; cp /tmp/p.js plan.js; done
