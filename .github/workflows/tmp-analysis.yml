@@ -1,0 +1,23 @@
+name: Temporary analysis (aggregates only)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - run: pip install -q numpy scipy
+      - run: python3 tools/tmp_an.py
+        env:
+          FAMILY_CODE: ${{ secrets.FAMILY_CODE }}
+          TZ: Europe/Copenhagen
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Backtest bedtime lean (aggregate errors only)
+        env:
+          TZ: Europe/Copenhagen
+        run: |
+          for w in 25 35 45; do cp plan.js /tmp/p.js; sed -i "s/B=Math.min(Math.max(.65\*B+.35\*(plan.last+bg)/B=Math.min(Math.max((1-.$w)*B+.$w*(plan.last+bg)/" plan.js; echo "lean $w"; node tools/backtest.mjs /tmp/h.json | grep -i bed; cp /tmp/p.js plan.js; done
