@@ -178,3 +178,13 @@ test('a suggested extra nap is not counted until added: countdown to bedtime, be
   const q=makePlan(E,t,{...S,extraNaps:1});                                      // once added
   assert.equal(q.next.label,'Next nap');assert.ok(q.B>p.B,'bedtime moves later with the added nap');
 });
+
+test('nap in progress: earlier naps get their usual length; the last one is long enough to keep the stretch to bed near usual',()=>{
+  // like 19 Oct: up 05:13, two long naps already past the day's nap-time target, nap 3 started 15:42
+  const E=[...week().slice(0,-1),night(-1,19,30,5,13),nap(0,7,10,8,52),nap(0,11,33,13,6),nap(0,15,42,null)];
+  const p=makePlan(E,at(0,15,54),S);
+  assert.ok(p.cur.len>20,'not cut to the 20-min minimum: '+p.cur.len);
+  assert.ok(19*60+30-p.cur.end<=165+35+0.5,'stretch to bedtime at most the usual gap + 35 min');   // usual gap in week(): 16:45-19:30
+  const q=makePlan([...week(),nap(0,8,30,null)],at(0,8,40),S);                                     // a first nap: its usual length
+  assert.equal(Math.round(q.cur.len),60);
+});

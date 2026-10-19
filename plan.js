@@ -18,6 +18,7 @@ const byDay=l=>{const m={};l.forEach(e=>(m[sod(e.start)]??=[]).push(e));return m
 const wavg=xs=>{let a=0,b=0;xs.forEach(([v,w])=>{a+=v*w;b+=w});return a/b};
 function makePlan(E,nowT,settings){
   const MAXAWAKE=210,MINGAP=30,MAXNAP=180,BEDFLEX=30; // awake windows stay within 30m-3.5h; a lengthened nap is capped at 3h; bedtime may move 30m from the target
+  const[bh,bm]=(settings.bedtime||'19:30').split(':').map(Number),bt=bh*60+bm,lo=bt-BEDFLEX,hi=bt+BEDFLEX;
   const today=sod(nowT),nowM=tod(nowT),from=today-7*DAY,inWin=d=>+d>=from&&+d<today; // "past 7 days" = the 7 full days before today
   const naps=E.filter(e=>e.type==='nap').sort((a,b)=>a.start-b.start),done=byDay(naps.filter(e=>e.end));
   // recent days count more: a day's weight halves every 4 days (tested on the logged history: this tracks changes sooner)
@@ -68,8 +69,13 @@ function makePlan(E,nowT,settings){
     // a nap beyond her usual number (added, or no data for that nap number) is a bridge nap: at most 45 min, as planned
     const cap=g&&g.bridge?Math.min(45,g.len):MAXNAP;
     if(T==null)return g?Math.min(g.len,cap):null;
-    const others=tn.filter(x=>x!==a).reduce((s,x)=>s+((x.end||nowT)-x.start)/6e4,0);
-    return Math.min(cap,Math.max(20,T-others-later(n))); // (the 1.5× cap below did not help here in the backtest)
+    // a nap before the day's last one: its usual length (the nap-time budget overestimated these by ~25 min in the backtest)
+    if(n<N&&g)return Math.min(cap,g.len);
+    // the day's last nap: what is left of today's nap time, at least 20 min; but long enough that the stretch to the target
+    // bedtime is at most her usual gap before bed + 35 min (and never beyond 1.5× its usual length)
+    const others=tn.filter(x=>x!==a).reduce((s,x)=>s+((x.end||nowT)-x.start)/6e4,0),bud=Math.max(20,T-others-later(n));
+    const bg=bedGap(),fl=bg!=null?bt-(bg+35)-tod(a.start):0;
+    return Math.min(cap,Math.max(bud,Math.min(fl,g?g.len*1.5:fl)));
   };
   const exp=a=>{ // end of a logged nap; one still running is expected to last until its target
     if(a.end)return tod(a.end);
@@ -97,7 +103,6 @@ function makePlan(E,nowT,settings){
 
   // naps still to come: their usual awake window after the previous sleep, within the awake limits; d moves them all together
   const nums=[];for(let n=tn.length+1;n<=N;n++)nums.push(n);
-  const[bh,bm]=(settings.bedtime||'19:30').split(':').map(Number),bt=bh*60+bm,lo=bt-BEDFLEX,hi=bt+BEDFLEX;
   const planFor=nums=>{
   // More naps than she usually takes (an added or borrowed nap): the time left until bedtime is shared evenly over the
   // remaining awake windows (each window at most its usual length), so every nap moves a bit earlier, not just the last.

@@ -92,8 +92,10 @@ The full explanation is in the app under **How the plan works**. In short:
   only); the plan re-times the remaining naps. **＋ Log a nap** enters real times.
 - A nap number with **no data** in the past 7 days is planned like a bridge nap: at most 45 min (or the last nap
   number's usual length), halfway between the previous nap and bedtime.
-- **Nap in progress** gets a target length: today's nap-time target − naps already done today − the usual length of
-  the naps still to come, kept between 20 min and 3 h. Shown as "target +x min" / "past target by x min". The plan assumes
+- **Nap in progress** gets a target length. Before the day's last nap: her usual length for that nap. The last nap: today's
+  nap-time target − naps already done today (at least 20 min), but long enough that the stretch to the target bedtime is
+  at most her usual gap before bed + 35 min (capped at 1.5× its usual length). Checked 10 min into every logged nap (v3.3):
+  nap-length error went from 46 to 30 min (the budget overestimated earlier naps), the last nap stayed at ~24 min. Shown as "target +x min" / "past target by x min". The plan assumes
   she wakes at the target; past it, everything is planned from now. A nap beyond the target number of naps (added, or without data)
   is a bridge nap: target at most 45 min (her past extra naps: 23–66 min, typically ~37). After an added nap, bedtime
   aims for its target (no lean towards a later bedtime).
@@ -130,7 +132,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v3.2`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-v3.3`), or phones keep showing the old version.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
