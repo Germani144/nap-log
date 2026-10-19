@@ -1,0 +1,15 @@
+name: Temporary analysis (aggregates only)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - run: pip install -q numpy scipy
+      - run: python3 tools/tmp_an2.py
+        env:
+          FAMILY_CODE: ${{ secrets.FAMILY_CODE }}
+          TZ: Europe/Copenhagen
