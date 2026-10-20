@@ -1,6 +1,6 @@
 // All of Pedro's apps share one origin (germani144.github.io), so they share CacheStorage: this worker only ever
 // touches caches with its own prefix, and only handles requests inside its own scope (/nap-log/).
-const P='nap-log-',C=P+'v3.5';
+const P='nap-log-',C=P+'v3.6';
 const mine=k=>k.startsWith(P)||/^nap-v\d/.test(k); // 'nap-v…' = this app's cache names before v3.4
 // Always ask the server for the newest files ('no-cache' revalidates instead of trusting the browser's 10-minute HTTP
 // cache), so index.html and plan.js can never come from different versions. The cache below is only for offline use.
@@ -8,7 +8,8 @@ self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>mine(k)&&k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||!e.request.url.startsWith(self.registration.scope))return;
-  e.respondWith(fetch(e.request.url,{cache:'no-cache',credentials:'same-origin'}).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.open(C).then(c=>c.match(e.request))));
+  e.respondWith(fetch(e.request.url,{cache:'no-cache',credentials:'same-origin'}).then(r=>{if(r.ok){const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp))}return r})
+    .catch(async()=>{const c=await caches.open(C);return(await c.match(e.request,{ignoreSearch:true}))||(e.request.mode==='navigate'&&await c.match('./index.html'))||Response.error()}));
 });
 
 // ---- push notifications (sent by sender/notify.mjs through GitHub Actions)
