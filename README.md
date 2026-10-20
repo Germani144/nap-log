@@ -12,7 +12,7 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 |---|---|
 | `index.html` | The app: markup, styles, screen drawing, sync and push |
 | `plan.js` | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code |
-| `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications |
+| `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. All of these apps share the origin `germani144.github.io`, so it only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
 | `manifest.json` | Install info: name, icons, colours |
 | `icon-*.png` | App icons (background must stay `#1F2358`, the app colour, or Android shows a square on the launch screen) |
 | `badge-96.png` | White moon shown as the small icon on notifications (Android draws it in one colour) |
@@ -132,7 +132,8 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-v3.3`), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-log-v3.4`; keep the `nap-log-` prefix), or phones keep showing the old version.
+- localStorage is shared with the other apps on this origin: every key here starts with `nt_` (Nap Log's prefix).
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
