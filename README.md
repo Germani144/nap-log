@@ -12,13 +12,15 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 |---|---|
 | `index.html` | The app: markup, styles, screen drawing, sync and push |
 | `plan.js` | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code |
-| `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. All of these apps share the origin `germani144.github.io`, so it only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
+| `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. All of these apps share the origin `germani144.github.io`, so it only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores successful responses, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
 | `manifest.json` | Install info: name, icons, colours. `start_url` and `scope` are `./` (only `/nap-log/`, never the whole site, which other apps share) and `id` stays `nap-log-v2`: changing it makes phones treat Nap Log as a new app |
 | `icon-*.png` | App icons (background must stay `#1F2358`, the app colour, or Android shows a square on the launch screen) |
 | `badge-96.png` | White moon shown as the small icon on notifications (Android draws it in one colour) |
 | `sender/notify.mjs` | Sends the push notifications (run by GitHub Actions) |
 | `.github/workflows/notify.yml` | Runs the sender every 5 minutes (GitHub often runs it much less often) |
 | `tests/plan.test.mjs` | Tests for the plan maths |
+| `tests/storage.test.mjs` | Tests for the localStorage key move (`nt_` to `nap-log.`) |
+| `tests/sw.test.mjs` | Tests that the service worker only touches Nap Log's own caches and scope |
 | `tools/backtest.mjs` | Replays a logged history through the plan maths and reports the prediction error |
 | `tools/accuracy.mjs` | Reports the real-world accuracy of each app version from the saved predictions (`pred`) |
 | `CLAUDE.md` | Working notes for Claude sessions on this repo |
@@ -114,7 +116,7 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
 ## Tests and backtest
 
 ```
-TZ=Europe/Copenhagen node --test tests/plan.test.mjs
+TZ=Europe/Copenhagen node --test tests/*.test.mjs
 TZ=Europe/Copenhagen node tools/backtest.mjs history.json
 TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
 ```
@@ -132,8 +134,8 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-log-v3.5`; keep the `nap-log-` prefix), or phones keep showing the old version.
-- localStorage is shared with the other apps on this origin: every key here starts with `nt_` (Nap Log's prefix).
+  with each prediction) and the cache name in `sw.js` (`nap-log-v3.6`; keep the `nap-log-` prefix), or phones keep showing the old version.
+- localStorage is shared with the other apps on this origin: every key here starts with `nap-log.` (use `load`/`save`, or `lsGet`/`lsSet`/`lsDel`). Older versions used `nt_`; those keys are moved over once on first launch, so nobody loses their family code or entries.
 - Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
