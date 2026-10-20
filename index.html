@@ -273,18 +273,25 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.5';
+const VER='3.6';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
-const load=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}};
-const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+// localStorage is shared by every app on this origin, so keys are stored as "nap-log.<name>".
+// Older builds used "nt_<name>"; they are moved over once, here, before anything reads them.
+const LS='nap-log.';
+const lsGet=k=>localStorage.getItem(LS+k);
+const lsSet=(k,v)=>localStorage.setItem(LS+k,v);
+const lsDel=k=>localStorage.removeItem(LS+k);
+try{for(const k of ['settings','entries','family','extra','pushoff','statsN']){const o=localStorage.getItem('nt_'+k);if(o!==null){if(lsGet(k)===null)lsSet(k,o);localStorage.removeItem('nt_'+k)}}}catch{}
+const load=(k,d)=>{try{const v=JSON.parse(lsGet(k));return v??d}catch{return d}};
+const save=(k,v)=>{try{lsSet(k,JSON.stringify(v))}catch{}};
 // Everything synced from the shared log is checked before use: the page builds HTML from it, so a malformed
 // (or malicious) value must never reach the screen as markup or script. Bad entries are dropped, bad settings reset.
 const okE=e=>!!e&&typeof e.id==='string'&&/^[\w-]{1,64}$/.test(e.id)&&(e.type==='nap'||e.type==='night')&&Number.isFinite(e.start)&&(e.end==null||Number.isFinite(e.end));
 const okS=s=>({targetNaps:Math.min(8,Math.max(1,Math.round(+(s&&s.targetNaps))||4)),bedtime:/^([01]\d|2[0-3]):[0-5]\d$/.test(s&&s.bedtime)?s.bedtime:'19:30'});
 const esc=v=>String(v).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-let settings=okS(load('nt_settings',{})),entries=[].concat(load('nt_entries',[])).filter(okE),family=load('nt_family',''),db=null,unsubs=[],famData=null,lastNotifyWrite='';
+let settings=okS(load('settings',{})),entries=[].concat(load('entries',[])).filter(okE),family=load('family',''),db=null,unsubs=[],famData=null,lastNotifyWrite='';
 
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 // history tab state; `hist` holds entries older than the live 14-day sync window (shared mode only)
@@ -299,11 +306,11 @@ function putEntry(e){
   if(db){
     fam().collection('entries').doc(e.id).set(e);
     if(e.start<sod(Date.now())-14*DAY){hist[e.id]=e;renderHistory()} // outside the live window: keep a local copy
-  }else{entries=entries.filter(x=>x.id!==e.id).concat(e);save('nt_entries',entries);render()}
+  }else{entries=entries.filter(x=>x.id!==e.id).concat(e);save('entries',entries);render()}
 }
 function removeEntry(id){
   if(db){fam().collection('entries').doc(id).delete();delete hist[id];renderHistory()}
-  else{entries=entries.filter(x=>x.id!==id);save('nt_entries',entries);render()}
+  else{entries=entries.filter(x=>x.id!==id);save('entries',entries);render()}
 }
 function connect(){
   unsubs.forEach(f=>f());unsubs=[];db=null;famData=null;
@@ -313,9 +320,9 @@ function connect(){
     try{firebase.firestore().enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch{}
   }
   db=firebase.firestore();
-  unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};if(famData.deadSubs&&Object.keys(famData.deadSubs).length&&!refreshing){refreshing=true;refreshSub().finally(()=>{refreshing=false})}lastNotifyWrite='';const s=famData.settings;if(s){settings=okS(s);save('nt_settings',settings);initForm()}render()}));
+  unsubs.push(fam().onSnapshot(d=>{famData=d.data()||{};if(famData.deadSubs&&Object.keys(famData.deadSubs).length&&!refreshing){refreshing=true;refreshSub().finally(()=>{refreshing=false})}lastNotifyWrite='';const s=famData.settings;if(s){settings=okS(s);save('settings',settings);initForm()}render()}));
   // only sync the last 14 days: all the plan and the 7-day averages need, and it keeps Firestore reads tiny
-  unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data()).filter(okE);save('nt_entries',entries);render()}));
+  unsubs.push(fam().collection('entries').where('start','>=',sod(Date.now())-14*DAY).onSnapshot(q=>{entries=q.docs.map(d=>d.data()).filter(okE);save('entries',entries);render()}));
   setSync('shared');
   refreshSub();renderPush();
 }
@@ -331,7 +338,7 @@ const withPred=(e,old)=>{
 function startE(type){putEntry(withPred({id:uid(),type,start:Date.now(),end:null}))}
 function stopE(id){const e=entries.find(x=>x.id===id);if(e)putEntry({...e,end:Date.now()})}
 // Extra naps added to today's plan by hand ("＋ Add extra nap"): shared through the family document, reset every day.
-const extraToday=()=>{const x=db?famData&&famData.extraNaps:load('nt_extra',null);return x&&x.day===isoDay(Date.now())?Math.max(0,Math.min(3,Math.round(+x.n)||0)):0};
+const extraToday=()=>{const x=db?famData&&famData.extraNaps:load('extra',null);return x&&x.day===isoDay(Date.now())?Math.max(0,Math.min(3,Math.round(+x.n)||0)):0};
 const planSettings=()=>({...settings,extraNaps:extraToday()});
 let ringDraw=null,ringRows=null;
 // what each plan row says, to see which rows changed after the plan was rearranged
@@ -375,7 +382,7 @@ const markAnim=()=>{pendingAnim={before:ringRows,list:planSnap(),t:Date.now()}};
 function setExtra(n){
   markAnim();
   const v={day:isoDay(Date.now()),n:Math.max(0,Math.min(3,n))};
-  if(db){famData={...(famData||{}),extraNaps:v};fam().set({extraNaps:v},{merge:true})}else save('nt_extra',v);
+  if(db){famData={...(famData||{}),extraNaps:v};fam().set({extraNaps:v},{merge:true})}else save('extra',v);
   render();
 }
 let ed=null;
@@ -612,8 +619,8 @@ async function saveSub(sub){
   const j=sub.toJSON();
   await fam().collection('subs').doc(await subId(j.endpoint)).set({sub:JSON.stringify({endpoint:j.endpoint,keys:j.keys}),device:iOS?'iPhone':/Android/.test(navigator.userAgent)?'Android':'other',at:Date.now()});
 }
-const pushOff=()=>{try{return localStorage.getItem('nt_pushoff')==='1'}catch{return false}};
-const setPushOff=v=>{try{v?localStorage.setItem('nt_pushoff','1'):localStorage.removeItem('nt_pushoff')}catch{}};
+const pushOff=()=>{try{return lsGet('pushoff')==='1'}catch{return false}};
+const setPushOff=v=>{try{v?lsSet('pushoff','1'):lsDel('pushoff')}catch{}};
 let pushDbg='';
 let refreshing=false;
 async function refreshSub(){ // keep the saved copy current; quietly re-subscribe if the phone dropped the subscription
@@ -663,8 +670,8 @@ $('#pushtest').onclick=()=>{
 // Charts of the last 7/14/30 full days, drawn as inline SVG. Colours were checked for colour-blind separation and
 // contrast on the app's dark background (dataviz validator). One scale per chart: night sleep has its own chart.
 const SC={n1:'#3987e5',n2:'#d95926',n3:'#199e70',n4:'#c98500',bed:'#d55181',awake:'#c98500',naps:'#199e70',night:'#9085e9'};
-let statsN=(()=>{try{return +localStorage.getItem('nt_statsN')||30}catch{return 30}})(),recentLoaded=false;
-function setStatsN(n){statsN=n;try{localStorage.setItem('nt_statsN',n)}catch{}renderStats()}
+let statsN=(()=>{try{return +lsGet('statsN')||30}catch{return 30}})(),recentLoaded=false;
+function setStatsN(n){statsN=n;try{lsSet('statsN',n)}catch{}renderStats()}
 // shared mode: the live sync covers 14 days, so the older part of the last 30 days is fetched once
 function ensureRecent(){
   if(!db||recentLoaded)return;recentLoaded=true;
@@ -877,9 +884,9 @@ $('#ecancel').onclick=()=>$('#dlg').close();
 $('#edel').onclick=()=>{if(confirm('Delete this entry?')){markAnim();removeEntry(ed.id);$('#dlg').close()}};
 $('#ssave').onclick=()=>{
   settings=okS({targetNaps:$('#sn').value,bedtime:normT($('#sb').value)||settings.bedtime});
-  save('nt_settings',settings);
+  save('settings',settings);
   const f=$('#sf').value.trim();
-  if(f!==family){family=f;save('nt_family',f);connect()}
+  if(f!==family){family=f;save('family',f);connect()}
   if(db)fam().set({settings},{merge:true});
   $('#setd').open=false;render();renderPush();
 };
