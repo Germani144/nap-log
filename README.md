@@ -4,7 +4,7 @@ A small web app for tracking a baby's naps and night sleep, shared between two p
 It suggests today's naps and bedtime from the past week and can send a push notification
 about 30 minutes before the next nap or bedtime.
 
-Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) or Safari (iPhone) and add it to the home screen.
+Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) or Safari (iPhone) and add it to the home screen. Chrome on Android installs only one app per address, so Nap Log is the only installable app on `germani144.github.io`; Pedro's other apps have their own addresses.
 
 ## Files
 
@@ -12,7 +12,7 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 |---|---|
 | `index.html` | The app: markup, styles, screen drawing, sync and push |
 | `plan.js` | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code |
-| `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. All of these apps share the origin `germani144.github.io`, so it only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores successful responses, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
+| `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. Other apps can share the origin `germani144.github.io` (RideGuide does for now), so it only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores successful responses, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
 | `manifest.json` | Install info: name, icons, colours. `start_url` and `scope` are `./` (only `/nap-log/`, never the whole site, which other apps share) and `id` stays `nap-log-v2`: changing it makes phones treat Nap Log as a new app |
 | `icon-*.png` | App icons (background must stay `#1F2358`, the app colour, or Android shows a square on the launch screen) |
 | `badge-96.png` | White moon shown as the small icon on notifications (Android draws it in one colour) |

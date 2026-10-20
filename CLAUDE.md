@@ -11,14 +11,16 @@
 - Every release: bump the version (minor +1) in both `VER` in index.html and the cache name in sw.js (`nap-log-vX.Y`). They must match.
 - Commit and push to main after each change; the app is served by GitHub Pages from main.
 
-## Shared origin (all of Pedro's apps live on germani144.github.io)
+## Address and shared-origin rules
 
-Every app is served from the same origin, so they share one CacheStorage, one localStorage and one IndexedDB namespace. Keep these rules. Changes that apply to every app at once (caching and the like) are made from Pedro's orchestration chat; they never touch UI or calculations.
+Nap Log lives at https://germani144.github.io/nap-log/.
+
+**One installable app per address.** Chrome on Android lets only one app per address (origin) be installed: a second app on the same address shows "This app is already installed" and can't be installed (found 2026-10-20). So every app Pedro installs needs its own address. Nap Log is the installed app on `germani144.github.io`; Lift Log moved to `germani144-lift.github.io` and Home log to `germani144-home.github.io` (each its own free GitHub organization). Changes that apply to every app at once are made from Pedro's orchestration chat; they never touch UI or calculations. RideGuide still lives on this address too and must move before anyone installs it. Never add another installable app to `germani144.github.io`. The rules below keep apps that share the address (RideGuide, for now) out of each other's caches and storage.
 
 - **Service worker:** Cache names start with `nap-log-` (`nap-log-vX.Y`; its old `nap-v…` names are also cleaned up). On activate, delete only caches with that prefix (never "every cache but the current one"). Read from this app's own cache (`caches.open(C).then(c => c.match(...))`), never the global `caches.match()`. Only handle requests whose URL starts with `self.registration.scope`; leave other apps, the GitHub API and other origins alone.
 - **Updates:** fetch network-first with `{cache: 'no-cache'}`, store only `r.ok` responses, fall back to this app's own cache when offline. Register the worker with `{scope: './', updateViaCache: 'none'}`.
 - **Storage:** every `localStorage` key starts with `nap-log.` (use `load`/`save`, or `lsGet`/`lsSet`/`lsDel`). Older builds used `nt_`; that move happens once at startup.
-- **Manifest:** `scope` and `start_url` are `./`. `id` is unique to this app and stays stable: changing it makes phones treat the app as a new install, so only do it deliberately.
+- **Manifest:** `scope` and `start_url` are `./`. **Never change the manifest `id`**, not even to fix an install problem, unless Pedro explicitly asks for it in that chat. The id is how Android recognises the installed app: changing it orphans the installed copy. If installing fails on the phone, investigate and report; don't change the id.
 - `tests/sw.test.mjs` and `tests/storage.test.mjs` check these rules; keep them passing.
-- Keep Firebase initialised as it is (the default app): another app on the origin uses a differently named app in the same project, which is what keeps their offline databases apart.
+- Keep Firebase initialised as it is (the default app). Home log uses the same Firebase project as a differently named app (`cart-log`), now on its own address.
 - The manifest `id` is `nap-log-v2`.
