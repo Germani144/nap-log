@@ -186,6 +186,8 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  </div>
  <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
  <button id="ssave">Save</button>
+ <div class="pushrow"><button class="x" id="updbtn">Check for updates</button></div>
+ <div class="mu" id="updmsg"></div>
 </div>
 </details>
 
@@ -273,7 +275,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.6';
+const VER='3.7';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -894,6 +896,21 @@ $('#ssave').onclick=()=>{
 initForm();$('#setd').open=!family; // collapsed once a family code is set
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'}).catch(()=>{});
 $('#ver').textContent='v'+VER;
+// Check for updates: read the version the server is serving from sw.js (its cache name, kept equal to VER), bypassing
+// every cache. If it is newer, delete only Nap Log's own caches, update the worker (it saves a fresh offline copy) (the origin may be shared) and reload.
+$('#updbtn').onclick=async()=>{
+  const btn=$('#updbtn'),msg=$('#updmsg'),cur=VER;btn.textContent='Checking…';btn.disabled=true;msg.textContent='';
+  let latest=null;
+  try{const r=await fetch('sw.js?check='+Date.now(),{cache:'no-store'});if(r.ok)latest=(/C=P\+'v([\d.]+)'/.exec(await r.text())||[])[1]||null}catch{}
+  btn.textContent='Check for updates';btn.disabled=false;
+  if(!latest){msg.textContent="Couldn't reach the server. Check the connection and try again.";return}
+  if(latest===cur){msg.textContent=`You're on the latest version (v${cur}).`;return}
+  if(!confirm(`Version v${latest} is available (you have v${cur}). Update now?`))return;
+  btn.textContent='Updating…';btn.disabled=true;
+  try{for(const k of await caches.keys())if(k.startsWith('nap-log-')||/^nap-v\d/.test(k))await caches.delete(k)}catch{}
+  try{const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update()}catch{}
+  location.reload();
+};
 connect();render();renderPush();setInterval(render,30000);
 </script>
 </body></html>
