@@ -46,6 +46,16 @@ label{font-size:13px;color:var(--mute)}
 dialog{border:0;border-radius:24px;background:var(--panel);color:var(--milk);width:min(92vw,400px);padding:20px}
 dialog::backdrop{background:rgba(10,12,40,.65)}
 dialog h2{font-size:19px;margin:0 0 14px}
+.cog{background:transparent;color:var(--mute);padding:6px;margin:0 -6px 0 2px;display:flex;border-radius:50%}
+.cog:hover,.cog:active{color:var(--milk)}
+#sdlg label{display:block;margin-bottom:6px}
+#sdlg .fl{margin-top:16px}
+.secret{position:relative}.secret input{padding-right:70px}
+.secret button{position:absolute;right:6px;top:50%;transform:translateY(-50%);color:var(--lilac);font-weight:600}
+.masked{-webkit-text-security:disc}
+.acts{display:flex;gap:8px;align-items:center;margin-top:20px}
+.upd{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:18px -10px 0;padding-top:12px;border-top:1px solid var(--line)}
+.upd .mu{font-size:13px;padding:0 10px}
 #dt:focus{outline:none}
 .tabs{margin-top:18px;display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--deep);border-radius:999px;padding:4px}
 .tabs button{background:transparent;color:var(--mute);padding:10px 0;font-weight:600}
@@ -164,7 +174,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <filter id="zzd" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 .122  0 0 0 0 .137  0 0 0 0 .345  0 0 0 1 0"/></filter><filter id="zzl" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.925  0 0 0 0 0.914  0 0 0 0 1.000  0 0 0 1 0"/></filter>
 <filter id="zza" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .71  0 0 0 0 .278  0 0 0 1 0"/></filter>
 </defs></svg>
-<header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver" id="ver"></span><span class="chip" id="sync"><i></i>…</span></header>
+<header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver" id="ver"></span><span class="chip tap" id="sync" title="Settings"><i></i>…</span><button class="cog" id="cog" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M10.3 2.8h3.4l.5 2.4 1.6.9 2.3-.8 1.7 2.9-1.8 1.7v1.9l1.8 1.6-1.7 3-2.3-.8-1.6.9-.5 2.4h-3.4l-.5-2.4-1.6-.9-2.3.8-1.7-3 1.8-1.6v-1.9L4.2 8.2l1.7-2.9 2.3.8 1.6-.9z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button></header>
 <div class="tabs"><button id="t-today" class="on" onclick="setTab('today')">Today</button><button id="t-hist" onclick="setTab('hist')">History</button><button id="t-stats" onclick="setTab('stats')">Statistics</button></div>
 
 <div id="v-today">
@@ -178,19 +188,6 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <div class="addrow" id="addnap"><button class="lnk" id="xbtn" onclick="setExtra(extraToday()+1)">＋ Add extra nap</button><button class="lnk" id="xless" onclick="setExtra(extraToday()-1)" hidden>− Remove extra nap</button><button class="lnk" onclick="openAdd('nap')">＋ Log a nap</button></div></section>
 
 <div class="folds">
-<details class="fold" id="setd"><summary>Settings</summary>
-<div class="in">
- <div class="grid">
-  <div><label>Target naps/day</label><input type="number" id="sn" min="1" max="8"></div>
-  <div><label>Target bedtime</label><input type="text" id="sb" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
- </div>
- <p><label>Family code (same on both phones)</label><input id="sf" placeholder="a long random phrase"></p>
- <button id="ssave">Save</button>
- <div class="pushrow"><button class="x" id="updbtn">Check for updates</button></div>
- <div class="mu" id="updmsg"></div>
-</div>
-</details>
-
 <details class="fold" id="pushd"><summary>Notifications</summary>
 <div class="in" id="pushbox">
  <button id="pushbtn" class="wide">🔔 Enable push notifications</button>
@@ -249,6 +246,18 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <div id="day"></div>
 </div>
 
+<dialog id="sdlg" aria-labelledby="sdt">
+ <h2 id="sdt" tabindex="-1" autofocus>Settings</h2>
+ <div class="grid">
+  <div><label for="sn">Target naps a day</label><input type="number" id="sn" min="1" max="8" inputmode="numeric"></div>
+  <div><label for="sb">Target bedtime</label><input type="text" id="sb" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
+ </div>
+ <label for="sf" class="fl">Family code, the same on both phones</label>
+ <div class="secret"><input id="sf" class="masked" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="a long random phrase"><button class="x" id="sfshow" type="button" aria-controls="sf" aria-pressed="false">Show</button></div>
+ <div class="acts"><button id="ssave">Save</button><button class="x" id="scancel">Cancel</button></div>
+ <div class="upd"><button class="x" id="updbtn">Check for updates</button><span class="mu" id="updmsg"></span></div>
+</dialog>
+
 <dialog id="dlg">
  <h2 id="dt" tabindex="-1" autofocus></h2>
  <div class="grid">
@@ -275,7 +284,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.7';
+const VER='3.8';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -643,7 +652,7 @@ async function renderPush(){
   const set=(t,off)=>{st.textContent=t;if(off)btn.disabled=true};
   if(!pushOk)return set('This browser does not support notifications.',true);
   if(iOS&&!standalone)return set('On iPhone, open the app from its home-screen icon first, then come back here.',true);
-  if(!db)return set('Needs sharing: enter the family code above and tap Save first.',true);
+  if(!db)return set('Needs sharing: add the family code in Settings (⚙ at the top) first.',true);
   if(Notification.permission==='denied')return set('Blocked. Allow notifications for this app in the phone settings, then reopen it.',true);
   let sub=null;try{sub=await getSub()}catch{}
   if(sub&&Notification.permission==='granted'){st.textContent='🔔 Notifications are on for this phone: a heads-up about 30 minutes before the next nap or bedtime.';btn.textContent='Turn off';btn.className='x';tst.hidden=false}
@@ -890,10 +899,17 @@ $('#ssave').onclick=()=>{
   const f=$('#sf').value.trim();
   if(f!==family){family=f;save('family',f);connect()}
   if(db)fam().set({settings},{merge:true});
-  $('#setd').open=false;render();renderPush();
+  $('#sdlg').close();render();renderPush();
 };
 
-initForm();$('#setd').open=!family; // collapsed once a family code is set
+initForm();
+// Settings: the cog (or the sync chip) opens it; the family code stays hidden until Show is tapped
+const maskCode=on=>{$('#sf').classList.toggle('masked',on);$('#sfshow').textContent=on?'Show':'Hide';$('#sfshow').setAttribute('aria-pressed',String(!on))};
+const openSettings=()=>{initForm();maskCode(true);$('#updmsg').textContent='';$('#sdlg').showModal()};
+$('#cog').onclick=openSettings;$('#sync').onclick=openSettings;
+$('#sfshow').onclick=()=>maskCode($('#sf').classList.contains('masked')?false:true);
+$('#scancel').onclick=()=>$('#sdlg').close();
+$('#sdlg').addEventListener('click',e=>{if(e.target===e.currentTarget)$('#sdlg').close()}); // tap outside to close
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'}).catch(()=>{});
 $('#ver').textContent='v'+VER;
 // Check for updates: read the version the server is serving from sw.js (its cache name, kept equal to VER), bypassing
