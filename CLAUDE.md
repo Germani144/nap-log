@@ -2,6 +2,8 @@
 
 - Scope: work only in this repository (Germani144/nap-log). Do not clone, attach or change any other repository
   from a nap-log session. Each of Pedro's apps has its own chat.
+- **History was rewritten on 2026-10-22** to remove personal nap data from the public history (main is now b2ca908 or later). At the start of every session, before editing: `git fetch origin && git reset --hard origin/main` (or re-clone). Never push older local commits or branches, and never force-push old history: that would put the data back.
+- **Never commit personal data** (nap or sleep exports, CSVs, JSON dumps, analysis output) to this public repo. One-time imports must read the data from a GitHub Actions secret or from the phone, never from a committed file.
 - Read README.md first: it explains sync, push, the plan logic and the gotchas.
 - Never commit, print or log the family code or the VAPID private key. They live only in GitHub Actions secrets.
 - Keep README.md up to date: update it in the same commit whenever a change affects what it describes.
