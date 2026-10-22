@@ -48,8 +48,19 @@ Firebase Firestore (free plan) under `families/{code}`:
 
 The family code is effectively the password, so it must be long and random, and it is never committed or logged.
 The Firebase web key in the code is public by design; the protection comes from the Firestore rules:
-**listing the `families` collection must be denied**, otherwise anyone could list every family's code.
-Only a single family document (fetched by its code) and its subcollections may be readable.
+only known family codes are allowed (set 2026-10-22), and **listing the `families` collection is denied**, so nobody
+can find a code. The rules live only in the Firebase console, never in this public repo, because they contain the real code:
+
+```
+function napOk(id) { return id in ['<family code>']; }
+match /families/{family} {
+  allow get, create, update: if napOk(family);
+  match /{sub}/{doc=**} { allow read, write: if napOk(family); }
+}
+```
+
+Anyone can open the app, but with any other code nothing syncs. **A new family code only works after it is added to the rules**
+in the Firebase console (Firestore → Rules → Publish). The same rules also cover Home log, which shares the Firebase project.
 
 Without a family code the app runs in local-only mode (data stays on that phone).
 
