@@ -1,10 +1,10 @@
 // All of Pedro's apps share one origin (germani144.github.io), so they share CacheStorage: this worker only ever
 // touches caches with its own prefix, and only handles requests inside its own scope (/nap-log/).
-const P='nap-log-',C=P+'v3.9';
+const P='nap-log-',C=P+'v3.10';
 const mine=k=>k.startsWith(P)||/^nap-v\d/.test(k); // 'nap-v…' = this app's cache names before v3.4
 // Always ask the server for the newest files ('no-cache' revalidates instead of trusting the browser's 10-minute HTTP
-// cache), so index.html and plan.js can never come from different versions. The cache below is only for offline use.
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','plan.js'].map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});
+// cache), so index.html, plan.js and backup.js can never come from different versions. The cache below is only for offline use.
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','plan.js','backup.js'].map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>mine(k)&&k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||!e.request.url.startsWith(self.registration.scope))return;

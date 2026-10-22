@@ -3,7 +3,7 @@
 - Scope: work only in this repository (Germani144/nap-log). Do not clone, attach or change any other repository
   from a nap-log session. Each of Pedro's apps has its own chat.
 - **History was rewritten on 2026-10-22** to remove personal nap data from the public history (main is now b2ca908 or later). At the start of every session, before editing: `git fetch origin && git reset --hard origin/main` (or re-clone). Never push older local commits or branches, and never force-push old history: that would put the data back.
-- **Never commit personal data** (nap or sleep exports, CSVs, JSON dumps, analysis output) to this public repo. One-time imports must read the data from a GitHub Actions secret or from the phone, never from a committed file.
+- **Never commit personal data** (nap or sleep exports, CSVs, JSON dumps, analysis output) to this public repo. That includes the app's own export files (`nap-log-YYYY-MM-DD.json`, ignored by `.gitignore`); tests use made-up data only. One-time imports must read the data from a GitHub Actions secret or from the phone, never from a committed file.
 - Read README.md first: it explains sync, push, the plan logic and the gotchas.
 - Never commit, print or log the family code or the VAPID private key. They live only in GitHub Actions secrets.
 - Keep README.md up to date: update it in the same commit whenever a change affects what it describes.
@@ -15,7 +15,8 @@
 
 ## Security rules
 - `index.html` has a Content-Security-Policy. Keep it: if a feature needs another address, add exactly that address to the right directive and say so in the README. Never add `*` or broad wildcards.
-- Anything synced or typed in goes through validation (`okE`/`okS`) and `esc()` before it is put into HTML.
+- Anything synced, typed in or imported goes through validation (`okE`/`okS` in backup.js, `Backup.parseImport` for files) and `esc()` before it is put into HTML.
+- Exports never contain the family code. If the export layout changes, raise `Backup.VERSION` and keep importing older versions (add a test).
 - Every Firestore request from `sender/` keeps the `Referer` header (the web key may be restricted to the app's address).
 
 ## Address and shared-origin rules

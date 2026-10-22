@@ -12,6 +12,7 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 |---|---|
 | `index.html` | The app: markup, styles, screen drawing, sync and push |
 | `plan.js` | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code |
+| `backup.js` | Export/import file format and checks (`Backup`), and the validators `okE` (entries) and `okS` (settings). No screen code |
 | `sw.js` | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. It is the only app on `germani144.github.io` now, but it still only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores successful responses, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
 | `manifest.json` | Install info: name, icons, colours. `start_url` and `scope` are `./` (only `/nap-log/`, never the whole site, which other apps share) and `id` stays `nap-log-v2`: changing it makes phones treat Nap Log as a new app |
 | `icon-*.png` | App icons (background must stay `#1F2358`, the app colour, or Android shows a square on the launch screen) |
@@ -19,6 +20,7 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 | `sender/notify.mjs` | Sends the push notifications (run by GitHub Actions) |
 | `.github/workflows/notify.yml` | Runs the sender every 5 minutes (GitHub often runs it much less often) |
 | `tests/plan.test.mjs` | Tests for the plan maths |
+| `tests/backup.test.mjs` | Tests for export/import: round-trips, refused files, old exports (made-up data only) |
 | `tests/storage.test.mjs` | Tests for the localStorage key move (`nt_` to `nap-log.`) |
 | `tests/sw.test.mjs` | Tests that the service worker only touches Nap Log's own caches and scope |
 | `tools/backtest.mjs` | Replays a logged history through the plan maths and reports the prediction error |
@@ -65,7 +67,7 @@ in the Firebase console (Firestore → Rules → Publish). The same rules also c
 Without a family code the app runs in local-only mode (data stays on that phone).
 
 Live sync covers the last 14 days. Older months are loaded on demand in History.
-Everything read from Firestore or local storage is validated before use (`okE`, `okS` in `index.html`),
+Everything read from Firestore, local storage or an imported file is validated before use (`okE`, `okS` in `backup.js`),
 because the page builds HTML from it.
 
 ## Push notifications
@@ -85,6 +87,33 @@ sent once (`notifySent`) and runs never overlap (`concurrency`). If notification
 first: an expired token shows up there as HTTP 401.
 
 On iPhone, push only works when the app is opened from its home-screen icon (iOS 16.4 or later).
+
+## Export and import (v3.10)
+
+In Settings (⚙): **Export data** downloads `nap-log-YYYY-MM-DD.json` with every entry (in shared mode the whole family
+log, read from the server, not just the 14 synced days), the settings, today's added extra naps and the Statistics
+range. It is built in the browser (Blob + download link), so the Content-Security-Policy needed no new address. It
+**never contains the family code** or any other secret. Layout:
+
+```
+{format: 'nap-log-export', version: 1, app: '3.10', exportedAt: ms,
+ settings: {targetNaps, bedtime}, extraNaps: {day, n} | null, prefs: {statsN, pushOff},
+ entries: [{id, type, start, end, pred?}, ...]}
+```
+
+**Import data** checks the whole file first (`Backup.parseImport` in `backup.js`): the format name and version, every
+entry through `okE` plus sane times (no duplicate ids, no end before start, nothing over a day long, no entry still
+open from more than a day ago), and settings, extra naps and preferences if present. One bad value refuses the whole
+file and nothing is written. Older or hand-made files may leave out `settings`, `extraNaps`, `prefs`, `app`,
+`exportedAt`, `pred` and `end`. A preview shows how many entries and which dates, then:
+
+- **Merge** (default): adds entries whose id is not in the log yet; existing entries and the settings stay as they are.
+- **Replace**: the log becomes exactly the file (other entries are deleted) and the file's settings, extra naps and
+  Statistics range are restored. Asks a second time, because it syncs to both phones.
+
+Imported entries go through the normal sync path: Firestore batch writes under the current family code (or local
+storage in local-only mode). `pushOff` is exported for completeness but never imported: notifications are per phone.
+When the format changes, raise `Backup.VERSION` and keep reading the older versions.
 
 ## How the plan works
 
@@ -127,7 +156,8 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
 ## Security
 
 - No secrets in the code (the repo is public): the Firebase web key is public by design and the Firestore rules decide who may read or write. The family code and the VAPID private key live only on the phones and in Actions secrets.
-- Synced data is validated (`okE`, `okS`) and escaped (`esc`) before it is shown.
+- Synced and imported data is validated (`okE`, `okS`, `Backup.parseImport`) and escaped (`esc`) before it is shown.
+- Export files hold personal data. They never contain the family code, and they must never be committed (`nap-log-*.json` is in `.gitignore`).
 - `index.html` sets a Content-Security-Policy: scripts only from this site and the pinned Firebase SDK on gstatic.com, styles and fonts also from Google Fonts, and data may only be sent to this site and Firestore (`firestore.googleapis.com`, plus Google's connectivity pixel that Firestore uses). Inline scripts are still allowed, because the app's code and its `onclick` handlers live inside `index.html`; the planned readability refactor can move them into files and drop that.
 - The push sender sends `Referer: https://germani144.github.io/nap-log/` with every Firestore request, so the web key can be restricted to the app's address in Google Cloud without breaking notifications.
 
@@ -152,7 +182,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-log-v3.8`; keep the `nap-log-` prefix), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-log-v3.10`; keep the `nap-log-` prefix), or phones keep showing the old version.
 - **Check for updates** (in Settings, the ⚙ at the top) fetches `sw.js` from the server with `cache: 'no-store'`, reads the version from its
   cache name and compares it with `VER`. If the server has a newer one, it updates the service worker, deletes only Nap
   Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push. After pushing, check

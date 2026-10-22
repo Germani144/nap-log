@@ -55,6 +55,9 @@ dialog h2{font-size:19px;margin:0 0 14px}
 .secret button{position:absolute;right:6px;top:50%;transform:translateY(-50%);color:var(--lilac);font-weight:600}
 .masked{-webkit-text-security:disc}
 .acts{display:flex;gap:8px;align-items:center;margin-top:20px}
+.bk #bkmsg{flex-basis:100%;padding:0 10px}.bk #bkmsg:empty{display:none}
+#iprev p{margin:0 0 10px}.imode{margin:6px 0 10px}.imode label{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--milk);margin:10px 0}
+.imode input{width:auto;margin:3px 0 0;accent-color:var(--lilac)}#iwhat{min-height:2.7em}#iwhat.warn{color:#ff8a7a}
 .upd{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:18px -10px 0;padding-top:12px;border-top:1px solid var(--line)}
 .upd .mu{font-size:13px;padding:0 10px}
 #dt:focus{outline:none}
@@ -233,6 +236,8 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <p>Every nap and night quietly saves what the plan expected for it (start time and length), worked out from what was logged before it. It does not matter whether you use the Start buttons or fill it in later by hand. This is used to check how accurate the plan is and to tune it over time.</p>
  <h3>Notifications</h3>
  <p>The app saves the time of the next nap or bedtime minus 30 minutes. A small job on GitHub checks about every 5 minutes (sometimes later) and sends a push to every phone with notifications turned on, saying how long is left. Each nap or bedtime is notified at most once. The notification is cancelled when the plan changes, for example when a nap starts early, and nothing is sent if the event is already less than 30 minutes away when the plan is made or if it is too late to be useful.</p>
+ <h3>Export and import</h3>
+ <p>Settings (⚙) has Export data, which saves everything (all naps and nights, the settings) as one file on this phone, never the family code. Import data reads such a file back. It checks the whole file first and imports nothing if anything in it is wrong, then shows how many entries it holds. Merge adds what is missing and leaves everything else alone. Replace wipes the log and restores it from the file, on both phones, so it asks twice.</p>
  <h3>Symbols</h3>
  <p>~ means an estimate. ✓ means it was logged. Tap any logged row to edit it.</p>
 </div>
@@ -256,7 +261,19 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <label for="sf" class="fl">Family code, the same on both phones</label>
  <div class="secret"><input id="sf" class="masked" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="a long random phrase"><button class="x" id="sfshow" type="button" aria-controls="sf" aria-pressed="false">Show</button></div>
  <div class="acts"><button id="ssave">Save</button><button class="x" id="scancel">Cancel</button></div>
+ <div class="upd bk"><button class="x" id="bkexp">Export data</button><button class="x" id="bkimp">Import data</button><input type="file" id="bkfile" accept=".json,application/json" hidden><div class="mu" id="bkmsg" role="status"></div></div>
  <div class="upd"><button class="x" id="updbtn">Check for updates</button><span class="mu" id="updmsg"></span></div>
+</dialog>
+
+<dialog id="idlg" aria-labelledby="idt">
+ <h2 id="idt" tabindex="-1" autofocus>Import data</h2>
+ <div id="iprev"></div>
+ <div class="imode" role="radiogroup" aria-label="How to import">
+  <label><input type="radio" name="imode" value="merge" checked><span><b>Merge</b> (recommended): add what is missing, keep everything already here</span></label>
+  <label><input type="radio" name="imode" value="replace"><span><b>Replace</b>: wipe the log and restore it from the file</span></label>
+ </div>
+ <div class="mu" id="iwhat" role="status"></div>
+ <div class="acts"><button id="igo">Import</button><button class="x" id="icancel">Cancel</button></div>
 </dialog>
 
 <dialog id="dlg">
@@ -271,6 +288,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="plan.js"></script>
+<script src="backup.js"></script>
 <script>
 // Paste your Firebase web config here to enable sharing between phones.
 // Leave as null to run in local-only mode (data stays on this phone).
@@ -285,7 +303,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.9';
+const VER='3.10';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -300,8 +318,7 @@ const load=(k,d)=>{try{const v=JSON.parse(lsGet(k));return v??d}catch{return d}}
 const save=(k,v)=>{try{lsSet(k,JSON.stringify(v))}catch{}};
 // Everything synced from the shared log is checked before use: the page builds HTML from it, so a malformed
 // (or malicious) value must never reach the screen as markup or script. Bad entries are dropped, bad settings reset.
-const okE=e=>!!e&&typeof e.id==='string'&&/^[\w-]{1,64}$/.test(e.id)&&(e.type==='nap'||e.type==='night')&&Number.isFinite(e.start)&&(e.end==null||Number.isFinite(e.end));
-const okS=s=>({targetNaps:Math.min(8,Math.max(1,Math.round(+(s&&s.targetNaps))||4)),bedtime:/^([01]\d|2[0-3]):[0-5]\d$/.test(s&&s.bedtime)?s.bedtime:'19:30'});
+// okE (entries) and okS (settings) live in backup.js, which is tested and also checks imported files.
 const esc=v=>String(v).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 let settings=okS(load('settings',{})),entries=[].concat(load('entries',[])).filter(okE),family=load('family',''),db=null,unsubs=[],famData=null,lastNotifyWrite='';
 
@@ -903,10 +920,97 @@ $('#ssave').onclick=()=>{
   $('#sdlg').close();render();renderPush();
 };
 
+// ---------- export / import (Settings) ----------
+// The file format, the checks and what an import changes are in backup.js (pure, tested). The file is built here in the
+// browser (Blob + download link), so no new address is needed. It never contains the family code.
+const bkMsg=(t,ok)=>{const m=$('#bkmsg');m.textContent=t;m.className='mu'+(ok?' ok':'')};
+// every entry stored now: in shared mode the whole family log, straight from the server (the live sync only holds 14 days)
+async function allStored(){
+  if(!db)return entries.slice();
+  const q=await fam().collection('entries').get({source:'server'});
+  return q.docs.map(d=>d.data()).filter(okE);
+}
+$('#bkexp').onclick=async()=>{
+  bkMsg('Preparing the export…');
+  let all;try{all=await allStored()}catch{return bkMsg("Couldn't load the whole shared log. Check the connection and try again.")}
+  const now=Date.now(),x=Backup.makeExport({entries:all,settings,extraNaps:db?famData&&famData.extraNaps:load('extra',null),prefs:{statsN,pushOff:pushOff()}},now,VER);
+  const url=URL.createObjectURL(new Blob([Backup.toText(x)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download=Backup.fileName(now);document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  bkMsg(`Exported ${x.entries.length} entries to ${a.download}.`,true);
+};
+let imp=null; // the checked file and the log it will be applied to, while the preview is open
+$('#bkimp').onclick=()=>{bkMsg('');$('#bkfile').value='';$('#bkfile').click()};
+$('#bkfile').onchange=async()=>{
+  const f=$('#bkfile').files[0];if(!f)return;
+  if(f.size>5e6)return bkMsg('Nothing was imported: that file is too large to be a Nap Log export.');
+  let text;try{text=await f.text()}catch{return bkMsg("Nothing was imported: couldn't read that file.")}
+  const r=Backup.parseImport(text,Date.now());
+  if(!r.ok)return bkMsg('Nothing was imported. '+r.error);
+  bkMsg('Checking against the log…');
+  let have;try{have=await allStored()}catch{return bkMsg("Nothing was imported: couldn't load the shared log to compare with. Check the connection and try again.")}
+  bkMsg('');imp={r,have};
+  document.querySelector('input[name=imode][value=merge]').checked=true;
+  const s=r.summary,day=t=>t==null?'–':new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  $('#iprev').innerHTML=`<p><b>${esc(s.count)} ${s.count===1?'entry':'entries'}</b> (${esc(s.naps)} ${s.naps===1?'nap':'naps'}, ${esc(s.nights)} ${s.nights===1?'night':'nights'})`
+    +(s.count?`, ${esc(day(s.first))} to ${esc(day(s.last))}`:'')+'.</p>'
+    +`<p class="mu">${esc(f.name)}`+(s.exportedAt!=null?` · exported ${esc(day(s.exportedAt))}`:'')+(s.app?` · Nap Log v${esc(s.app)}`:'')+` · format ${esc(s.version)}</p>`;
+  showImportPlan();
+  $('#sdlg').close();$('#idlg').showModal();
+};
+function showImportPlan(){
+  if(!imp)return;
+  const mode=document.querySelector('input[name=imode]:checked').value,d=imp.r.data,p=imp.plan=Backup.planImport(imp.have,d.entries,mode);
+  const w=$('#iwhat'),shared=db?' Both phones will see the change.':'';
+  if(mode==='merge'){
+    w.className='mu';
+    w.textContent=p.added?`Adds ${p.added} new ${p.added===1?'entry':'entries'}.`+(p.kept?` ${p.kept} already here stay as they are.`:'')+' Settings are not changed.'+shared
+      :'Everything in this file is already here. Nothing to add.';
+    $('#igo').disabled=!p.added;
+  }else{
+    w.className='mu warn';
+    w.textContent=`Deletes all ${imp.have.length} entries now in the log and writes the ${p.put.length} from the file`
+      +(d.settings?`, and restores the settings (${d.settings.targetNaps} naps, bedtime ${d.settings.bedtime})`:'')+'.'+shared+' Export first if you might want the current log back.';
+    $('#igo').disabled=false;
+  }
+  $('#igo').textContent=mode==='merge'?'Merge':'Replace…';
+}
+document.querySelectorAll('input[name=imode]').forEach(el=>el.onchange=showImportPlan);
+$('#icancel').onclick=()=>{imp=null;$('#idlg').close()};
+$('#igo').onclick=async()=>{
+  if(!imp)return;
+  const p=imp.plan,d=imp.r.data;
+  if(p.mode==='replace'&&!confirm(`Really replace the whole log? ${imp.have.length} entries will be deleted and replaced by the ${p.put.length} in the file`+(db?', on both phones':'')+'. This cannot be undone.'))return;
+  const btn=$('#igo');btn.disabled=true;btn.textContent='Importing…';
+  let msg;
+  try{
+    if(db){
+      // the normal sync path: written under the current family code, the live listeners then update both phones
+      const col=fam().collection('entries'),ops=[...p.del.map(id=>b=>b.delete(col.doc(id))),...p.put.map(e=>b=>b.set(col.doc(e.id),e))];
+      for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(op=>op(b));await b.commit()}
+      if(p.mode==='replace'){const up={};if(d.settings)up.settings=d.settings;if(d.extraNaps)up.extraNaps=d.extraNaps;if(Object.keys(up).length)await fam().set(up,{merge:true})}
+      hist={};recentLoaded=false; // older months are fetched again with the new data
+    }else{
+      entries=p.result;save('entries',entries);
+      if(p.mode==='replace'&&d.extraNaps)save('extra',d.extraNaps);
+    }
+    if(p.mode==='replace'){
+      if(d.settings){settings=okS(d.settings);save('settings',settings);initForm()}
+      if(d.prefs&&d.prefs.statsN)setStatsN(d.prefs.statsN);
+    }
+    msg=[p.mode==='merge'?`Imported: added ${p.added} ${p.added===1?'entry':'entries'}.`:`Replaced the log with ${p.put.length} entries from the file.`,true];
+  }catch(e){
+    msg=['The import stopped part-way ('+(e&&e.code||'error')+'). Check the connection and import the same file again with Merge.'];
+  }
+  imp=null;$('#idlg').close();render();
+  openSettings();bkMsg(...msg);
+};
+
 initForm();
 // Settings: the cog (or the sync chip) opens it; the family code stays hidden until Show is tapped
 const maskCode=on=>{$('#sf').classList.toggle('masked',on);$('#sfshow').textContent=on?'Show':'Hide';$('#sfshow').setAttribute('aria-pressed',String(!on))};
-const openSettings=()=>{initForm();maskCode(true);$('#updmsg').textContent='';$('#sdlg').showModal()};
+const openSettings=()=>{initForm();maskCode(true);$('#updmsg').textContent='';bkMsg('');$('#sdlg').showModal()};
+$('#idlg').addEventListener('close',()=>{imp=null});
 $('#cog').onclick=openSettings;$('#sync').onclick=openSettings;
 $('#sfshow').onclick=()=>maskCode($('#sf').classList.contains('masked')?false:true);
 $('#scancel').onclick=()=>$('#sdlg').close();
