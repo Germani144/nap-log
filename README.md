@@ -113,6 +113,13 @@ The 1.5× catch-up cap and the extra nap (v2.16) brought the next nap to about 1
 The target for the nap in progress (v2.11) was checked the same way 30 minutes into each nap: bedtime predicted during
 the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 to 28.4 minutes (a small cost).
 
+## Security
+
+- No secrets in the code (the repo is public): the Firebase web key is public by design and the Firestore rules decide who may read or write. The family code and the VAPID private key live only on the phones and in Actions secrets.
+- Synced data is validated (`okE`, `okS`) and escaped (`esc`) before it is shown.
+- `index.html` sets a Content-Security-Policy: scripts only from this site and the pinned Firebase SDK on gstatic.com, styles and fonts also from Google Fonts, and data may only be sent to this site and Firestore (`firestore.googleapis.com`, plus Google's connectivity pixel that Firestore uses). Inline scripts are still allowed, because the app's code and its `onclick` handlers live inside `index.html`; the planned readability refactor can move them into files and drop that.
+- The push sender sends `Referer: https://germani144.github.io/nap-log/` with every Firestore request, so the web key can be restricted to the app's address in Google Cloud without breaking notifications.
+
 ## Tests and backtest
 
 ```

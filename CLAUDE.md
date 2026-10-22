@@ -13,6 +13,11 @@
 - Every release: bump the version (minor +1) in both `VER` in index.html and the cache name in sw.js (`nap-log-vX.Y`). They must match.
 - Commit and push to main after each change; the app is served by GitHub Pages from main.
 
+## Security rules
+- `index.html` has a Content-Security-Policy. Keep it: if a feature needs another address, add exactly that address to the right directive and say so in the README. Never add `*` or broad wildcards.
+- Anything synced or typed in goes through validation (`okE`/`okS`) and `esc()` before it is put into HTML.
+- Every Firestore request from `sender/` keeps the `Referer` header (the web key may be restricted to the app's address).
+
 ## Address and shared-origin rules
 
 Nap Log lives at https://germani144.github.io/nap-log/.

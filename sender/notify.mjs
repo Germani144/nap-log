@@ -27,6 +27,8 @@ webpush.setVapidDetails(SITE, VAPID_PUBLIC_KEY, priv);
 
 const val = v => (v == null ? null : 'stringValue' in v ? v.stringValue : 'integerValue' in v ? Number(v.integerValue) : 'doubleValue' in v ? v.doubleValue : null);
 const url = (path, extra = '') => `${FS}/${path}?${extra}key=${API_KEY}`;
+// The web key may be restricted to the app's address in Google Cloud, so every request names the app as its Referer.
+const fetch = (u, o = {}) => globalThis.fetch(u, { ...o, headers: { ...(o.headers || {}), Referer: SITE } });
 const famPath = `families/${encodeURIComponent(code)}`;
 
 async function main() {
