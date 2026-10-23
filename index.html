@@ -172,6 +172,8 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 #swh{position:fixed;top:50%;z-index:50;padding:10px 14px;border-radius:20px;background:var(--panel);border:1px solid var(--line);color:var(--mute);font-weight:600;pointer-events:none;transform:translateY(-50%);transition:color .1s,border-color .1s}#swh.r{right:10px}#swh.l{left:10px}#swh.go{color:var(--lamp);border-color:var(--lamp)}
 @media(prefers-reduced-motion:reduce){.slr,.sll{animation:none}}
 .addrow{padding-left:34px}
+/* today's add row sits under the centred footer, so it is centred too (History's row stays aligned with its rows) */
+#addnap{display:flex;flex-wrap:wrap;justify-content:center;gap:0 24px;padding-left:0}#addnap .lnk{margin-right:0}#addnap[hidden],#addnap .lnk[hidden]{display:none}
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
@@ -303,7 +305,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.10';
+const VER='3.11';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);

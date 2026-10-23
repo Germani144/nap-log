@@ -182,7 +182,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-log-v3.10`; keep the `nap-log-` prefix), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-log-v3.11`; keep the `nap-log-` prefix), or phones keep showing the old version.
 - **Check for updates** (in Settings, the ⚙ at the top) fetches `sw.js` from the server with `cache: 'no-store'`, reads the version from its
   cache name and compares it with `VER`. If the server has a newer one, it updates the service worker, deletes only Nap
   Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push. After pushing, check
