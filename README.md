@@ -72,6 +72,9 @@ because the page builds HTML from it.
 
 ## Push notifications
 
+Turned on per phone from the bell (🔔) at the top, next to the ⚙ (since v3.12; it was a fold under the plan before).
+The bell is lit, with a dot, while this phone has a working subscription.
+
 1. The app works out the next nap or bedtime and writes "notify at T minus 30 min" into the family document.
 2. The GitHub Action runs `sender/notify.mjs`, which reads that document and, when it is due, sends a web push
    (VAPID) to every saved subscription. Dead subscriptions are removed. Rejected subscriptions are also recorded in
@@ -182,7 +185,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-log-v3.11`; keep the `nap-log-` prefix), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-log-v3.12`; keep the `nap-log-` prefix), or phones keep showing the old version.
 - **Check for updates** (in Settings, the ⚙ at the top) fetches `sw.js` from the server with `cache: 'no-store'`, reads the version from its
   cache name and compares it with `VER`. If the server has a newer one, it updates the service worker, deletes only Nap
   Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push. After pushing, check

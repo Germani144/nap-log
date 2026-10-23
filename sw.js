@@ -1,6 +1,6 @@
 // All of Pedro's apps share one origin (germani144.github.io), so they share CacheStorage: this worker only ever
 // touches caches with its own prefix, and only handles requests inside its own scope (/nap-log/).
-const P='nap-log-',C=P+'v3.11';
+const P='nap-log-',C=P+'v3.12';
 const mine=k=>k.startsWith(P)||/^nap-v\d/.test(k); // 'nap-v…' = this app's cache names before v3.4
 // Always ask the server for the newest files ('no-cache' revalidates instead of trusting the browser's 10-minute HTTP
 // cache), so index.html, plan.js and backup.js can never come from different versions. The cache below is only for offline use.
