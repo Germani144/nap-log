@@ -49,8 +49,7 @@ dialog::backdrop{background:rgba(10,12,40,.65)}
 dialog h2{font-size:19px;margin:0 0 14px}
 .cog{background:transparent;color:var(--mute);padding:6px;margin:0 -6px 0 2px;display:flex;border-radius:50%}
 .cog:hover,.cog:active{color:var(--milk)}
-#bell{position:relative;margin-right:-2px}#bell.on{color:var(--lamp)}.bdot{display:none}
-#bell.on .bdot{display:block;position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--lamp);box-shadow:0 0 0 2px var(--dusk)}
+#bell{margin-right:-2px}#bell.on{color:var(--lamp)}
 #ndlg .acts{justify-content:center;margin-top:14px}
 #sdlg label{display:block;margin-bottom:6px}
 #sdlg .fl{margin-top:16px}
@@ -183,7 +182,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <filter id="zzd" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 .122  0 0 0 0 .137  0 0 0 0 .345  0 0 0 1 0"/></filter><filter id="zzl" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.925  0 0 0 0 0.914  0 0 0 0 1.000  0 0 0 1 0"/></filter>
 <filter id="zza" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .71  0 0 0 0 .278  0 0 0 1 0"/></filter>
 </defs></svg>
-<header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver" id="ver"></span><span class="chip tap" id="sync" title="Settings"><i></i>…</span><button class="cog" id="bell" aria-label="Notifications" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 1.8H4.4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M10 20.6a2.2 2.2 0 0 0 4 0"/></svg><i class="bdot" aria-hidden="true"></i></button><button class="cog" id="cog" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M10.3 2.8h3.4l.5 2.4 1.6.9 2.3-.8 1.7 2.9-1.8 1.7v1.9l1.8 1.6-1.7 3-2.3-.8-1.6.9-.5 2.4h-3.4l-.5-2.4-1.6-.9-2.3.8-1.7-3 1.8-1.6v-1.9L4.2 8.2l1.7-2.9 2.3.8 1.6-.9z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button></header>
+<header><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><mask id="mm"><rect width="40" height="40" fill="#fff"/><circle cx="26" cy="15" r="13" fill="#000"/></mask></defs><circle cx="19" cy="21" r="14" fill="#FFB547" mask="url(#mm)"/><path d="M10.5 22.5q2.3 2.6 4.8 0" stroke="#14163A" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="31" cy="8" r="1.6" fill="#FFB547"/><circle cx="35" cy="16" r="1" fill="#ECE9FF"/></svg><h1>Nap Log</h1><span class="ver" id="ver"></span><span class="chip tap" id="sync" title="Settings"><i></i>…</span><button class="cog" id="bell" aria-label="Notifications" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 1.8H4.4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M10 20.6a2.2 2.2 0 0 0 4 0"/></svg></button><button class="cog" id="cog" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M10.3 2.8h3.4l.5 2.4 1.6.9 2.3-.8 1.7 2.9-1.8 1.7v1.9l1.8 1.6-1.7 3-2.3-.8-1.6.9-.5 2.4h-3.4l-.5-2.4-1.6-.9-2.3.8-1.7-3 1.8-1.6v-1.9L4.2 8.2l1.7-2.9 2.3.8 1.6-.9z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button></header>
 <div class="tabs"><button id="t-today" class="on" onclick="setTab('today')">Today</button><button id="t-hist" onclick="setTab('hist')">History</button><button id="t-stats" onclick="setTab('stats')">Statistics</button></div>
 
 <div id="v-today">
@@ -232,7 +231,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
  <h3>Expected vs actual</h3>
  <p>Every nap and night quietly saves what the plan expected for it (start time and length), worked out from what was logged before it. It does not matter whether you use the Start buttons or fill it in later by hand. This is used to check how accurate the plan is and to tune it over time.</p>
  <h3>Notifications</h3>
- <p>Turn them on with the bell at the top, next to the ⚙ (it lights up when this phone gets them). The app saves the time of the next nap or bedtime minus 30 minutes. A small job on GitHub checks about every 5 minutes (sometimes later) and sends a push to every phone with notifications turned on, saying how long is left. Each nap or bedtime is notified at most once. The notification is cancelled when the plan changes, for example when a nap starts early, and nothing is sent if the event is already less than 30 minutes away when the plan is made or if it is too late to be useful.</p>
+ <p>Turn them on with the bell at the top, next to the ⚙ (amber when this phone gets them, grey when not). The app saves the time of the next nap or bedtime minus 30 minutes. A small job on GitHub checks about every 5 minutes (sometimes later) and sends a push to every phone with notifications turned on, saying how long is left. Each nap or bedtime is notified at most once. The notification is cancelled when the plan changes, for example when a nap starts early, and nothing is sent if the event is already less than 30 minutes away when the plan is made or if it is too late to be useful.</p>
  <h3>Export and import</h3>
  <p>Settings (⚙) has Export data, which saves everything (all naps and nights, the settings) as one file on this phone, never the family code. Import data reads such a file back. It checks the whole file first and imports nothing if anything in it is wrong, then shows how many entries it holds. Merge adds what is missing and leaves everything else alone. Replace wipes the log and restores it from the file, on both phones, so it asks twice.</p>
  <h3>Symbols</h3>
@@ -311,7 +310,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.12';
+const VER='3.13';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
