@@ -4,16 +4,34 @@
 // prettier-ignore
 const P='nap-log-',C=P+'v3.14';
 const mine = (k) => k.startsWith(P) || /^nap-v\d/.test(k); // 'nap-v…' = this app's cache names before v3.4
+// The app's own files, saved at install so it opens offline. Every local file index.html loads must be listed here
+// (tests/sw.test.mjs checks it).
+const APP_FILES = [
+  './',
+  'index.html',
+  'styles.css',
+  'plan.js',
+  'backup.js',
+  'js/config.js',
+  'js/storage.js',
+  'js/state.js',
+  'js/sync.js',
+  'js/entries.js',
+  'js/ring.js',
+  'js/today.js',
+  'js/edit-dialog.js',
+  'js/notify.js',
+  'js/stats.js',
+  'js/tabs.js',
+  'js/history.js',
+  'js/settings.js',
+  'js/backup-ui.js',
+  'js/main.js',
+];
 // Always ask the server for the newest files ('no-cache' revalidates instead of trusting the browser's 10-minute HTTP
-// cache), so index.html, plan.js and backup.js can never come from different versions. The cache below is only for offline use.
+// cache), so the files can never come from different versions. The cache below is only for offline use.
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches
-      .open(C)
-      .then((c) =>
-        c.addAll(['./', 'index.html', 'plan.js', 'backup.js'].map((u) => new Request(u, { cache: 'reload' }))),
-      ),
-  );
+  e.waitUntil(caches.open(C).then((c) => c.addAll(APP_FILES.map((u) => new Request(u, { cache: 'reload' })))));
   self.skipWaiting();
 });
 self.addEventListener('activate', (e) => {

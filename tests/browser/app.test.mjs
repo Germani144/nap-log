@@ -22,7 +22,7 @@ import {
 } from './harness.mjs';
 
 const D0 = new Date(2026, 9, 14).getTime(); // "today": Wednesday 14 Oct 2026, local midnight (Copenhagen)
-const S3 = { targetNaps: 3, bedtime: '19:30' };
+const S3 = Object.freeze({ targetNaps: 3, bedtime: '19:30' }); // frozen: tests must never change it
 const FAMILY = 'made-up test family code';
 let srv;
 const phones = [];
@@ -254,7 +254,7 @@ test('settings: targets, typed bedtime, family code hidden until Show', async ()
 test("sharing: two phones see each other's naps, settings and extra naps", async () => {
   const fs = new FakeFirestore();
   fs.seedEntries(FAMILY, madeUpHistory(D0, 10));
-  fs.docs['families/' + FAMILY] = { settings: S3 };
+  fs.seedDoc('families/' + FAMILY, { settings: S3 });
   // note: saving Settings writes this phone's targets to the family, so phone A starts with the same ones
   const a = await phone({ fs, now: at(D0, 0, 8, 30), storage: { settings: S3 } });
   const b = await phone({ fs, now: at(D0, 0, 8, 30), device: 'Pixel 7' });
@@ -338,7 +338,7 @@ test('export, then import with Merge and Replace', async () => {
   const fs = new FakeFirestore();
   const old = madeUpHistory(at(D0, -20, 0), 5, { prefix: 'o' });
   fs.seedEntries(FAMILY, [...old, ...madeUpHistory(D0, 10)]);
-  fs.docs['families/' + FAMILY] = { settings: { targetNaps: 3, bedtime: '19:15' } };
+  fs.seedDoc('families/' + FAMILY, { settings: { targetNaps: 3, bedtime: '19:15' } });
   const a = await phone({ fs, now: at(D0, 0, 12, 0), storage: { family: FAMILY } });
   await until(async () => (await a.text('#sync')) === 'shared');
   await a.page.click('#cog');
@@ -493,5 +493,34 @@ test('works offline from the service worker; Check for updates', async () => {
   await p.page.waitForFunction(() => document.querySelector('#plan')?.textContent.includes('Nap 1'));
   assert.match(await p.row('Nap 1').innerText(), /~/);
   await p.context.setOffline(false);
+  await done();
+});
+
+test('a suggested extra nap can be added from its row and from the ring', async () => {
+  const E = [
+    ...madeUpHistory(D0, 10),
+    { id: 'x1', type: 'nap', start: at(D0, 0, 8, 30), end: at(D0, 0, 9, 0) },
+    { id: 'x2', type: 'nap', start: at(D0, 0, 12, 0), end: at(D0, 0, 12, 30) },
+  ];
+  const p = await phone({ now: at(D0, 0, 14, 40), storage: { entries: E, settings: S3 } });
+  assert.match(await p.row('Extra nap\\?').innerText(), /short naps today\s+＋ Add/);
+  await p.row('Extra nap\\?').click();
+  assert.equal((await p.storage('extra')).n, 1);
+  assert.equal(await p.row('Nap 4').count(), 1);
+  await p.page.getByRole('button', { name: '− Remove extra nap' }).click();
+  assert.equal(await p.row('Extra nap\\?').count(), 1);
+  await p.page.locator('#hero svg g.hit:has(.sugx)').dispatchEvent('click');
+  assert.equal((await p.storage('extra')).n, 1);
+  await done();
+});
+
+test('the sun on the ring logs an unlogged wake-up', async () => {
+  const p = await phone({
+    now: at(D0, 0, 7, 0),
+    storage: { entries: madeUpHistory(D0, 10, { noLastNight: true }), settings: S3 },
+  });
+  await p.page.locator('#hero svg g.hit:has(circle[r="19"])').first().dispatchEvent('click');
+  assert.equal(await p.text('#dt'), 'Last night · bedtime and wake-up');
+  await p.page.click('#ecancel');
   await done();
 });

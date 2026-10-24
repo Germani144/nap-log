@@ -1,12 +1,11 @@
-// The localStorage helpers in index.html: keys are "nap-log.<name>", and the old "nt_<name>" keys are moved over once.
-// The block is cut out of index.html and run against a fake localStorage, so this tests the real code.
+// The localStorage helpers (js/storage.js): keys are "nap-log.<name>", and the old "nt_<name>" keys are moved over once.
+// The real file is run against a fake localStorage.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const block = html.match(/const LS\s*=\s*'nap-log\.';[\s\S]*?const save\s*=[\s\S]*?\};\n/);
-assert.ok(block, 'storage helpers not found in index.html');
+const src = readFileSync(new URL('../js/storage.js', import.meta.url), 'utf8');
+assert.match(src, /const LS = 'nap-log\.';/);
 
 function fakeStorage(initial = {}, { failSet = false } = {}) {
   const m = new Map(Object.entries(initial));
@@ -23,7 +22,7 @@ function fakeStorage(initial = {}, { failSet = false } = {}) {
   };
 }
 const boot = (localStorage) =>
-  new Function('localStorage', `${block[0]}; return {load,save,lsGet,lsSet,lsDel}`)(localStorage);
+  new Function('localStorage', `${src}; return {load,save,lsGet,lsSet,lsDel}`)(localStorage);
 
 // made-up values: never put a real family code in a test
 const OLD = {

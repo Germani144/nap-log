@@ -95,6 +95,10 @@ export class FakeFirestore {
       .map(([, v]) => v)
       .sort((a, b) => a.start - b.start);
   }
+  // seeds always store a copy, so a test's own objects are never changed by later writes
+  seedDoc(path, data) {
+    this.docs[path] = structuredClone(data);
+  }
   seedEntries(code, list) {
     for (const e of list) this.docs[`families/${code}/entries/${e.id}`] = structuredClone(e);
   }

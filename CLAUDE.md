@@ -10,12 +10,12 @@
 - Same for the in-app "How the plan works" section (`#algo` in index.html): update it whenever the logic or the
   screen it explains changes.
 - Plan logic lives in plan.js (pure, tested). Run `TZ=Europe/Copenhagen node --test tests/*.test.mjs` before pushing.
-- Every release: bump the version (minor +1) in both `VER` in index.html and the cache name in sw.js (`nap-log-vX.Y`). They must match.
+- Every release: bump the version (minor +1) in both `VER` in js/config.js and the cache name in sw.js (`nap-log-vX.Y`). They must match.
 - Commit and push to main after each change; the app is served by GitHub Pages from main.
 
 ## Security rules
 
-- `index.html` has a Content-Security-Policy. Keep it: if a feature needs another address, add exactly that address to the right directive and say so in the README. Never add `*` or broad wildcards.
+- `index.html` has a Content-Security-Policy with no `'unsafe-inline'` for scripts: never add inline `<script>` or `onclick=` code (use `data-act` + `act()`, run by `ACTIONS` in js/main.js). Keep it: if a feature needs another address, add exactly that address to the right directive and say so in the README. Never add `*` or broad wildcards.
 - Anything synced, typed in or imported goes through validation (`okE`/`okS` in backup.js, `Backup.parseImport` for files) and `esc()` before it is put into HTML.
 - Exports never contain the family code. If the export layout changes, raise `Backup.VERSION` and keep importing older versions (add a test).
 - Every Firestore request from `sender/` keeps the `Referer` header (the web key may be restricted to the app's address).

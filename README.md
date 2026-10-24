@@ -10,7 +10,9 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 
 | File                           | What it does                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.html`                   | The app: markup, styles, screen drawing, sync and push                                                                                                                                                                                                                                                                                                                                                                           |
+| `index.html`                   | The page: markup only, then the scripts in order. No inline code                                                                                                                                                                                                                                                                                                                                                                 |
+| `styles.css`                   | All styles                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `js/*.js`                      | The app code, one file per area (config, storage, state, sync, entries, ring, today, edit-dialog, notify, stats, tabs, history, settings, backup-ui, main)                                                                                                                                                                                                                                                                       |
 | `plan.js`                      | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code                                                                                                                                                                                                                                                                                                                                        |
 | `backup.js`                    | Export/import file format and checks (`Backup`), and the validators `okE` (entries) and `okS` (settings). No screen code                                                                                                                                                                                                                                                                                                         |
 | `sw.js`                        | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. It is the only app on `germani144.github.io` now, but it still only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores successful responses, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
@@ -164,7 +166,7 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
 - No secrets in the code (the repo is public): the Firebase web key is public by design and the Firestore rules decide who may read or write. The family code and the VAPID private key live only on the phones and in Actions secrets.
 - Synced and imported data is validated (`okE`, `okS`, `Backup.parseImport`) and escaped (`esc`) before it is shown.
 - Export files hold personal data. They never contain the family code, and they must never be committed (`nap-log-*.json` is in `.gitignore`).
-- `index.html` sets a Content-Security-Policy: scripts only from this site and the pinned Firebase SDK on gstatic.com, styles and fonts also from Google Fonts, and data may only be sent to this site and Firestore (`firestore.googleapis.com`, plus Google's connectivity pixel that Firestore uses). Inline scripts are still allowed, because the app's code and its `onclick` handlers live inside `index.html`; the planned readability refactor can move them into files and drop that.
+- `index.html` sets a Content-Security-Policy: scripts only from this site and the pinned Firebase SDK on gstatic.com, styles and fonts also from Google Fonts, and data may only be sent to this site and Firestore (`firestore.googleapis.com`, plus Google's connectivity pixel that Firestore uses). No inline scripts are allowed (no `'unsafe-inline'` in `script-src`): all code is in files, and taps in generated HTML use `data-act` attributes run by one listener in `js/main.js` instead of `onclick` code. Inline styles are still allowed (`style-src 'unsafe-inline'`), for the few computed positions and colours.
 - The push sender sends `Referer: https://germani144.github.io/nap-log/` with every Firestore request, so the web key can be restricted to the app's address in Google Cloud without breaking notifications.
 
 ## Tests and backtest
@@ -177,7 +179,7 @@ TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
 ```
 
 `makePlan(entries, now, settings)` in `plan.js` is pure: it only uses its inputs, so tests can feed it any history
-and any "now". `index.html` only draws what it returns. The backtest needs an export of the logged entries (a JSON
+and any "now". The app only draws what it returns. The backtest needs an export of the logged entries (a JSON
 array of `{id, type, start, end}`); it holds personal data, so keep it out of the repo (`history*.json` is ignored).
 Run both before and after changing the plan logic.
 
@@ -188,17 +190,17 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 ## Notes for changing the code
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
-  places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
+  places: `VER` in `js/config.js` (shown next to the title, so you can see which version a phone is running, and saved
   with each prediction) and the cache name in `sw.js` (`nap-log-v3.14`; keep the `nap-log-` prefix), or phones keep showing the old version.
 - **Check for updates** (in Settings, the ⚙ at the top) fetches `sw.js` from the server with `cache: 'no-store'`, reads the version from its
   cache name and compares it with `VER`. If the server has a newer one, it updates the service worker, deletes only Nap
   Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push. After pushing, check
   `https://germani144.github.io/nap-log/sw.js` shows the new version; if not, push again to re-trigger the build.
 - localStorage is shared with the other apps on this origin: every key here starts with `nap-log.` (use `load`/`save`, or `lsGet`/`lsSet`/`lsDel`). Older versions used `nt_`; those keys are moved over once on first launch, so nobody loses their family code or entries.
-- Plan logic goes in `plan.js`, screen code in `index.html`. Add a test for any change to the plan.
+- Plan logic goes in `plan.js`, screen code in `js/`. Add a test for any change to the plan.
 - In Firestore REST `commit` writes, the document `name` must contain the family code **raw**, not URL-encoded
   (the code has spaces). In URL paths it must be encoded.
-- The ring is drawn as inline SVG in `render()` (`index.html`). A nap bar is a capsule only when at least 30px long, and gets the
+- The ring is drawn as inline SVG in `render()` (`js/today.js`, helpers in `js/ring.js`). A nap bar is a capsule only when at least 30px long, and gets the
   💤 at full size from 38px long; shorter naps (and dots) get a smaller 💤 that fits inside them.
   Suggested naps get their expected start and end times written along the ring; a label is skipped when it would
   collide with another label or the sun/moon discs, and nap times take priority over the current-time label.
