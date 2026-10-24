@@ -22,6 +22,9 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 | `tests/plan.test.mjs` | Tests for the plan maths |
 | `tests/backup.test.mjs` | Tests for export/import: round-trips, refused files, old exports (made-up data only) |
 | `tests/storage.test.mjs` | Tests for the localStorage key move (`nt_` to `nap-log.`) |
+| `tests/version.test.mjs` | Tests that `VER` and the `sw.js` cache name match, in the shape older versions' Check for updates reads |
+| `tests/browser/` | Browser tests: the real app in mobile-emulated Chromium with a fixed clock and a fake Firestore shared by two "phones" (`harness.mjs`, `fake-firebase.js`, `app.test.mjs`) |
+| `package.json` | Dev tools only (Playwright for the browser tests). The app has no build step and loads nothing from npm |
 | `tests/sw.test.mjs` | Tests that the service worker only touches Nap Log's own caches and scope |
 | `tools/backtest.mjs` | Replays a logged history through the plan maths and reports the prediction error |
 | `tools/accuracy.mjs` | Reports the real-world accuracy of each app version from the saved predictions (`pred`) |
@@ -168,6 +171,7 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
 
 ```
 TZ=Europe/Copenhagen node --test tests/*.test.mjs
+npm install && npm run test:browser          # browser tests (first time also: npx playwright install chromium)
 TZ=Europe/Copenhagen node tools/backtest.mjs history.json
 TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
 ```

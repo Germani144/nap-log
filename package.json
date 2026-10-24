@@ -1,0 +1,14 @@
+{
+  "name": "nap-log",
+  "private": true,
+  "description": "Dev tools only (tests, formatting). The app itself has no build step and no runtime dependencies.",
+  "scripts": {
+    "test": "TZ=Europe/Copenhagen node --test tests/*.test.mjs",
+    "test:browser": "TZ=Europe/Copenhagen node --test --test-concurrency=1 tests/browser/*.test.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "playwright": "1.56.0"
+  }
+}
