@@ -358,6 +358,16 @@ function makePlan(entries, nowMs, settings) {
       runningNap && targetLengthOf(runningNap) != null
         ? { len: targetLengthOf(runningNap), end: minuteOfDay(runningNap.start) + targetLengthOf(runningNap) }
         : null;
+  // What the plan is. The short keys are kept as they were (tools/backtest.mjs, the tests and the screen use them):
+  //   cur     the nap in progress: {len, end} target length and end (minutes), or null
+  //   now     the "now" it was made for (ms) · today: local midnight (ms) · nowM: now in minutes of the day
+  //   run     the entry in progress (nap or night), if any · we: the night that ended this morning, if logged
+  //   wk0     this morning's wake-up (minutes; logged, or the 7-day average) · T: today's nap-time target (minutes)
+  //   tn      today's naps (entries) · rows: the plan rows {n, s, e, a?, aw, add, from, bridge, extra, nodata}
+  //   last    end of the last planned nap · B: expected bedtime · bt: target bedtime · lo: earliest allowed bedtime
+  //   shift   how far the remaining naps were moved to fit bedtime · bn: tonight's bedtime entry, if logged
+  //   next    the next event while awake {label, name, key, t} · want: its reminder {key, at, event, label, time}
+  //   avgN    expected night length (minutes) · napDone: nap time so far today (minutes)
   return {
     cur: runningNapTarget,
     now: nowMs,

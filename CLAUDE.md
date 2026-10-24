@@ -9,9 +9,38 @@
 - Keep README.md up to date: update it in the same commit whenever a change affects what it describes.
 - Same for the in-app "How the plan works" section (`#algo` in index.html): update it whenever the logic or the
   screen it explains changes.
-- Plan logic lives in plan.js (pure, tested). Run `TZ=Europe/Copenhagen node --test tests/*.test.mjs` before pushing.
 - Every release: bump the version (minor +1) in both `VER` in js/config.js and the cache name in sw.js (`nap-log-vX.Y`). They must match.
-- Commit and push to main after each change; the app is served by GitHub Pages from main.
+- Commit and push to main after each change; the app is served by GitHub Pages from main. A change made in several
+  commits is pushed together, with one version bump, so phones never load a half-done state.
+
+## Layout
+
+No build step: GitHub Pages serves the files as they are.
+
+- `index.html`: markup only, then the scripts in order. `styles.css`: all styles.
+- `plan.js` (plan maths), `backup.js` (export/import format and the validators), `js/core.js` (small shared helpers):
+  pure, no screen, storage, network or clock, each tested in Node. Keep new logic pure and put it here, with a test.
+- `js/*.js`: the app, classic scripts sharing one global scope, loaded in the order of the `<script>` tags (README has
+  the table). Code that runs at load may only use earlier files.
+- Taps in generated HTML use `tapAction('name', {...})` and an entry in `ACTIONS` (js/main.js), never `onclick=`.
+- A new file needs its `<script>` tag in index.html and its path in `APP_FILES` in sw.js (tests/sw.test.mjs checks).
+- The cache-name line in sw.js keeps exactly the shape `const P='nap-log-',C=P+'vX.Y';` under `// prettier-ignore`:
+  older versions' Check for updates parse it with a regex (tests/version.test.mjs checks).
+- `makePlan`'s return keys (`B`, `bt`, `tn`, `wk0`, …) are kept as they are; they are listed above its `return`.
+
+## Tests (run before every push)
+
+```
+TZ=Europe/Copenhagen node --test tests/*.test.mjs                                        # unit tests
+npm install && TZ=Europe/Copenhagen node --test --test-concurrency=1 tests/browser/*.test.mjs   # browser tests
+npx prettier --check .                                                                  # formatting
+```
+
+- Browser tests run the real app in mobile-emulated Chromium with a fixed clock and a fake Firestore
+  (tests/browser/harness.mjs, fake-firebase.js); they fail on any console error or CSP violation. In a fresh cloud
+  session Chromium may already be installed (PLAYWRIGHT_BROWSERS_PATH); otherwise `npx playwright install chromium`.
+- Add a test with every change: a unit test for logic, a browser test for anything on screen. Test data is made up.
+- Changing plan.js: also run the backtest (`tools/backtest.mjs`) on an export kept outside the repo.
 
 ## Security rules
 
