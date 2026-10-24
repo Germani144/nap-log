@@ -185,7 +185,7 @@ before or after the suggestion (a hint of how much the suggestions steer you).
 
 - Every release gets a version number `vMAJOR.MINOR` (minor +1 per release, major for big redesigns). Set it in two
   places: `VER` in `index.html` (shown next to the title, so you can see which version a phone is running, and saved
-  with each prediction) and the cache name in `sw.js` (`nap-log-v3.13`; keep the `nap-log-` prefix), or phones keep showing the old version.
+  with each prediction) and the cache name in `sw.js` (`nap-log-v3.14`; keep the `nap-log-` prefix), or phones keep showing the old version.
 - **Check for updates** (in Settings, the ⚙ at the top) fetches `sw.js` from the server with `cache: 'no-store'`, reads the version from its
   cache name and compares it with `VER`. If the server has a newer one, it updates the service worker, deletes only Nap
   Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push. After pushing, check
@@ -200,6 +200,9 @@ before or after the suggestion (a hint of how much the suggestions steer you).
   collide with another label or the sun/moon discs, and nap times take priority over the current-time label.
 - A nap in progress is a dotted outline up to its target end, filling up as she sleeps.
 - Logged naps, the sun (wake-up) and the moon (bedtime) on the ring open the same edit box as their plan rows.
+  An estimated wake-up ("~05:37", nothing logged this morning) is tappable too (`logWake`, v3.14): it edits last
+  night's entry if one exists, otherwise it logs last night with bedtime and wake-up. Night edit boxes label their
+  fields Bedtime and Wake-up.
 - The edit box opens without focusing a time field, so the keyboard only appears when a time is tapped.
 - Once today's target naps (plus any added extra naps) are logged, **Start night** becomes the filled main button and
   **Start nap** the outlined one. They keep their places; only the styles swap.

@@ -200,7 +200,7 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <details class="fold" id="algo"><summary>How the plan works</summary>
 <div class="txt">
  <h3>The ring</h3>
- <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Tap a logged nap, the sun or the moon on the ring to edit it, just like its row in the plan. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for", and on the ring the nap shows as a dotted outline up to its target that fills up as she sleeps. The middle also shows the time left until the target, or how far past it she is.</p>
+ <p>The ring is the whole day, from wake-up (sun) to bedtime (moon). Filled bars are naps that happened and dashed bars are suggested naps. The lighter band shows how far the day has come; the small amber dot at its end is now. Tap a logged nap, the sun or the moon on the ring to edit it, just like its row in the plan. If this morning's wake-up was not logged, the sun shows the usual time (with ~); tap it, or the Wake-up row, to enter the real bedtime and wake-up of last night. Suggested naps show their expected start and end times along the ring (a time is left out when there is no room for it). In the middle, the countdown to the next nap or bedtime is the big number, with "Awake for" underneath: it counts from the end of the last nap or night sleep, whichever ended most recently. While a nap is running the middle switches to "Asleep for", and on the ring the nap shows as a dotted outline up to its target that fills up as she sleeps. The middle also shows the time left until the target, or how far past it she is.</p>
  <p>A 💤 is only drawn on a nap when the bar is long enough to hold it. A very short nap is shown as a dot with a smaller 💤.</p>
  <h3>The night ring</h3>
  <p>When a night starts, the ring turns into a loading ring for the expected night: the average length of the nights from the past 8 days (10h 30m if there are none yet). The sun at the end is the expected wake-up. After that time the ring stays full and the app says it is past the usual wake-up time.</p>
@@ -286,8 +286,8 @@ button.x.wide{font-weight:500;padding:4px 10px;width:auto;display:inline-block;b
 <dialog id="dlg">
  <h2 id="dt" tabindex="-1" autofocus></h2>
  <div class="grid">
-  <div><label>Start</label><input type="text" id="es" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
-  <div><label>End</label><input type="text" id="ee" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
+  <div><label for="es" id="esl">Start</label><input type="text" id="es" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
+  <div><label for="ee" id="eel">End</label><input type="text" id="ee" class="tm" inputmode="numeric" autocomplete="off" placeholder="HH:MM" maxlength="5"></div>
  </div>
  <p><button id="esave">Save</button> <button class="x" id="ecancel">Cancel</button> <button class="x del" id="edel">Delete</button></p>
 </dialog>
@@ -310,7 +310,7 @@ const FIREBASE_CONFIG = {
 
 // Public key for web push (the matching private key lives only in the GitHub secret VAPID_PRIVATE_KEY)
 // App version: shown next to the title and must match the cache name in sw.js
-const VER='3.13';
+const VER='3.14';
 const VAPID_PUBLIC='BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
 
 const $=s=>document.querySelector(s);
@@ -423,7 +423,9 @@ function setExtra(n){
 }
 let ed=null;
 // open the edit box without focusing a time field, so the keyboard only appears when a time is tapped
-function openDlg(){$('#dlg').showModal();const f=document.activeElement;if(f&&f.matches('input'))f.blur()}
+// a night's fields are its bedtime and wake-up; a nap's are its start and end
+const dlgLabels=type=>{$('#esl').textContent=type==='night'?'Bedtime':'Start';$('#eel').textContent=type==='night'?'Wake-up':'End'};
+function openDlg(){dlgLabels(ed&&ed.type);$('#dlg').showModal();const f=document.activeElement;if(f&&f.matches('input'))f.blur()}
 function openEdit(id){
   const e=findE(id);if(!e)return;
   ed={id,type:e.type,day:sod(e.start),wasOpen:!e.end};
@@ -431,12 +433,19 @@ function openEdit(id){
   $('#es').value=hm(tod(e.start));$('#ee').value=e.end?hm(tod(e.end)):'';
   $('#edel').style.display='';openDlg();
 }
-function openAdd(type,day){
+function openAdd(type,day,title){
   const t0=!day||day===sod(Date.now());day=day||sod(Date.now());
   ed={id:null,type,day,wasOpen:t0}; // only today's entry may stay open-ended (in progress)
-  $('#dt').textContent=(type==='nap'?(t0?'Add extra nap':'Add nap'):'Log bedtime')+(t0?'':' · '+isoDay(day).slice(5));
+  $('#dt').textContent=title||(type==='nap'?(t0?'Add extra nap':'Add nap'):'Log bedtime')+(t0?'':' · '+isoDay(day).slice(5));
   $('#es').value=type==='night'?settings.bedtime:'';$('#ee').value='';
   $('#edel').style.display='none';openDlg();
+}
+// Today's wake-up when it was not logged (the plan shows the 7-day average, "~05:37"): tapping it edits last night's
+// entry if there is one (it may have ended at a wrong time), otherwise logs last night with its bedtime and wake-up.
+function logWake(){
+  const y=sod(sod(Date.now())-12*36e5),n=allE().filter(e=>e.type==='night'&&sod(e.start)===y).sort((a,b)=>b.start-a.start)[0];
+  if(n)return openEdit(n.id);
+  openAdd('night',y,'Last night · bedtime and wake-up');
 }
 
 // ---------- day dial ----------
@@ -544,7 +553,7 @@ function render(){
     const tail=()=>{
     // "now" is always marked: a small amber dot at the end of the elapsed band (even when its time label has no room)
     let t='';if(!run&&nowM>a&&nowM<b){const p=gpt(GR,th(nowM));t+=`<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="7" fill="#FFB547" stroke="#1F2358" stroke-width="3"/>`}
-    t+=hit(we?`openEdit('${we.id}')`:'',gdisc(th(a),gsun,'#FFB547',!we))+hit(bn?`openEdit('${bn.id}')`:"openAdd('night')",gdisc(th(b),gmoon,'#FFB547',!bn))
+    t+=hit(we?`openEdit('${we.id}')`:'logWake()',gdisc(th(a),gsun,'#FFB547',!we))+hit(bn?`openEdit('${bn.id}')`:"openAdd('night')",gdisc(th(b),gmoon,'#FFB547',!bn))
       +gunder(th(a),(we?'':'~')+hm(a),we?'#ECE9FF':'#A6A9DA')+gunder(th(b),(bn?'':'~')+hm(b),bn?'#ECE9FF':'#A6A9DA');
     return t;
     };
@@ -590,7 +599,7 @@ function render(){
     }
     sub=T!=null?`Nap time today: ${dur(napDone)} of about ${dur(T)}`:'';
 
-    if(wk0!=null)tl+=we?tlRow(IC.sun,'','Wake-up',`<b>${hm(wk0)}</b>`,`openEdit('${we.id}')`):tlRow(IC.sunA,'bd','Wake-up',`<b>~${hm(wk0)}</b>`);
+    tl+=we?tlRow(IC.sun,'','Wake-up',`<b>${hm(wk0)}</b>`,`openEdit('${we.id}')`):tlRow(IC.sunA,'bd','Wake-up',wk0!=null?`<b>~${hm(wk0)}</b><br>not logged · tap to set`:'tap to log',"logWake()");
     rows.forEach(r=>{
       if(r.nodata){tl+=tlRow('','nd0','Nap '+r.n,'no data yet');return}
       const x=r.a,aw=r.aw!=null?`<br>awake ${dur(r.aw)} first`:'';
