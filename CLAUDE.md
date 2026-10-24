@@ -14,6 +14,7 @@
 - Commit and push to main after each change; the app is served by GitHub Pages from main.
 
 ## Security rules
+
 - `index.html` has a Content-Security-Policy. Keep it: if a feature needs another address, add exactly that address to the right directive and say so in the README. Never add `*` or broad wildcards.
 - Anything synced, typed in or imported goes through validation (`okE`/`okS` in backup.js, `Backup.parseImport` for files) and `esc()` before it is put into HTML.
 - Exports never contain the family code. If the export layout changes, raise `Backup.VERSION` and keep importing older versions (add a test).

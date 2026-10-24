@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+sender/package-lock.json
+*.png
+history*.json
+nap-log-*.json

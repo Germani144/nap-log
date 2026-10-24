@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const block = html.match(/const LS='nap-log\.';[\s\S]*?const save=[^\n]*\n/);
+const block = html.match(/const LS\s*=\s*'nap-log\.';[\s\S]*?const save\s*=[\s\S]*?\};\n/);
 assert.ok(block, 'storage helpers not found in index.html');
 
 function fakeStorage(initial = {}, { failSet = false } = {}) {
@@ -13,11 +13,17 @@ function fakeStorage(initial = {}, { failSet = false } = {}) {
   return {
     m,
     getItem: (k) => (m.has(k) ? m.get(k) : null),
-    setItem: (k, v) => { if (failSet) throw new Error('quota'); m.set(k, String(v)); },
-    removeItem: (k) => { m.delete(k); },
+    setItem: (k, v) => {
+      if (failSet) throw new Error('quota');
+      m.set(k, String(v));
+    },
+    removeItem: (k) => {
+      m.delete(k);
+    },
   };
 }
-const boot = (localStorage) => new Function('localStorage', `${block[0]}; return {load,save,lsGet,lsSet,lsDel}`)(localStorage);
+const boot = (localStorage) =>
+  new Function('localStorage', `${block[0]}; return {load,save,lsGet,lsSet,lsDel}`)(localStorage);
 
 // made-up values: never put a real family code in a test
 const OLD = {
@@ -77,7 +83,7 @@ test('if writing fails, the old keys are kept', () => {
   for (const k of Object.keys(OLD)) assert.equal(ls.getItem(k), OLD[k], k);
 });
 
-test('other apps\' keys are never touched', () => {
+test("other apps' keys are never touched", () => {
   const others = { 'cart-log.items': '[1]', 'lift-log:w': '{}', 'rideguide.v1': '{}', nt_other: 'x' };
   const ls = fakeStorage({ ...OLD, ...others });
   boot(ls);

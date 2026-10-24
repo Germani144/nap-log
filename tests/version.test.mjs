@@ -10,7 +10,10 @@ const read = (p) => readFileSync(new URL(p, root), 'utf8');
 const OLD_CLIENT_REGEX = /C=P\+'v([\d.]+)'/; // as in every release up to v3.14: never change this line's shape in sw.js
 
 function appVersion() {
-  const files = ['index.html', ...(existsSync(new URL('js/', root)) ? readdirSync(new URL('js/', root)).map((f) => 'js/' + f) : [])];
+  const files = [
+    'index.html',
+    ...(existsSync(new URL('js/', root)) ? readdirSync(new URL('js/', root)).map((f) => 'js/' + f) : []),
+  ];
   const found = files.map((f) => /\bconst VER\s*=\s*['"]([\d.]+)['"]/.exec(read(f))).filter(Boolean);
   assert.equal(found.length, 1, 'VER is defined exactly once');
   return found[0][1];

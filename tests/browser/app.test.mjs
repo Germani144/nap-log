@@ -8,7 +8,18 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import nodeFs from 'node:fs';
-import { startServer, openPhone, FakeFirestore, madeUpHistory, at, until, closeBrowser, H, MIN, DAY } from './harness.mjs';
+import {
+  startServer,
+  openPhone,
+  FakeFirestore,
+  madeUpHistory,
+  at,
+  until,
+  closeBrowser,
+  H,
+  MIN,
+  DAY,
+} from './harness.mjs';
 
 const D0 = new Date(2026, 9, 14).getTime(); // "today": Wednesday 14 Oct 2026, local midnight (Copenhagen)
 const S3 = { targetNaps: 3, bedtime: '19:30' };
@@ -38,7 +49,12 @@ async function importFile(p, file) {
   const [chooser] = await Promise.all([p.page.waitForEvent('filechooser'), p.page.click('#bkimp')]);
   await chooser.setFiles(file);
 }
-const lines = (s) => s.replace(/\u00a0/g, ' ').split('\n').map((x) => x.trim()).filter(Boolean);
+const lines = (s) =>
+  s
+    .replace(/\u00a0/g, ' ')
+    .split('\n')
+    .map((x) => x.trim())
+    .filter(Boolean);
 
 test('first run: empty app, local only', async () => {
   const p = await phone({ now: at(D0, 0, 9, 0) });
@@ -79,11 +95,20 @@ test('logging a nap and a night with the buttons', async () => {
 test('the plan screen from a week of history', async () => {
   const p = await phone({ now: at(D0, 0, 7, 30), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
   assert.deepEqual(lines(await p.text('#plan')), [
-    'Wake-up', '06:30',
-    'Nap 1', '~08:30–09:30  1h 00m', 'awake 2h 00m first',
-    'Nap 2', '~12:00–13:20  1h 20m', 'awake 2h 30m first',
-    'Nap 3', '~16:00–16:40  40m', 'awake 2h 40m first',
-    'Bedtime', '~19:34', 'target 19:30 (+4m) · awake 2h 54m',
+    'Wake-up',
+    '06:30',
+    'Nap 1',
+    '~08:30–09:30  1h 00m',
+    'awake 2h 00m first',
+    'Nap 2',
+    '~12:00–13:20  1h 20m',
+    'awake 2h 30m first',
+    'Nap 3',
+    '~16:00–16:40  40m',
+    'awake 2h 40m first',
+    'Bedtime',
+    '~19:34',
+    'target 19:30 (+4m) · awake 2h 54m',
   ]);
   const hero = lines(await p.text('#hero'));
   assert.ok(hero.includes('Next nap in') && hero.includes('1h 00m') && hero.includes('at ~08:30'), hero.join(' | '));
@@ -119,7 +144,11 @@ test('editing and deleting a nap, typed times, refusals', async () => {
   assert.equal(await p.text('#dt'), 'Nap · 10-14');
   assert.deepEqual([await p.text('#esl'), await p.text('#eel')], ['Start', 'End']);
   assert.deepEqual([await p.page.inputValue('#es'), await p.page.inputValue('#ee')], ['08:40', '09:25']);
-  assert.equal(await p.page.evaluate(() => document.activeElement?.tagName), 'H2', 'no time field focused (no keyboard)');
+  assert.equal(
+    await p.page.evaluate(() => document.activeElement?.tagName),
+    'H2',
+    'no time field focused (no keyboard)',
+  );
   await p.page.fill('#ee', '935'); // typed without a colon
   await p.page.locator('#ee').blur();
   assert.equal(await p.page.inputValue('#ee'), '09:35');
@@ -165,7 +194,10 @@ test('logging a nap by hand and a night across midnight in History', async () =>
   await p.page.locator('#cal button', { hasText: /^8$/ }).click(); // Thu 8 Oct: nothing logged
   assert.match(await p.text('#day'), /Nothing logged for this day/);
   await p.page.getByRole('button', { name: '＋ Log bedtime' }).click();
-  assert.deepEqual([await p.text('#dt'), await p.text('#esl'), await p.text('#eel')], ['Log bedtime · 10-08', 'Bedtime', 'Wake-up']);
+  assert.deepEqual(
+    [await p.text('#dt'), await p.text('#esl'), await p.text('#eel')],
+    ['Log bedtime · 10-08', 'Bedtime', 'Wake-up'],
+  );
   await p.page.fill('#es', '19:45');
   await p.page.fill('#ee', '06:20');
   await p.page.click('#esave');
@@ -176,7 +208,10 @@ test('logging a nap by hand and a night across midnight in History', async () =>
 });
 
 test('an unlogged wake-up can be set from the plan and the ring', async () => {
-  const E = [...madeUpHistory(D0, 10, { noLastNight: true }), { id: 'td1', type: 'nap', start: at(D0, 0, 6, 40), end: at(D0, 0, 7, 28) }];
+  const E = [
+    ...madeUpHistory(D0, 10, { noLastNight: true }),
+    { id: 'td1', type: 'nap', start: at(D0, 0, 6, 40), end: at(D0, 0, 7, 28) },
+  ];
   const p = await phone({ now: at(D0, 0, 7, 54), storage: { entries: E, settings: S3 } });
   assert.match(await p.row('Wake-up').innerText(), /~\d\d:\d\d\s+not logged · tap to set/);
   await p.row('Wake-up').click();
@@ -216,7 +251,7 @@ test('settings: targets, typed bedtime, family code hidden until Show', async ()
   await done();
 });
 
-test('sharing: two phones see each other\'s naps, settings and extra naps', async () => {
+test("sharing: two phones see each other's naps, settings and extra naps", async () => {
   const fs = new FakeFirestore();
   fs.seedEntries(FAMILY, madeUpHistory(D0, 10));
   fs.docs['families/' + FAMILY] = { settings: S3 };
@@ -255,7 +290,10 @@ test('sharing: two phones see each other\'s naps, settings and extra naps', asyn
   assert.match(await a.row('Bedtime').innerText(), /~\d\d:\d\d/);
   // the next nap's reminder is planned in the family document (30 min before)
   const f = fs.family(FAMILY);
-  assert.ok(f.notifyKey && f.notifyAt === f.notifyEvent - 30 * MIN && /^Nap \d$/.test(f.notifyLabel), JSON.stringify(f));
+  assert.ok(
+    f.notifyKey && f.notifyAt === f.notifyEvent - 30 * MIN && /^Nap \d$/.test(f.notifyLabel),
+    JSON.stringify(f),
+  );
   assert.ok(!JSON.stringify(Object.keys(fs.docs)).includes('subs'));
   await done();
 });
@@ -278,7 +316,13 @@ test('shared History loads older months; Statistics draws its charts', async () 
 
   await p.page.click('#t-stats');
   assert.equal(await p.page.locator('#stats .chart').count(), 5);
-  assert.deepEqual(await p.page.locator('#stats .chart h2').allInnerTexts(), ['When she falls asleep', 'When she wakes up', 'How long naps last', 'Night sleep', 'Her day']);
+  assert.deepEqual(await p.page.locator('#stats .chart h2').allInnerTexts(), [
+    'When she falls asleep',
+    'When she wakes up',
+    'How long naps last',
+    'Night sleep',
+    'Her day',
+  ]);
   await p.page.getByRole('button', { name: '7 days' }).click();
   assert.equal(await p.page.evaluate(() => localStorage.getItem('nap-log.statsN')), '7');
   const svg = p.page.locator('#stats .chart').first().locator('svg');
@@ -317,8 +361,16 @@ test('export, then import with Merge and Replace', async () => {
   await b.page.click('#cog');
   await importFile(b, file);
   await until(() => b.page.locator('#idlg').evaluate((d) => d.open), { what: 'preview' });
-  assert.match(await b.text('#iprev'), new RegExp(`^${x.entries.length} entries \\(\\d+ naps, \\d+ nights\\), \\d+ \\w+ 2026 to 13 Oct 2026\\.`));
-  assert.match(await b.text('#iwhat'), new RegExp(`Adds ${x.entries.length} new entries\\. Settings are not changed\\. Both phones will see the change\\.`));
+  assert.match(
+    await b.text('#iprev'),
+    new RegExp(`^${x.entries.length} entries \\(\\d+ naps, \\d+ nights\\), \\d+ \\w+ 2026 to 13 Oct 2026\\.`),
+  );
+  assert.match(
+    await b.text('#iwhat'),
+    new RegExp(
+      `Adds ${x.entries.length} new entries\\. Settings are not changed\\. Both phones will see the change\\.`,
+    ),
+  );
   await b.page.click('#igo');
   await until(async () => /Imported: added/.test(await b.text('#bkmsg')), { what: 'merged' });
   assert.equal(fs.entries(OTHER).length, x.entries.length + 1, 'existing entry kept');
@@ -354,7 +406,10 @@ test('export, then import with Merge and Replace', async () => {
 });
 
 test('export and import in local-only mode', async () => {
-  const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: madeUpHistory(D0, 4), settings: S3, family: '' } });
+  const p = await phone({
+    now: at(D0, 0, 12, 0),
+    storage: { entries: madeUpHistory(D0, 4), settings: S3, family: '' },
+  });
   await p.page.click('#cog');
   const [dl] = await Promise.all([p.page.waitForEvent('download'), p.page.click('#bkexp')]);
   const file = await dl.path();
@@ -393,12 +448,18 @@ test('iPhone in the browser: notifications need the home-screen app', async () =
 test('swiping changes tabs', async () => {
   const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: madeUpHistory(D0, 3), settings: S3 } });
   const swipe = (x0, x1) =>
-    p.page.evaluate(([x0, x1]) => {
-      const t = (x) => [new Touch({ identifier: 1, target: document.body, clientX: x, clientY: 400 })];
-      document.body.dispatchEvent(new TouchEvent('touchstart', { touches: t(x0), bubbles: true }));
-      for (let i = 1; i <= 5; i++) document.body.dispatchEvent(new TouchEvent('touchmove', { touches: t(x0 + ((x1 - x0) * i) / 5), bubbles: true }));
-      document.body.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true }));
-    }, [x0, x1]);
+    p.page.evaluate(
+      ([x0, x1]) => {
+        const t = (x) => [new Touch({ identifier: 1, target: document.body, clientX: x, clientY: 400 })];
+        document.body.dispatchEvent(new TouchEvent('touchstart', { touches: t(x0), bubbles: true }));
+        for (let i = 1; i <= 5; i++)
+          document.body.dispatchEvent(
+            new TouchEvent('touchmove', { touches: t(x0 + ((x1 - x0) * i) / 5), bubbles: true }),
+          );
+        document.body.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true }));
+      },
+      [x0, x1],
+    );
   await swipe(300, 100);
   assert.equal(await p.page.locator('#v-hist').isVisible(), true);
   await swipe(300, 100);
@@ -410,9 +471,16 @@ test('swiping changes tabs', async () => {
 });
 
 test('works offline from the service worker; Check for updates', async () => {
-  const p = await phone({ now: at(D0, 0, 12, 0), serviceWorkers: 'allow', storage: { entries: madeUpHistory(D0, 3), settings: S3 } });
+  const p = await phone({
+    now: at(D0, 0, 12, 0),
+    serviceWorkers: 'allow',
+    storage: { entries: madeUpHistory(D0, 3), settings: S3 },
+  });
   await p.page.evaluate(() => navigator.serviceWorker.ready);
-  await until(() => p.page.evaluate(() => !!navigator.serviceWorker.controller) || p.page.reload().then(() => false), { what: 'controlled', timeout: 8000 });
+  await until(() => p.page.evaluate(() => !!navigator.serviceWorker.controller) || p.page.reload().then(() => false), {
+    what: 'controlled',
+    timeout: 8000,
+  });
   const keys = await p.page.evaluate(() => caches.keys());
   assert.ok(keys.length && keys.every((k) => k.startsWith('nap-log-')), keys.join());
   await p.page.click('#cog');

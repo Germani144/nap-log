@@ -9,8 +9,18 @@ import { chromium, devices } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FAKE_SDK = fs.readFileSync(path.join(ROOT, 'tests/browser/fake-firebase.js'), 'utf8');
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
-export const H = 36e5, MIN = 6e4, DAY = 864e5;
+const TYPES = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+};
+export const H = 36e5,
+  MIN = 6e4,
+  DAY = 864e5;
 
 // ---------- static server ----------
 export function startServer() {
@@ -19,12 +29,22 @@ export function startServer() {
     if (!url.pathname.startsWith('/nap-log/')) return res.writeHead(404).end();
     let rel = decodeURIComponent(url.pathname.slice('/nap-log/'.length)) || 'index.html';
     const file = path.join(ROOT, rel);
-    if (!file.startsWith(ROOT + path.sep) || /(^|\/)(\.|node_modules|tests)/.test(rel) || !fs.existsSync(file) || fs.statSync(file).isDirectory())
+    if (
+      !file.startsWith(ROOT + path.sep) ||
+      /(^|\/)(\.|node_modules|tests)/.test(rel) ||
+      !fs.existsSync(file) ||
+      fs.statSync(file).isDirectory()
+    )
       return res.writeHead(404).end('not found');
-    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
+    res.writeHead(200, {
+      'content-type': TYPES[path.extname(file)] || 'application/octet-stream',
+      'cache-control': 'no-cache',
+    });
     fs.createReadStream(file).pipe(res);
   });
-  return new Promise((ok) => server.listen(0, '127.0.0.1', () => ok({ server, base: `http://127.0.0.1:${server.address().port}/nap-log/` })));
+  return new Promise((ok) =>
+    server.listen(0, '127.0.0.1', () => ok({ server, base: `http://127.0.0.1:${server.address().port}/nap-log/` })),
+  );
 }
 
 // ---------- fake Firestore (the data side; tests/browser/fake-firebase.js is the page side) ----------
@@ -57,7 +77,8 @@ export class FakeFirestore {
     await context.exposeBinding('__fsDump', () => this.docs);
     await context.exposeBinding('__fsCommit', async (_src, ops) => {
       this.apply(ops);
-      for (const p of this.pages) await p.evaluate((s) => window.__fsSync && window.__fsSync(s), this.docs).catch(() => {});
+      for (const p of this.pages)
+        await p.evaluate((s) => window.__fsSync && window.__fsSync(s), this.docs).catch(() => {});
     });
     context.on('page', (p) => {
       this.pages.add(p);
@@ -123,22 +144,40 @@ export async function closeBrowser() {
 // Opens the app on a made-up phone. `storage` presets nap-log.* localStorage keys (values are JSON-encoded here)
 // on the first load only. `now` fixes the clock (ms). Every console error, page error and Content-Security-Policy
 // violation is collected in phone.problems; tests assert it stays empty.
-export async function openPhone(base, { fs: fakeFs, storage = {}, now, device = 'Pixel 7', serviceWorkers = 'block', offlineFonts = true } = {}) {
+export async function openPhone(
+  base,
+  { fs: fakeFs, storage = {}, now, device = 'Pixel 7', serviceWorkers = 'block', offlineFonts = true } = {},
+) {
   const b = await launch();
   const { defaultBrowserType, ...desc } = devices[device];
-  const context = await b.newContext({ ...desc, timezoneId: 'Europe/Copenhagen', locale: 'en-GB', reducedMotion: 'reduce', serviceWorkers, acceptDownloads: true });
+  const context = await b.newContext({
+    ...desc,
+    timezoneId: 'Europe/Copenhagen',
+    locale: 'en-GB',
+    reducedMotion: 'reduce',
+    serviceWorkers,
+    acceptDownloads: true,
+  });
   if (fakeFs) await fakeFs.attach(context);
   else await context.exposeBinding('__fsDump', () => ({})).then(() => context.exposeBinding('__fsCommit', () => {}));
-  await context.route(/^https:\/\/www\.gstatic\.com\/firebasejs\/.*\/firebase-app-compat\.js$/, (r) => r.fulfill({ contentType: 'text/javascript', body: FAKE_SDK }));
-  await context.route(/^https:\/\/www\.gstatic\.com\/firebasejs\/.*\/firebase-firestore-compat\.js$/, (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
-  await context.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (r) => (offlineFonts ? r.abort() : r.continue()));
+  await context.route(/^https:\/\/www\.gstatic\.com\/firebasejs\/.*\/firebase-app-compat\.js$/, (r) =>
+    r.fulfill({ contentType: 'text/javascript', body: FAKE_SDK }),
+  );
+  await context.route(/^https:\/\/www\.gstatic\.com\/firebasejs\/.*\/firebase-firestore-compat\.js$/, (r) =>
+    r.fulfill({ contentType: 'text/javascript', body: '' }),
+  );
+  await context.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (r) =>
+    offlineFonts ? r.abort() : r.continue(),
+  );
   const preset = Object.fromEntries(Object.entries(storage).map(([k, v]) => ['nap-log.' + k, JSON.stringify(v)]));
   await context.addInitScript((preset) => {
     if (!sessionStorage.getItem('__preset')) {
       sessionStorage.setItem('__preset', '1');
       for (const [k, v] of Object.entries(preset)) localStorage.setItem(k, v);
     }
-    document.addEventListener('securitypolicyviolation', (e) => console.error(`CSP violation: ${e.violatedDirective} ${e.blockedURI || ''} ${e.sample || ''}`));
+    document.addEventListener('securitypolicyviolation', (e) =>
+      console.error(`CSP violation: ${e.violatedDirective} ${e.blockedURI || ''} ${e.sample || ''}`),
+    );
   }, preset);
   const page = await context.newPage();
   const problems = [];
@@ -163,7 +202,8 @@ export async function openPhone(base, { fs: fakeFs, storage = {}, now, device = 
   // innerText with non-breaking spaces (used in durations like "3h 00m") turned into plain spaces
   phone.text = async (sel) => (await page.locator(sel).innerText()).replace(/\u00a0/g, ' ');
   phone.storage = (k) => page.evaluate((k) => JSON.parse(localStorage.getItem('nap-log.' + k)), k);
-  phone.row = (label) => page.locator('#plan .it', { has: page.locator('.t', { hasText: new RegExp('^' + label + '$') }) });
+  phone.row = (label) =>
+    page.locator('#plan .it', { has: page.locator('.t', { hasText: new RegExp('^' + label + '$') }) });
   phone.close = () => context.close();
   return phone;
 }
