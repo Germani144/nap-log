@@ -1,6 +1,5 @@
 // Notifications: the reminder plan written to the family document, push subscriptions and the bell box.
 
-// ---------- notifications ----------
 // The app only writes WHAT to notify about and WHEN (next nap / bedtime minus 30 min) into the family document.
 // A GitHub Action (sender/notify.mjs) reads it every ~5 min and sends the push to every subscribed phone.
 function syncReminder(want) {
@@ -165,9 +164,10 @@ $('#bell').addEventListener('click', () => {
   $('#ndlg').showModal();
 });
 $('#nclose').addEventListener('click', () => $('#ndlg').close());
+// tapping outside the box (on the backdrop) closes it
 $('#ndlg').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) $('#ndlg').close();
-}); // tap outside to close
+});
 $('#pushtest').addEventListener('click', () => {
   if (!db) return;
   familyRef().set(

@@ -1,6 +1,5 @@
 // Drawing helpers for the day ring (SVG) and the plan rows.
 
-// ---------- day dial ----------
 // The ring is the day: wake-up (sun) to bedtime (moon) along a 290 degree arc. Angles are degrees clockwise from the top.
 const RING_RADIUS = 128,
   RING_START = 215,
@@ -53,10 +52,11 @@ function napBar(t1, t2, dashed) {
     const p = ringPoint(RING_RADIUS, mid);
     return `<text x="${round1(p[0])}" y="${round1(p[1] + dy)}" text-anchor="middle" font-size="${sz}" font-family="${EMOJI_FONT}" filter="url(#${dashed ? 'zza' : 'zzd'})">💤</text>`;
   };
+  // a short nap: a dot with a small 💤 that fits inside it
   if (px < 30) {
     const p = ringPoint(RING_RADIUS, mid);
     return `<circle cx="${round1(p[0])}" cy="${round1(p[1])}" r="${BAR_HALF}" fill="${fill}"${st}/>` + zz(13, 4.6);
-  } // a short nap: a dot with a small 💤 that fits inside it
+  }
   const d0 = ((BAR_HALF / RING_RADIUS) * 180) / Math.PI,
     a1 = t1 + d0,
     a2 = t2 - d0,

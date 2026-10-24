@@ -1,6 +1,5 @@
 // Saving entries: Firestore under the family code (shared mode) or this phone only (local mode).
 
-// ---------- storage / sync ----------
 const familyRef = () => db.collection('families').doc(familyCode);
 const showSyncStatus = (t, local) => {
   const e = $('#sync');
@@ -10,10 +9,11 @@ const showSyncStatus = (t, local) => {
 function saveEntry(e) {
   if (db) {
     familyRef().collection('entries').doc(e.id).set(e);
+    // outside the live 14-day window the listener will not bring it back, so keep a local copy
     if (e.start < startOfDay(Date.now()) - 14 * DAY) {
       olderEntries[e.id] = e;
       renderHistory();
-    } // outside the live window: keep a local copy
+    }
   } else {
     entries = entries.filter((x) => x.id !== e.id).concat(e);
     save('entries', entries);

@@ -1,6 +1,5 @@
 // Starting, stopping and re-planning: the actions behind the Start / End buttons and the extra-nap links.
 
-// ---------- actions ----------
 // every nap or night also saves what the app had predicted for it just before it started, with the app version
 // (predBefore in plan.js). It works the same for the Start buttons and for entries filled in later by hand.
 const withPrediction = (e, old) => {

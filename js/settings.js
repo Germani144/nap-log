@@ -37,8 +37,9 @@ const openSettings = () => {
 
 $('#cog').addEventListener('click', openSettings);
 $('#sync').addEventListener('click', openSettings);
-$('#sfshow').addEventListener('click', () => setCodeHidden($('#sf').classList.contains('masked') ? false : true));
+$('#sfshow').addEventListener('click', () => setCodeHidden(!$('#sf').classList.contains('masked')));
 $('#scancel').addEventListener('click', () => $('#sdlg').close());
+// tapping outside the box (on the backdrop) closes it
 $('#sdlg').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) $('#sdlg').close();
-}); // tap outside to close
+});

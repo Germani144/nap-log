@@ -1,7 +1,7 @@
 // Startup: tap actions, service worker, Check for updates, first render. Loaded last.
 
-// Every tappable thing drawn as HTML (plan rows, the ring, calendar days, buttons) carries data-act="…" (see act() in
-// state.js); this one listener runs the matching action. Numbers arrive as text in data-*, so they are converted here.
+// Every tappable thing drawn as HTML (plan rows, the ring, calendar days, buttons) carries data-act="…" (made by
+// tapAction() in core.js); this one listener runs the matching action. Numbers arrive as text in data-*, so they are converted here.
 const ACTIONS = {
   edit: (d) => openEdit(d.id),
   add: (d) => openAdd(d.type, d.day ? +d.day : undefined),
@@ -26,7 +26,8 @@ if ('serviceWorker' in navigator)
   navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' }).catch(() => {});
 $('#ver').textContent = 'v' + VER;
 // Check for updates: read the version the server is serving from sw.js (its cache name, kept equal to VER), bypassing
-// every cache. If it is newer, delete only Nap Log's own caches, update the worker (it saves a fresh offline copy) (the origin may be shared) and reload.
+// every cache. If it differs, delete only Nap Log's own caches (the address may be shared), update the worker (it saves a
+// fresh offline copy) and reload.
 $('#updbtn').addEventListener('click', async () => {
   const btn = $('#updbtn'),
     msg = $('#updmsg'),

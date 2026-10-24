@@ -1,6 +1,5 @@
 // The History tab: the month calendar and the selected day.
 
-// ---------- history tab ----------
 const loadedMonths = new Set();
 let historyNote = '';
 

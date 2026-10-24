@@ -1,12 +1,12 @@
 // The edit box for a nap or night: opening it for an entry or a new one, typed times, Save and Delete.
 
 let editing = null;
-// open the edit box without focusing a time field, so the keyboard only appears when a time is tapped
 // a night's fields are its bedtime and wake-up; a nap's are its start and end
 const setEditLabels = (type) => {
   $('#esl').textContent = type === 'night' ? 'Bedtime' : 'Start';
   $('#eel').textContent = type === 'night' ? 'Wake-up' : 'End';
 };
+// opens the edit box without focusing a time field, so the keyboard only appears when a time is tapped
 function showEditDialog() {
   setEditLabels(editing && editing.type);
   $('#dlg').showModal();
@@ -66,9 +66,8 @@ $('#esave').addEventListener('click', () => {
   let en = null;
   if (ev) {
     en = timeOnDay(editing.day, ev);
-    if (en <= st) en += DAY;
-  } // e.g. night sleep crossing midnight
-  else if (!editing.wasOpen) return alert('Set an end time, or delete the entry');
+    if (en <= st) en += DAY; // an end before the start is the next day (a night crossing midnight)
+  } else if (!editing.wasOpen) return alert('Set an end time, or delete the entry');
   if (st > Date.now() + 6e4 || (en && en > Date.now() + 6e4))
     return alert('That time is still in the future. Log it once it has happened.');
   const old = editing.id && findEntry(editing.id);

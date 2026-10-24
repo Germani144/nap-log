@@ -14,7 +14,7 @@ let settings = cleanSettings(load('settings', {})),
   lastReminderWrite = '';
 
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-// history tab state; `hist` holds entries older than the live 14-day sync window (shared mode only)
+// History tab state; `olderEntries` holds entries older than the live 14-day sync window (shared mode only)
 let olderEntries = {},
   currentTab = 'today',
   shownMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1),

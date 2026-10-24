@@ -23,14 +23,15 @@ export const H = 36e5,
   DAY = 864e5;
 
 // ---------- static server ----------
-export function startServer() {
+// root: the folder to serve (default: this repo)
+export function startServer(root = ROOT) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     if (!url.pathname.startsWith('/nap-log/')) return res.writeHead(404).end();
     let rel = decodeURIComponent(url.pathname.slice('/nap-log/'.length)) || 'index.html';
-    const file = path.join(ROOT, rel);
+    const file = path.join(root, rel);
     if (
-      !file.startsWith(ROOT + path.sep) ||
+      !file.startsWith(root + path.sep) ||
       /(^|\/)(\.|node_modules|tests)/.test(rel) ||
       !fs.existsSync(file) ||
       fs.statSync(file).isDirectory()

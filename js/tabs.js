@@ -40,8 +40,8 @@ document.addEventListener(
   'touchstart',
   (e) => {
     swipe = null;
-    if (e.touches.length !== 1 || !(!$('#dlg').open && !e.target.closest('input,select,textarea,dialog,.chart svg')))
-      return;
+    // no swipe with two fingers, in the edit box, in a field or on a chart (charts follow the finger themselves)
+    if (e.touches.length !== 1 || $('#dlg').open || e.target.closest('input,select,textarea,dialog,.chart svg')) return;
     const t = e.touches[0];
     swipe = { x: t.clientX, y: t.clientY, m: 1, d: 0, p: currentPane() };
   },
@@ -94,7 +94,7 @@ document.addEventListener(
     }
     const dx = swipe.d,
       j = TAB_ORDER.indexOf(currentTab) + (dx < 0 ? 1 : -1);
-    if (Math.abs(dx) >= SWIPE_DISTANCE && j >= 0 && j < TAB_ORDER.length && !false) {
+    if (Math.abs(dx) >= SWIPE_DISTANCE && j >= 0 && j < TAB_ORDER.length) {
       const p = swipe.p;
       p.style.transition = '';
       p.style.transform = '';

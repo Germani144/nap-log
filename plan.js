@@ -17,10 +17,11 @@ const clockTime = (m) => {
   m = Math.round(m);
   return pad2(Math.floor(m / 60) % 24) + ':' + pad2(m % 60);
 };
+// "45m", "3h 30m" (a non-breaking space keeps it on one line)
 const duration = (m) => {
   m = Math.round(m);
   return m >= 60 ? Math.floor(m / 60) + 'h\u00a0' + pad2(m % 60) + 'm' : m + 'm';
-}; // non-breaking space keeps "3h 30m" on one line
+};
 const average = (a) => a.reduce((s, x) => s + x, 0) / a.length;
 const isoDay = (t) => {
   const d = new Date(t);

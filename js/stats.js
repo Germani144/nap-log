@@ -1,6 +1,5 @@
 // The Statistics tab: charts of the last 7, 14 or 30 days.
 
-// ---------- statistics tab ----------
 // Charts of the last 7/14/30 full days, drawn as inline SVG. Colours were checked for colour-blind separation and
 // contrast on the app's dark background (dataviz validator). One scale per chart: night sleep has its own chart.
 const CHART_COLORS = {
@@ -93,10 +92,11 @@ function lineChart(key, title, sub, days, series, fmt, step) {
       pen = true;
     });
     g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    // a day with no neighbours gets a dot, so lone days stay visible
     s.vals.forEach((v, i) => {
       if (v != null && s.vals[i - 1] == null && s.vals[i + 1] == null)
         g += `<circle cx="${round1(X(i))}" cy="${round1(Y(v))}" r="3" fill="${s.color}"/>`;
-    }); // lone days stay visible
+    });
   });
   return chartBox(
     key,
@@ -164,10 +164,11 @@ function chartBox(key, title, sub, body, series, fmt, geo) {
   if (series) {
     chartData[key] = { series, fmt, geo };
   } else delete chartData[key];
+  // one series: no legend box (the title names it), its average goes in the subtitle
   if (series && series.length === 1) {
     const m = meanOf(series[0].vals);
     if (m != null) sub += ` · average <b>${fmt(m)}</b>`;
-  } // one series: no legend box, the title names it
+  }
   const leg =
     series && series.length > 1
       ? `<div class="leg2">${series

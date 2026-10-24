@@ -1,8 +1,7 @@
-// Export data / Import data in Settings. The file format and checks are in backup.js (pure, tested).
+// Export data / Import data in Settings. The file format, the checks and what an import changes are in backup.js (pure,
+// tested). The file is built here in the browser (Blob + download link), so no new address is needed. It never contains
+// the family code.
 
-// ---------- export / import (Settings) ----------
-// The file format, the checks and what an import changes are in backup.js (pure, tested). The file is built here in the
-// browser (Blob + download link), so no new address is needed. It never contains the family code.
 const showBackupMessage = (t, ok) => {
   const m = $('#bkmsg');
   m.textContent = t;
