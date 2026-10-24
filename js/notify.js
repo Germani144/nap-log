@@ -3,115 +3,90 @@
 // ---------- notifications ----------
 // The app only writes WHAT to notify about and WHEN (next nap / bedtime minus 30 min) into the family document.
 // A GitHub Action (sender/notify.mjs) reads it every ~5 min and sends the push to every subscribed phone.
-function syncNotify(want) {
-  if (!db || !famData) return;
-  const st = famData,
-    now = Date.now();
-  if (/^test-/.test(st.notifyKey || '') && st.notifySent !== st.notifyKey && now - (st.notifyAt || 0) < 30 * 60000)
-    return; // a test is waiting for the sender
-  const pending = !!st.notifyAt && (st.notifyEvent || 0) > now && st.notifySent !== st.notifyKey;
-  const full = {
-    notifyAt: want && want.at,
-    notifyEvent: want && want.event,
-    notifyKey: want && want.key,
-    notifyLabel: want && want.label,
-    notifyTime: want && want.time,
-    notifyText: '',
-  };
-  let out = null;
-  if (!want)
-    out = pending ? { notifyAt: 0 } : null; // asleep, bedtime logged, or no data: cancel what is waiting
-  else if (want.key !== st.notifyKey)
-    out = want.at > now ? full : pending ? { notifyAt: 0 } : null; // a new event (or it is already < 30 min away)
-  else if (
-    st.notifySent !== st.notifyKey &&
-    want.at > now &&
-    (!st.notifyAt || Math.abs(want.at - st.notifyAt) >= 5 * 60000)
-  )
-    out = full; // same event, time moved
+function syncReminder(want) {
+  if (!db || !familyDoc) return;
+  const out = reminderUpdate(want, familyDoc, Date.now());
   if (!out) return;
   const j = JSON.stringify(out);
-  if (j === lastNotifyWrite) return;
-  lastNotifyWrite = j;
-  fam()
+  if (j === lastReminderWrite) return;
+  lastReminderWrite = j;
+  familyRef()
     .set(out, { merge: true })
     .catch(() => {
-      lastNotifyWrite = '';
+      lastReminderWrite = '';
     });
 }
 
-const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-const standalone =
+const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const isStandalone =
   (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
-const pushOk = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-const b64ToU8 = (s) => {
-  s = s.replace(/-/g, '+').replace(/_/g, '/');
-  while (s.length % 4) s += '=';
-  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-};
-const subId = async (ep) =>
+const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const subscriptionId = async (ep) =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ep)))]
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
     .slice(0, 32);
-const getSub = async () => {
+const getSubscription = async () => {
   const reg = await navigator.serviceWorker.ready;
   return reg.pushManager.getSubscription();
 };
-async function saveSub(sub) {
+async function saveSubscription(sub) {
   if (!db) return;
   const j = sub.toJSON();
-  await fam()
+  await familyRef()
     .collection('subs')
-    .doc(await subId(j.endpoint))
+    .doc(await subscriptionId(j.endpoint))
     .set({
       sub: JSON.stringify({ endpoint: j.endpoint, keys: j.keys }),
-      device: iOS ? 'iPhone' : /Android/.test(navigator.userAgent) ? 'Android' : 'other',
+      device: deviceName(navigator.userAgent),
       at: Date.now(),
     });
 }
-const pushOff = () => {
+const pushTurnedOff = () => {
   try {
     return lsGet('pushoff') === '1';
   } catch {
     return false;
   }
 };
-const setPushOff = (v) => {
+const setPushTurnedOff = (v) => {
   try {
     v ? lsSet('pushoff', '1') : lsDel('pushoff');
   } catch {}
 };
-let pushDbg = '';
-let refreshing = false;
-async function refreshSub() {
+let pushNote = '';
+let refreshingSubscription = false;
+async function refreshSubscription() {
   // keep the saved copy current; quietly re-subscribe if the phone dropped the subscription
-  if (!(pushOk && db && Notification.permission === 'granted')) return;
+  if (!(pushSupported && db && Notification.permission === 'granted')) return;
   try {
-    let s = await getSub();
+    let s = await getSubscription();
     // the sender marks subscriptions the push service rejected (deadSubs): drop ours if it is one, then subscribe afresh
     if (s) {
-      const id = await subId(s.endpoint),
-        dead = famData && famData.deadSubs;
+      const id = await subscriptionId(s.endpoint),
+        dead = familyDoc && familyDoc.deadSubs;
       if (dead && dead[id]) {
         try {
           await s.unsubscribe();
         } catch {}
         s = null;
-        fam()
+        familyRef()
           .set({ deadSubs: { [id]: firebase.firestore.FieldValue.delete() } }, { merge: true })
           .catch(() => {});
-        pushDbg = 'renewed a subscription the push service had dropped';
+        pushNote = 'renewed a subscription the push service had dropped';
       }
     }
-    if (!s && !pushOff()) {
+    if (!s && !pushTurnedOff()) {
       const reg = await navigator.serviceWorker.ready;
-      s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC) });
-      pushDbg = 're-subscribed';
+      s = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToBytes(VAPID_PUBLIC),
+      });
+      pushNote = 're-subscribed';
     }
-    if (s) await saveSub(s);
+    if (s) await saveSubscription(s);
   } catch (e) {
-    pushDbg = 'error: ' + ((e && e.message) || e);
+    pushNote = 'error: ' + ((e && e.message) || e);
   }
   renderPush();
 }
@@ -128,15 +103,15 @@ async function renderPush() {
     st.textContent = t;
     if (off) btn.disabled = true;
   };
-  if (!pushOk) return set('This browser does not support notifications.', true);
-  if (iOS && !standalone)
+  if (!pushSupported) return set('This browser does not support notifications.', true);
+  if (isIos && !isStandalone)
     return set('On iPhone, open the app from its home-screen icon first, then come back here.', true);
   if (!db) return set('Needs sharing: add the family code in Settings (⚙ at the top) first.', true);
   if (Notification.permission === 'denied')
     return set('Blocked. Allow notifications for this app in the phone settings, then reopen it.', true);
   let sub = null;
   try {
-    sub = await getSub();
+    sub = await getSubscription();
   } catch {}
   $('#bell').classList.toggle('on', !!(sub && Notification.permission === 'granted'));
   if (sub && Notification.permission === 'granted') {
@@ -149,31 +124,34 @@ async function renderPush() {
     st.textContent =
       'Get a heads-up about 30 minutes before the next nap or bedtime.' +
       (Notification.permission === 'granted'
-        ? ' (' + (pushDbg || 'permission allowed, no subscription yet') + ')'
+        ? ' (' + (pushNote || 'permission allowed, no subscription yet') + ')'
         : '');
 }
 async function togglePush() {
   const msg = $('#pushmsg');
   msg.textContent = '';
   try {
-    const cur = await getSub();
+    const cur = await getSubscription();
     if (cur && Notification.permission === 'granted') {
-      await fam()
+      await familyRef()
         .collection('subs')
-        .doc(await subId(cur.endpoint))
+        .doc(await subscriptionId(cur.endpoint))
         .delete()
         .catch(() => {});
       await cur.unsubscribe();
-      setPushOff(true);
+      setPushTurnedOff(true);
       return renderPush();
     }
     if ((await Notification.requestPermission()) !== 'granted') return renderPush();
     const reg = await navigator.serviceWorker.ready;
     const sub =
       (await reg.pushManager.getSubscription()) ||
-      (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC) }));
-    await saveSub(sub);
-    setPushOff(false);
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToBytes(VAPID_PUBLIC),
+      }));
+    await saveSubscription(sub);
+    setPushTurnedOff(false);
   } catch (e) {
     msg.textContent = 'Could not turn notifications on: ' + ((e && e.message) || e);
   }
@@ -192,7 +170,7 @@ $('#ndlg').addEventListener('click', (e) => {
 }); // tap outside to close
 $('#pushtest').addEventListener('click', () => {
   if (!db) return;
-  fam().set(
+  familyRef().set(
     {
       notifyAt: Date.now(),
       notifyEvent: 0,

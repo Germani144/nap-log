@@ -3,32 +3,30 @@
 // ---------- actions ----------
 // every nap or night also saves what the app had predicted for it just before it started, with the app version
 // (predBefore in plan.js). It works the same for the Start buttons and for entries filled in later by hand.
-const withPred = (e, old) => {
+const withPrediction = (e, old) => {
   if (old && old.pred && old.start === e.start) return e; // keep the saved prediction while the start time is unchanged
-  const p = predBefore(allE(), e, planSettings());
+  const p = predBefore(allEntries(), e, planSettings());
   const { pred, ...rest } = e;
   return p ? { ...rest, pred: { ...p, v: VER } } : rest;
 };
-function startE(type) {
-  putEntry(withPred({ id: uid(), type, start: Date.now(), end: null }));
+function startSleep(type) {
+  saveEntry(withPrediction({ id: newId(), type, start: Date.now(), end: null }));
 }
-function stopE(id) {
+function endSleep(id) {
   const e = entries.find((x) => x.id === id);
-  if (e) putEntry({ ...e, end: Date.now() });
+  if (e) saveEntry({ ...e, end: Date.now() });
 }
 // Extra naps added to today's plan by hand ("＋ Add extra nap"): shared through the family document, reset every day.
-const extraToday = () => {
-  const x = db ? famData && famData.extraNaps : load('extra', null);
-  return x && x.day === isoDay(Date.now()) ? Math.max(0, Math.min(3, Math.round(+x.n) || 0)) : 0;
-};
-const planSettings = () => ({ ...settings, extraNaps: extraToday() });
+const extraNapsToday = () =>
+  extraNapsFrom(db ? familyDoc && familyDoc.extraNaps : load('extra', null), isoDay(Date.now()));
+const planSettings = () => ({ ...settings, extraNaps: extraNapsToday() });
 
-function setExtra(n) {
-  markAnim();
+function setExtraNaps(n) {
+  animateNextRender();
   const v = { day: isoDay(Date.now()), n: Math.max(0, Math.min(3, n)) };
   if (db) {
-    famData = { ...(famData || {}), extraNaps: v };
-    fam().set({ extraNaps: v }, { merge: true });
+    familyDoc = { ...(familyDoc || {}), extraNaps: v };
+    familyRef().set({ extraNaps: v }, { merge: true });
   } else save('extra', v);
   render();
 }

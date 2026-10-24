@@ -15,8 +15,8 @@
 
 ## Security rules
 
-- `index.html` has a Content-Security-Policy with no `'unsafe-inline'` for scripts: never add inline `<script>` or `onclick=` code (use `data-act` + `act()`, run by `ACTIONS` in js/main.js). Keep it: if a feature needs another address, add exactly that address to the right directive and say so in the README. Never add `*` or broad wildcards.
-- Anything synced, typed in or imported goes through validation (`okE`/`okS` in backup.js, `Backup.parseImport` for files) and `esc()` before it is put into HTML.
+- `index.html` has a Content-Security-Policy with no `'unsafe-inline'` for scripts: never add inline `<script>` or `onclick=` code (use `data-act` + `tapAction()`, run by `ACTIONS` in js/main.js). Keep it: if a feature needs another address, add exactly that address to the right directive and say so in the README. Never add `*` or broad wildcards.
+- Anything synced, typed in or imported goes through validation (`isValidEntry`/`cleanSettings` in backup.js, `Backup.parseImport` for files) and `escapeHtml()` before it is put into HTML.
 - Exports never contain the family code. If the export layout changes, raise `Backup.VERSION` and keep importing older versions (add a test).
 - Every Firestore request from `sender/` keeps the `Referer` header (the web key may be restricted to the app's address).
 

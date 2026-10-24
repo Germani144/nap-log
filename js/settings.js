@@ -1,43 +1,43 @@
 // The Settings box: targets, family code (hidden until Show) and Save.
 
-function initForm() {
+function fillSettingsForm() {
   $('#sn').value = settings.targetNaps;
   $('#sb').value = settings.bedtime;
-  $('#sf').value = family;
+  $('#sf').value = familyCode;
 }
 
 $('#ssave').addEventListener('click', () => {
-  settings = okS({ targetNaps: $('#sn').value, bedtime: normT($('#sb').value) || settings.bedtime });
+  settings = cleanSettings({ targetNaps: $('#sn').value, bedtime: parseTypedTime($('#sb').value) || settings.bedtime });
   save('settings', settings);
   const f = $('#sf').value.trim();
-  if (f !== family) {
-    family = f;
+  if (f !== familyCode) {
+    familyCode = f;
     save('family', f);
-    connect();
+    connectSync();
   }
-  if (db) fam().set({ settings }, { merge: true });
+  if (db) familyRef().set({ settings }, { merge: true });
   $('#sdlg').close();
   render();
   renderPush();
 });
 
 // Settings: the cog (or the sync chip) opens it; the family code stays hidden until Show is tapped
-const maskCode = (on) => {
+const setCodeHidden = (on) => {
   $('#sf').classList.toggle('masked', on);
   $('#sfshow').textContent = on ? 'Show' : 'Hide';
   $('#sfshow').setAttribute('aria-pressed', String(!on));
 };
 const openSettings = () => {
-  initForm();
-  maskCode(true);
+  fillSettingsForm();
+  setCodeHidden(true);
   $('#updmsg').textContent = '';
-  bkMsg('');
+  showBackupMessage('');
   $('#sdlg').showModal();
 };
 
 $('#cog').addEventListener('click', openSettings);
 $('#sync').addEventListener('click', openSettings);
-$('#sfshow').addEventListener('click', () => maskCode($('#sf').classList.contains('masked') ? false : true));
+$('#sfshow').addEventListener('click', () => setCodeHidden($('#sf').classList.contains('masked') ? false : true));
 $('#scancel').addEventListener('click', () => $('#sdlg').close());
 $('#sdlg').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) $('#sdlg').close();

@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-const { makePlan, hm } = createRequire(import.meta.url)('../plan.js');
+const { makePlan, clockTime } = createRequire(import.meta.url)('../plan.js');
 
 const T0 = new Date(2026, 9, 15).getTime(); // "today" = 15 Oct 2026, local midnight
 const at = (day, h, m) => T0 + day * 864e5 + (h * 60 + m) * 6e4; // day 0 = today, -1 = yesterday
@@ -28,7 +28,7 @@ function week(days = 7) {
   E.push(night(-1, 19, 30, 6, 30));
   return E;
 }
-const starts = (p) => p.rows.filter((r) => !r.nodata).map((r) => hm(r.s));
+const starts = (p) => p.rows.filter((r) => !r.nodata).map((r) => clockTime(r.s));
 
 test('no history: naps say "no data", nothing to notify', () => {
   const p = makePlan([], at(0, 9, 0), S);
@@ -42,9 +42,9 @@ test('no history: naps say "no data", nothing to notify', () => {
 test('a regular week reproduces the usual day', () => {
   const p = makePlan(week(), at(0, 7, 0), S);
   assert.deepEqual(starts(p), ['08:30', '12:00', '16:00']);
-  assert.equal(hm(p.B), '19:30');
+  assert.equal(clockTime(p.B), '19:30');
   assert.equal(p.next.label, 'Next nap');
-  assert.equal(hm(p.next.t), '08:30');
+  assert.equal(clockTime(p.next.t), '08:30');
   assert.equal(p.want.at, at(0, 8, 0)); // notification 30 min before
 });
 
@@ -64,14 +64,14 @@ test('awake windows never exceed 3h 30m', () => {
   for (let d = -7; d < 0; d++) E.push(night(d - 1, 19, 30, 6, 0), nap(d, 11, 0, 12, 0));
   E.push(night(-1, 19, 30, 6, 0));
   const p = makePlan(E, at(0, 7, 0), { targetNaps: 1, bedtime: '19:30' });
-  assert.equal(hm(p.rows[0].s), '09:30'); // usual 5h gap capped to 3h30
+  assert.equal(clockTime(p.rows[0].s), '09:30'); // usual 5h gap capped to 3h30
 });
 
 test('bedtime stays within 30 minutes of the target when the naps allow it', () => {
   for (const bt of ['18:30', '19:30', '20:30']) {
     const p = makePlan(week(), at(0, 7, 0), { targetNaps: 3, bedtime: bt });
     const [h, m] = bt.split(':').map(Number);
-    assert.ok(Math.abs(p.B - (h * 60 + m)) <= 30, bt + ' -> ' + hm(p.B));
+    assert.ok(Math.abs(p.B - (h * 60 + m)) <= 30, bt + ' -> ' + clockTime(p.B));
   }
 });
 
@@ -90,7 +90,7 @@ test('recent days count more', () => {
     nap(-1, 7, 30, 8, 30),
   ); // yesterday nap 1 an hour earlier
   const s = makePlan(E, at(0, 7, 0), S).rows[0].s;
-  assert.ok(s < 8 * 60 + 30 - 60 / 7, 'weighted more than a plain 1-in-7 average: ' + hm(s));
+  assert.ok(s < 8 * 60 + 30 - 60 / 7, 'weighted more than a plain 1-in-7 average: ' + clockTime(s));
 });
 
 test('while asleep there is no next event to notify about', () => {
@@ -203,7 +203,10 @@ test('with an added nap, the awake windows shrink so the next nap also comes ear
     t = at(0, 12, 30);
   const three = makePlan(E, t, S),
     four = makePlan(E, t, { ...S, extraNaps: 1 });
-  assert.ok(four.rows[2].s < three.rows[2].s, 'nap 3 at ' + hm(four.rows[2].s) + ' vs ' + hm(three.rows[2].s));
+  assert.ok(
+    four.rows[2].s < three.rows[2].s,
+    'nap 3 at ' + clockTime(four.rows[2].s) + ' vs ' + clockTime(three.rows[2].s),
+  );
   const w = [four.rows[2].s - four.rows[1].e, four.rows[3].s - four.rows[2].e, four.B - four.rows[3].e];
   assert.ok(Math.max(...w) - Math.min(...w) <= 1, 'windows ' + w.map(Math.round)); // evenly spread
 });
@@ -212,7 +215,7 @@ test('a 4th nap in progress beyond her usual naps is a bridge nap: target at mos
   const E = [...week(), nap(0, 8, 30, 8, 50), nap(0, 12, 0, 12, 20), nap(0, 14, 30, 15, 10), nap(0, 17, 0, null)];
   const p = makePlan(E, at(0, 17, 10), { ...S, extraNaps: 1 });
   assert.ok(p.cur.len <= 45, 'target ' + p.cur.len);
-  assert.ok(p.B <= 19 * 60 + 45, 'bedtime ' + hm(p.B)); // no late bedtime after a bridge nap
+  assert.ok(p.B <= 19 * 60 + 45, 'bedtime ' + clockTime(p.B)); // no late bedtime after a bridge nap
 });
 
 test('an added nap is a bridge nap even when there is data for that nap number', () => {
@@ -233,7 +236,7 @@ test('an added nap is a bridge nap even when there is data for that nap number',
     { ...S, extraNaps: 1 },
   );
   assert.ok(p.cur.len <= 45, 'target ' + p.cur.len);
-  assert.ok(p.B <= 19 * 60 + 45, 'bedtime ' + hm(p.B));
+  assert.ok(p.B <= 19 * 60 + 45, 'bedtime ' + clockTime(p.B));
 });
 
 test('dailyStats: per-day wake-up, naps, bedtime, night length and awake time', async () => {
@@ -271,7 +274,7 @@ test('a suggested extra nap is not counted until added: countdown to bedtime, be
   assert.ok(x, 'an extra nap is suggested');
   assert.equal(p.next.label, 'Bedtime');
   assert.equal(p.next.t, p.B);
-  assert.ok(p.B <= 15 * 60 + 35 + 210, 'bedtime respects the 3h 30m awake limit: ' + hm(p.B)); // no nap after 15:35
+  assert.ok(p.B <= 15 * 60 + 35 + 210, 'bedtime respects the 3h 30m awake limit: ' + clockTime(p.B)); // no nap after 15:35
   const q = makePlan(E, t, { ...S, extraNaps: 1 }); // once added
   assert.equal(q.next.label, 'Next nap');
   assert.ok(q.B > p.B, 'bedtime moves later with the added nap');

@@ -2,10 +2,10 @@
 
 // localStorage is shared by every app on this origin, so keys are stored as "nap-log.<name>".
 // Older builds used "nt_<name>"; they are moved over once, here, before anything reads them.
-const LS = 'nap-log.';
-const lsGet = (k) => localStorage.getItem(LS + k);
-const lsSet = (k, v) => localStorage.setItem(LS + k, v);
-const lsDel = (k) => localStorage.removeItem(LS + k);
+const STORAGE_PREFIX = 'nap-log.';
+const lsGet = (k) => localStorage.getItem(STORAGE_PREFIX + k);
+const lsSet = (k, v) => localStorage.setItem(STORAGE_PREFIX + k, v);
+const lsDel = (k) => localStorage.removeItem(STORAGE_PREFIX + k);
 try {
   for (const k of ['settings', 'entries', 'family', 'extra', 'pushoff', 'statsN']) {
     const o = localStorage.getItem('nt_' + k);

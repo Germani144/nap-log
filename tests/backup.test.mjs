@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-const { okE, okS, Backup } = createRequire(import.meta.url)('../backup.js');
+const { isValidEntry, cleanSettings, Backup } = createRequire(import.meta.url)('../backup.js');
 const { makeExport, fileName, toText, parseImport, planImport, summarize, FORMAT, VERSION } = Backup;
 
 const NOW = new Date(2026, 9, 22, 20, 0).getTime(); // "now" = 22 Oct 2026 20:00 local
@@ -245,9 +245,9 @@ test('summarize counts naps and nights', () => {
   assert.deepEqual(summarize([]), { count: 0, naps: 0, nights: 0, first: null, last: null });
 });
 
-test('okE and okS still behave as before', () => {
-  assert.ok(okE({ id: 'abc-1', type: 'nap', start: 1, end: null }));
-  assert.ok(!okE({ id: 'a b', type: 'nap', start: 1 }));
-  assert.deepEqual(okS({ targetNaps: '3', bedtime: '20:00' }), { targetNaps: 3, bedtime: '20:00' });
-  assert.deepEqual(okS(null), { targetNaps: 4, bedtime: '19:30' });
+test('isValidEntry and cleanSettings still behave as before', () => {
+  assert.ok(isValidEntry({ id: 'abc-1', type: 'nap', start: 1, end: null }));
+  assert.ok(!isValidEntry({ id: 'a b', type: 'nap', start: 1 }));
+  assert.deepEqual(cleanSettings({ targetNaps: '3', bedtime: '20:00' }), { targetNaps: 3, bedtime: '20:00' });
+  assert.deepEqual(cleanSettings(null), { targetNaps: 4, bedtime: '19:30' });
 });

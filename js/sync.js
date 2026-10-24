@@ -1,17 +1,17 @@
 // Saving entries: Firestore under the family code (shared mode) or this phone only (local mode).
 
 // ---------- storage / sync ----------
-const fam = () => db.collection('families').doc(family);
-const setSync = (t, local) => {
+const familyRef = () => db.collection('families').doc(familyCode);
+const showSyncStatus = (t, local) => {
   const e = $('#sync');
   e.className = 'chip' + (local ? ' local' : '');
   e.innerHTML = '<i></i>' + t;
 };
-function putEntry(e) {
+function saveEntry(e) {
   if (db) {
-    fam().collection('entries').doc(e.id).set(e);
-    if (e.start < sod(Date.now()) - 14 * DAY) {
-      hist[e.id] = e;
+    familyRef().collection('entries').doc(e.id).set(e);
+    if (e.start < startOfDay(Date.now()) - 14 * DAY) {
+      olderEntries[e.id] = e;
       renderHistory();
     } // outside the live window: keep a local copy
   } else {
@@ -20,10 +20,10 @@ function putEntry(e) {
     render();
   }
 }
-function removeEntry(id) {
+function deleteEntry(id) {
   if (db) {
-    fam().collection('entries').doc(id).delete();
-    delete hist[id];
+    familyRef().collection('entries').doc(id).delete();
+    delete olderEntries[id];
     renderHistory();
   } else {
     entries = entries.filter((x) => x.id !== id);
@@ -31,13 +31,13 @@ function removeEntry(id) {
     render();
   }
 }
-function connect() {
-  unsubs.forEach((f) => f());
-  unsubs = [];
+function connectSync() {
+  unsubscribers.forEach((f) => f());
+  unsubscribers = [];
   db = null;
-  famData = null;
-  if (typeof firebase === 'undefined' || !FIREBASE_CONFIG || !family) {
-    setSync('local only', true);
+  familyDoc = null;
+  if (typeof firebase === 'undefined' || !FIREBASE_CONFIG || !familyCode) {
+    showSyncStatus('local only', true);
     return render();
   }
   if (!firebase.apps.length) {
@@ -50,37 +50,37 @@ function connect() {
     } catch {}
   }
   db = firebase.firestore();
-  unsubs.push(
-    fam().onSnapshot((d) => {
-      famData = d.data() || {};
-      if (famData.deadSubs && Object.keys(famData.deadSubs).length && !refreshing) {
-        refreshing = true;
-        refreshSub().finally(() => {
-          refreshing = false;
+  unsubscribers.push(
+    familyRef().onSnapshot((d) => {
+      familyDoc = d.data() || {};
+      if (familyDoc.deadSubs && Object.keys(familyDoc.deadSubs).length && !refreshingSubscription) {
+        refreshingSubscription = true;
+        refreshSubscription().finally(() => {
+          refreshingSubscription = false;
         });
       }
-      lastNotifyWrite = '';
-      const s = famData.settings;
+      lastReminderWrite = '';
+      const s = familyDoc.settings;
       if (s) {
-        settings = okS(s);
+        settings = cleanSettings(s);
         save('settings', settings);
-        initForm();
+        fillSettingsForm();
       }
       render();
     }),
   );
   // only sync the last 14 days: all the plan and the 7-day averages need, and it keeps Firestore reads tiny
-  unsubs.push(
-    fam()
+  unsubscribers.push(
+    familyRef()
       .collection('entries')
-      .where('start', '>=', sod(Date.now()) - 14 * DAY)
+      .where('start', '>=', startOfDay(Date.now()) - 14 * DAY)
       .onSnapshot((q) => {
-        entries = q.docs.map((d) => d.data()).filter(okE);
+        entries = q.docs.map((d) => d.data()).filter(isValidEntry);
         save('entries', entries);
         render();
       }),
   );
-  setSync('shared');
-  refreshSub();
+  showSyncStatus('shared');
+  refreshSubscription();
   renderPush();
 }

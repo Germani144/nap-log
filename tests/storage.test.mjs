@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const src = readFileSync(new URL('../js/storage.js', import.meta.url), 'utf8');
-assert.match(src, /const LS = 'nap-log\.';/);
+assert.match(src, /const STORAGE_PREFIX = 'nap-log\.';/);
 
 function fakeStorage(initial = {}, { failSet = false } = {}) {
   const m = new Map(Object.entries(initial));

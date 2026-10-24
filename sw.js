@@ -12,6 +12,7 @@ const APP_FILES = [
   'styles.css',
   'plan.js',
   'backup.js',
+  'js/core.js',
   'js/config.js',
   'js/storage.js',
   'js/state.js',

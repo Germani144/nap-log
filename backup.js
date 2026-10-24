@@ -1,12 +1,12 @@
 // Nap Log: export and import of the data (Settings > Export data / Import data), plus the validators every synced or
-// typed-in value goes through (okE, okS). Pure: no screen, storage, network or clock here (`now` is always passed in),
+// typed-in value goes through (isValidEntry, cleanSettings). Pure: no screen, storage, network or clock here (`now` is always passed in),
 // so tests/backup.test.mjs can run it directly in Node. index.html loads this file before its own script.
 //
 // An export never contains the family code or any other secret: makeExport only copies the fields listed below.
 
 // ---------- validators (used for everything read from Firestore, localStorage or an imported file) ----------
 // an entry: id is a short safe word (it ends up inside onclick="..." attributes), type is nap or night, times are numbers
-const okE = (e) =>
+const isValidEntry = (e) =>
   !!e &&
   typeof e.id === 'string' &&
   /^[\w-]{1,64}$/.test(e.id) &&
@@ -14,7 +14,7 @@ const okE = (e) =>
   Number.isFinite(e.start) &&
   (e.end == null || Number.isFinite(e.end));
 // settings: always returns safe values (bad or missing ones fall back to the defaults)
-const okS = (s) => ({
+const cleanSettings = (s) => ({
   targetNaps: Math.min(8, Math.max(1, Math.round(+(s && s.targetNaps)) || 4)),
   bedtime: /^([01]\d|2[0-3]):[0-5]\d$/.test(s && s.bedtime) ? s.bedtime : '19:30',
 });
@@ -59,7 +59,7 @@ const Backup = (() => {
     const seen = new Set(),
       entries = [];
     for (const e of state.entries || [])
-      if (okE(e) && !seen.has(e.id)) {
+      if (isValidEntry(e) && !seen.has(e.id)) {
         seen.add(e.id);
         entries.push(cleanE(e));
       }
@@ -71,7 +71,7 @@ const Backup = (() => {
       version: VERSION,
       app: String(appVer || ''),
       exportedAt: now,
-      settings: okS(state.settings),
+      settings: cleanSettings(state.settings),
       extraNaps: isObj(x) && /^\d{4}-\d{2}-\d{2}$/.test(x.day) && isInt(+x.n, 0, 3) ? { day: x.day, n: +x.n } : null,
       prefs: { statsN: [7, 14, 30].includes(+p.statsN) ? +p.statsN : 30, pushOff: !!p.pushOff },
       entries,
@@ -108,7 +108,7 @@ const Backup = (() => {
       const e = j.entries[i],
         where = `Entry ${i + 1}`;
       if (isObj(e) && !('end' in e)) e.end = null; // very old layout: no end field means still running
-      if (!okE(e)) return fail(`${where} is not a valid nap or night.`);
+      if (!isValidEntry(e)) return fail(`${where} is not a valid nap or night.`);
       if (ids.has(e.id)) return fail(`${where} has the same id as an earlier entry.`);
       ids.add(e.id);
       if (e.start < EARLIEST || e.start > now + DAY) return fail(`${where} has an impossible start time.`);
@@ -124,7 +124,7 @@ const Backup = (() => {
       const s = j.settings;
       if (!isObj(s) || !isInt(s.targetNaps, 1, 8) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(s.bedtime))
         return fail('The settings in the file are not valid.');
-      settings = okS(s);
+      settings = cleanSettings(s);
     }
     let extraNaps = null;
     if (j.extraNaps != null) {
@@ -204,4 +204,4 @@ const Backup = (() => {
   return { FORMAT, VERSION, makeExport, fileName, toText, parseImport, summarize, planImport, cleanE, okPred };
 })();
 
-if (typeof module !== 'undefined') module.exports = { okE, okS, Backup };
+if (typeof module !== 'undefined') module.exports = { isValidEntry, cleanSettings, Backup };

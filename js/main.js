@@ -6,12 +6,12 @@ const ACTIONS = {
   edit: (d) => openEdit(d.id),
   add: (d) => openAdd(d.type, d.day ? +d.day : undefined),
   'log-wake': () => logWake(),
-  'extra-more': () => setExtra(extraToday() + 1),
-  'extra-less': () => setExtra(extraToday() - 1),
-  start: (d) => startE(d.type),
-  stop: (d) => stopE(d.id),
+  'extra-more': () => setExtraNaps(extraNapsToday() + 1),
+  'extra-less': () => setExtraNaps(extraNapsToday() - 1),
+  start: (d) => startSleep(d.type),
+  stop: (d) => endSleep(d.id),
   tab: (d) => setTab(d.tab),
-  'stats-range': (d) => setStatsN(+d.n),
+  'stats-range': (d) => setStatsDays(+d.n),
   'pick-day': (d) => pickDay(+d.day),
   month: (d) => showMonth(+d.y, +d.m),
 };
@@ -20,7 +20,7 @@ document.addEventListener('click', (e) => {
   if (el && ACTIONS[el.dataset.act]) ACTIONS[el.dataset.act](el.dataset);
 });
 
-initForm();
+fillSettingsForm();
 
 if ('serviceWorker' in navigator)
   navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' }).catch(() => {});
@@ -37,7 +37,7 @@ $('#updbtn').addEventListener('click', async () => {
   let latest = null;
   try {
     const r = await fetch('sw.js?check=' + Date.now(), { cache: 'no-store' });
-    if (r.ok) latest = (/C=P\+'v([\d.]+)'/.exec(await r.text()) || [])[1] || null;
+    if (r.ok) latest = versionInSw(await r.text());
   } catch {}
   btn.textContent = 'Check for updates';
   btn.disabled = false;
@@ -61,7 +61,7 @@ $('#updbtn').addEventListener('click', async () => {
   } catch {}
   location.reload();
 });
-connect();
+connectSync();
 render();
 renderPush();
 setInterval(render, 30000);

@@ -14,7 +14,7 @@ Live at **https://germani144.github.io/nap-log/**. Open it in Chrome (Android) o
 | `styles.css`                   | All styles                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `js/*.js`                      | The app code, one file per area (config, storage, state, sync, entries, ring, today, edit-dialog, notify, stats, tabs, history, settings, backup-ui, main)                                                                                                                                                                                                                                                                       |
 | `plan.js`                      | The plan maths: averages, today's suggested naps and bedtime (`makePlan`). No screen code                                                                                                                                                                                                                                                                                                                                        |
-| `backup.js`                    | Export/import file format and checks (`Backup`), and the validators `okE` (entries) and `okS` (settings). No screen code                                                                                                                                                                                                                                                                                                         |
+| `backup.js`                    | Export/import file format and checks (`Backup`), and the validators `isValidEntry` (entries) and `cleanSettings` (settings). No screen code                                                                                                                                                                                                                                                                                      |
 | `sw.js`                        | Service worker: always fetches the newest files (no-cache revalidation), keeps a copy for offline use, shows push notifications. It is the only app on `germani144.github.io` now, but it still only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores successful responses, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab |
 | `manifest.json`                | Install info: name, icons, colours. `start_url` and `scope` are `./` (only `/nap-log/`, never the whole site, which other apps share) and `id` stays `nap-log-v2`: changing it makes phones treat Nap Log as a new app                                                                                                                                                                                                           |
 | `icon-*.png`                   | App icons (background must stay `#1F2358`, the app colour, or Android shows a square on the launch screen)                                                                                                                                                                                                                                                                                                                       |
@@ -38,7 +38,7 @@ Charts of the last 7, 14 or 30 full days (inline SVG, touch a chart for each day
 when she falls asleep (nap starts and bedtime), when she wakes up (morning and nap ends), how long naps last, night
 sleep, and her day as stacked bars (night sleep, naps, awake). Per-day figures come from `dailyStats` in `plan.js`.
 One scale per chart, so night sleep has its own chart. Colours were checked for colour-blind separation and contrast
-on the dark background. In shared mode the days older than the 14-day live sync are fetched once (`ensureRecent`).
+on the dark background. In shared mode the days older than the 14-day live sync are fetched once (`loadLast30Days`).
 
 ## How sharing works
 
@@ -72,7 +72,7 @@ in the Firebase console (Firestore → Rules → Publish). The same rules also c
 Without a family code the app runs in local-only mode (data stays on that phone).
 
 Live sync covers the last 14 days. Older months are loaded on demand in History.
-Everything read from Firestore, local storage or an imported file is validated before use (`okE`, `okS` in `backup.js`),
+Everything read from Firestore, local storage or an imported file is validated before use (`isValidEntry`, `cleanSettings` in `backup.js`),
 because the page builds HTML from it.
 
 ## Push notifications
@@ -110,7 +110,7 @@ range. It is built in the browser (Blob + download link), so the Content-Securit
 ```
 
 **Import data** checks the whole file first (`Backup.parseImport` in `backup.js`): the format name and version, every
-entry through `okE` plus sane times (no duplicate ids, no end before start, nothing over a day long, no entry still
+entry through `isValidEntry` plus sane times (no duplicate ids, no end before start, nothing over a day long, no entry still
 open from more than a day ago), and settings, extra naps and preferences if present. One bad value refuses the whole
 file and nothing is written. Older or hand-made files may leave out `settings`, `extraNaps`, `prefs`, `app`,
 `exportedAt`, `pred` and `end`. A preview shows how many entries and which dates, then:
@@ -137,7 +137,7 @@ The full explanation is in the app under **How the plan works**. In short:
   remaining awake windows, each at most its usual length, so all remaining naps move earlier.
 - A suggested extra nap shows as a pulsing dashed bubble with a + on the ring and an "Extra nap? ＋ Add" row; tapping
   either adds it. The ring then animates from the old plan to the new one (`animatePlan`); the same happens after editing
-  or deleting an entry (`markAnim` before the change, the animation runs on the next render).
+  or deleting an entry (`animateNextRender` before the change, the animation runs on the next render).
 - **＋ Add extra nap** adds a nap to today's plan without times (family document field `extraNaps: {day, n}`, today
   only); the plan re-times the remaining naps. **＋ Log a nap** enters real times.
 - A nap number with **no data** in the past 7 days is planned like a bridge nap: at most 45 min (or the last nap
@@ -164,7 +164,7 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
 ## Security
 
 - No secrets in the code (the repo is public): the Firebase web key is public by design and the Firestore rules decide who may read or write. The family code and the VAPID private key live only on the phones and in Actions secrets.
-- Synced and imported data is validated (`okE`, `okS`, `Backup.parseImport`) and escaped (`esc`) before it is shown.
+- Synced and imported data is validated (`isValidEntry`, `cleanSettings`, `Backup.parseImport`) and escaped (`escapeHtml`) before it is shown.
 - Export files hold personal data. They never contain the family code, and they must never be committed (`nap-log-*.json` is in `.gitignore`).
 - `index.html` sets a Content-Security-Policy: scripts only from this site and the pinned Firebase SDK on gstatic.com, styles and fonts also from Google Fonts, and data may only be sent to this site and Firestore (`firestore.googleapis.com`, plus Google's connectivity pixel that Firestore uses). No inline scripts are allowed (no `'unsafe-inline'` in `script-src`): all code is in files, and taps in generated HTML use `data-act` attributes run by one listener in `js/main.js` instead of `onclick` code. Inline styles are still allowed (`style-src 'unsafe-inline'`), for the few computed positions and colours.
 - The push sender sends `Referer: https://germani144.github.io/nap-log/` with every Firestore request, so the web key can be restricted to the app's address in Google Cloud without breaking notifications.

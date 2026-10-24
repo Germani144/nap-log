@@ -3,7 +3,7 @@
 // ---------- statistics tab ----------
 // Charts of the last 7/14/30 full days, drawn as inline SVG. Colours were checked for colour-blind separation and
 // contrast on the app's dark background (dataviz validator). One scale per chart: night sleep has its own chart.
-const SC = {
+const CHART_COLORS = {
   n1: '#3987e5',
   n2: '#d95926',
   n3: '#199e70',
@@ -13,27 +13,27 @@ const SC = {
   naps: '#199e70',
   night: '#9085e9',
 };
-let statsN = (() => {
+let statsDays = (() => {
     try {
       return +lsGet('statsN') || 30;
     } catch {
       return 30;
     }
   })(),
-  recentLoaded = false;
-function setStatsN(n) {
-  statsN = n;
+  last30Loaded = false;
+function setStatsDays(n) {
+  statsDays = n;
   try {
     lsSet('statsN', n);
   } catch {}
   renderStats();
 }
 // shared mode: the live sync covers 14 days, so the older part of the last 30 days is fetched once
-function ensureRecent() {
-  if (!db || recentLoaded) return;
-  recentLoaded = true;
-  const t = sod(Date.now());
-  fam()
+function loadLast30Days() {
+  if (!db || last30Loaded) return;
+  last30Loaded = true;
+  const t = startOfDay(Date.now());
+  familyRef()
     .collection('entries')
     .where('start', '>=', t - 32 * DAY)
     .where('start', '<', t - 14 * DAY)
@@ -41,16 +41,16 @@ function ensureRecent() {
     .then((q) => {
       q.docs.forEach((d) => {
         const e = d.data();
-        if (okE(e)) hist[e.id] = e;
+        if (isValidEntry(e)) olderEntries[e.id] = e;
       });
       renderStats();
     })
     .catch(() => {
-      recentLoaded = false;
+      last30Loaded = false;
     });
 }
-const dlabel = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-const mean = (a) => {
+const shortDate = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const meanOf = (a) => {
   const v = a.filter((x) => x != null);
   return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
 };
@@ -75,11 +75,11 @@ function lineChart(key, title, sub, days, series, fmt, step) {
   let g = '';
   const tickStep = Math.max(step, Math.ceil((hi - lo) / step / 5) * step);
   for (let v = lo; v <= hi + 1e-6; v += tickStep)
-    g += `<line x1="${L}" x2="${W - R}" y1="${f1(Y(v))}" y2="${f1(Y(v))}" class="grid"/><text x="${L - 6}" y="${f1(Y(v) + 4)}" class="ax" text-anchor="end">${fmt(v)}</text>`;
+    g += `<line x1="${L}" x2="${W - R}" y1="${round1(Y(v))}" y2="${round1(Y(v))}" class="grid"/><text x="${L - 6}" y="${round1(Y(v) + 4)}" class="ax" text-anchor="end">${fmt(v)}</text>`;
   const xs = n <= 7 ? days.map((_, i) => i) : [0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1];
   xs.forEach(
     (i) =>
-      (g += `<text x="${f1(X(i))}" y="${H - 6}" class="ax" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${dlabel(days[i].day)}</text>`),
+      (g += `<text x="${round1(X(i))}" y="${H - 6}" class="ax" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${shortDate(days[i].day)}</text>`),
   );
   series.forEach((s) => {
     let d = '',
@@ -89,13 +89,13 @@ function lineChart(key, title, sub, days, series, fmt, step) {
         pen = false;
         return;
       }
-      d += (pen ? 'L' : 'M') + f1(X(i)) + ' ' + f1(Y(v));
+      d += (pen ? 'L' : 'M') + round1(X(i)) + ' ' + round1(Y(v));
       pen = true;
     });
     g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
     s.vals.forEach((v, i) => {
       if (v != null && s.vals[i - 1] == null && s.vals[i + 1] == null)
-        g += `<circle cx="${f1(X(i))}" cy="${f1(Y(v))}" r="3" fill="${s.color}"/>`;
+        g += `<circle cx="${round1(X(i))}" cy="${round1(Y(v))}" r="3" fill="${s.color}"/>`;
     }); // lone days stay visible
   });
   return chartBox(
@@ -129,12 +129,12 @@ function barChart(key, title, sub, days, series) {
   let g = '';
   [0, 6, 12, 18, 24].forEach(
     (h) =>
-      (g += `<line x1="${L}" x2="${W - R}" y1="${f1(Y(h * 60))}" y2="${f1(Y(h * 60))}" class="grid"/><text x="${L - 6}" y="${f1(Y(h * 60) + 4)}" class="ax" text-anchor="end">${h}h</text>`),
+      (g += `<line x1="${L}" x2="${W - R}" y1="${round1(Y(h * 60))}" y2="${round1(Y(h * 60))}" class="grid"/><text x="${L - 6}" y="${round1(Y(h * 60) + 4)}" class="ax" text-anchor="end">${h}h</text>`),
   );
   const xs = n <= 7 ? days.map((_, i) => i) : [0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1];
   xs.forEach(
     (i) =>
-      (g += `<text x="${f1(i === 0 ? L : i === n - 1 ? W - R : X(i))}" y="${H - 6}" class="ax" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${dlabel(days[i].day)}</text>`),
+      (g += `<text x="${round1(i === 0 ? L : i === n - 1 ? W - R : X(i))}" y="${H - 6}" class="ax" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${shortDate(days[i].day)}</text>`),
   );
   days.forEach((_, i) => {
     if (series.some((s) => s.vals[i] == null)) return; // only complete days are stacked
@@ -145,7 +145,7 @@ function barChart(key, title, sub, days, series) {
       const v = s.vals[i];
       const y1 = Y(base + v),
         y0 = Y(base);
-      g += `<rect x="${f1(x)}" y="${f1(y1 + 2)}" width="${f1(w)}" height="${f1(Math.max(0, y0 - y1 - 2))}" rx="${Math.min(2, w / 2)}" fill="${s.color}"/>`;
+      g += `<rect x="${round1(x)}" y="${round1(y1 + 2)}" width="${round1(w)}" height="${round1(Math.max(0, y0 - y1 - 2))}" rx="${Math.min(2, w / 2)}" fill="${s.color}"/>`;
       base += v;
     });
   });
@@ -155,24 +155,24 @@ function barChart(key, title, sub, days, series) {
     sub,
     `<svg viewBox="0 0 ${W} ${H}" class="cs">${g}<g class="hov"></g></svg>`,
     series,
-    (v) => dur(v),
+    (v) => duration(v),
     { X, Y: null, n, days, L, R, T, B, W, H, pw, bars: true },
   );
 }
-const charts = {};
+const chartData = {};
 function chartBox(key, title, sub, body, series, fmt, geo) {
   if (series) {
-    charts[key] = { series, fmt, geo };
-  } else delete charts[key];
+    chartData[key] = { series, fmt, geo };
+  } else delete chartData[key];
   if (series && series.length === 1) {
-    const m = mean(series[0].vals);
+    const m = meanOf(series[0].vals);
     if (m != null) sub += ` · average <b>${fmt(m)}</b>`;
   } // one series: no legend box, the title names it
   const leg =
     series && series.length > 1
       ? `<div class="leg2">${series
           .map((s) => {
-            const m = mean(s.vals);
+            const m = meanOf(s.vals);
             return `<span><i style="background:${s.color}"></i>${s.name}${m != null ? ` <b>${fmt(m)}</b>` : ''}</span>`;
           })
           .join('')}</div>`
@@ -183,7 +183,7 @@ function chartBox(key, title, sub, body, series, fmt, geo) {
 function chartHover(ev) {
   const sec = ev.target.closest('.chart');
   if (!sec) return;
-  const c = charts[sec.dataset.k];
+  const c = chartData[sec.dataset.k];
   if (!c) return;
   const svg = sec.querySelector('svg'),
     r = svg.getBoundingClientRect(),
@@ -193,12 +193,12 @@ function chartHover(ev) {
   i = Math.max(0, Math.min(G.n - 1, i));
   const x = G.X(i),
     hov = sec.querySelector('.hov');
-  let h = `<line x1="${f1(x)}" x2="${f1(x)}" y1="${G.T}" y2="${G.H - G.B}" class="xh"/>`;
+  let h = `<line x1="${round1(x)}" x2="${round1(x)}" y1="${G.T}" y2="${G.H - G.B}" class="xh"/>`;
   if (G.Y)
     c.series.forEach((s) => {
       const v = s.vals[i];
       if (v != null)
-        h += `<circle cx="${f1(x)}" cy="${f1(G.Y(v))}" r="4.5" fill="${s.color}" stroke="#1F2358" stroke-width="2"/>`;
+        h += `<circle cx="${round1(x)}" cy="${round1(G.Y(v))}" r="4.5" fill="${s.color}" stroke="#1F2358" stroke-width="2"/>`;
     });
   hov.innerHTML = h;
   const tip = sec.querySelector('.tip');
@@ -221,17 +221,17 @@ function chartLeave(ev) {
   sec.querySelector('.tip').hidden = true;
 }
 function renderStats() {
-  if (tab !== 'stats') return;
-  const days = dailyStats(allE(), sod(Date.now()), statsN),
+  if (currentTab !== 'stats') return;
+  const days = dailyStats(allEntries(), startOfDay(Date.now()), statsDays),
     nm = (i) => 'Nap ' + (i + 1);
   const napS = (k) => days.map((d) => (d.naps[k] ? d.naps[k].s : null)),
     napE = (k) => days.map((d) => (d.naps[k] ? d.naps[k].e : null)),
     napL = (k) => days.map((d) => (d.naps[k] ? d.naps[k].len : null));
   const maxN = Math.min(4, Math.max(0, ...days.map((d) => d.naps.length))),
     ks = [...Array(maxN).keys()],
-    col = [SC.n1, SC.n2, SC.n3, SC.n4];
-  const tfmt = (v) => hm(v);
-  let h = `<div class="seg">${[7, 14, 30].map((n) => `<button class="${n === statsN ? 'on' : ''}"${act('stats-range', { n })}>${n} days</button>`).join('')}</div>`;
+    col = [CHART_COLORS.n1, CHART_COLORS.n2, CHART_COLORS.n3, CHART_COLORS.n4];
+  const tfmt = (v) => clockTime(v);
+  let h = `<div class="seg">${[7, 14, 30].map((n) => `<button class="${n === statsDays ? 'on' : ''}"${tapAction('stats-range', { n })}>${n} days</button>`).join('')}</div>`;
   h += lineChart(
     'start',
     'When she falls asleep',
@@ -239,7 +239,7 @@ function renderStats() {
     days,
     [
       ...ks.map((k) => ({ name: nm(k), color: col[k], vals: napS(k) })),
-      { name: 'Bedtime', color: SC.bed, vals: days.map((d) => d.bed) },
+      { name: 'Bedtime', color: CHART_COLORS.bed, vals: days.map((d) => d.bed) },
     ],
     tfmt,
     60,
@@ -250,7 +250,7 @@ function renderStats() {
     'Morning wake-up and the end of each nap, per day',
     days,
     [
-      { name: 'Morning', color: SC.bed, vals: days.map((d) => d.wake) },
+      { name: 'Morning', color: CHART_COLORS.bed, vals: days.map((d) => d.wake) },
       ...ks.map((k) => ({ name: nm(k), color: col[k], vals: napE(k) })),
     ],
     tfmt,
@@ -262,7 +262,7 @@ function renderStats() {
     'Length of each nap, per day',
     days,
     ks.map((k) => ({ name: nm(k), color: col[k], vals: napL(k) })),
-    (v) => dur(v),
+    (v) => duration(v),
     30,
   );
   h += lineChart(
@@ -270,14 +270,14 @@ function renderStats() {
     'Night sleep',
     "From bedtime to the next morning's wake-up",
     days,
-    [{ name: 'Night', color: SC.night, vals: days.map((d) => d.night) }],
-    (v) => dur(v),
+    [{ name: 'Night', color: CHART_COLORS.night, vals: days.map((d) => d.night) }],
+    (v) => duration(v),
     60,
   );
   h += barChart('day', 'Her day', 'Awake, napping and night sleep, per day (complete days only)', days, [
-    { name: 'Night sleep', color: SC.night, vals: days.map((d) => d.night) },
-    { name: 'Naps', color: SC.naps, vals: days.map((d) => d.napSum) },
-    { name: 'Awake', color: SC.awake, vals: days.map((d) => d.awake) },
+    { name: 'Night sleep', color: CHART_COLORS.night, vals: days.map((d) => d.night) },
+    { name: 'Naps', color: CHART_COLORS.naps, vals: days.map((d) => d.napSum) },
+    { name: 'Awake', color: CHART_COLORS.awake, vals: days.map((d) => d.awake) },
   ]);
   h += `<div class="foot">Bold numbers are the averages over the period. Touch a chart to see each day.</div>`;
   const el = $('#stats');
