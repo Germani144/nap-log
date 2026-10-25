@@ -27,15 +27,22 @@ fillSettingsForm();
 if ('serviceWorker' in navigator) {
   const hadWorker = !!navigator.serviceWorker.controller;
   let reloading = false;
+  // not while a field is being typed in (an open edit dialog would lose what was typed)
+  const reloadWhenIdle = () => {
+    if (document.activeElement?.matches?.('input,textarea,select')) return setTimeout(reloadWhenIdle, 1500);
+    location.reload();
+  };
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadWorker || reloading) return;
     reloading = true;
-    location.reload();
+    reloadWhenIdle();
   });
   navigator.serviceWorker
     .register('sw.js', { scope: './', updateViaCache: 'none' })
     .then((reg) => {
-      // an installed app is often resumed rather than reopened, so also look for a new version when it comes back
+      // look for a new version in the background on every start (browsers don't always check on their own) and
+      // whenever the app comes back to the screen (an installed app is often resumed rather than reopened)
+      reg.update().catch(() => {});
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') reg.update().catch(() => {});
       });

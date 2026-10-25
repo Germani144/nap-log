@@ -228,11 +228,11 @@ When the format changes, raise `Backup.VERSION` and keep reading the older versi
 so opening never waits for the network and works offline. Network-first made every open wait for one round trip per
 file once the app was split into files (found 2026-10-25), so don't go back to it.
 
-How a release reaches a phone: the browser checks `sw.js` whenever the app is opened (registered with
-`updateViaCache: 'none'`) and `main.js` asks again whenever the app comes back to the screen. A release changes the
+How a release reaches a phone: `main.js` asks the browser to check `sw.js` on every start and whenever the app comes back to the
+screen (registered with `updateViaCache: 'none'`). A release changes the
 cache name, so the new worker downloads every file fresh (`?v=` so GitHub's CDN can't hand out an old copy, and
 `cache: 'reload'` to skip the phone's HTTP cache) into a new cache. Only when all of them arrived does it take over;
-`main.js` then reloads the page once, so the phone moves from one complete version to the next. The first open after a
+`main.js` then reloads the page once (not while a field is being typed in), so the phone moves from one complete version to the next. The first open after a
 release still shows the old version for a moment. Files not in the cache (an icon) come from the server once, with
 `{cache: 'no-cache'}`, and are kept if they worked.
 
@@ -244,7 +244,7 @@ successful responses, only handles requests inside `/nap-log/`, and a notificati
 Nap Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push: after pushing,
 check `https://germani144.github.io/nap-log/sw.js` shows the new version; if not, push again to re-trigger the build.
 Phones on older versions read that version with the regex `C=P\+'v([\d.]+)'`, so the cache-name line in `sw.js` keeps
-exactly the shape `const P='nap-log-',C=P+'v3.17';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
+exactly the shape `const P='nap-log-',C=P+'v3.18';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
 checks it).
 
 ## Security
