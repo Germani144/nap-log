@@ -20,7 +20,7 @@ There is no build step: GitHub Pages serves the files as they are, and the app l
 | `backup.js`                    | Export/import file format and checks (`Backup`), and the validators `isValidEntry` (entries) and `cleanSettings` (settings). Pure                                                 |
 | `js/core.js`                   | Small pure helpers the app files share: `escapeHtml`, `tapAction`, typed times, the extra-nap count, `reminderUpdate`, the update-check version reader                            |
 | `js/*.js`                      | The app, one file per area (table below)                                                                                                                                          |
-| `sw.js`                        | Service worker: newest files first, an offline copy, push notifications (details under [Offline and updates](#offline-and-updates))                                               |
+| `sw.js`                        | Service worker: opens from its saved copy, updates in the background, push notifications (details under [Offline and updates](#offline-and-updates))                              |
 | `manifest.json`                | Install info. `start_url` and `scope` are `./` (only `/nap-log/`) and `id` stays `nap-log-v2`: changing it makes phones treat Nap Log as a new app                                |
 | `icon-*.png`, `badge-96.png`   | App icons (background must stay `#1F2358`, or Android shows a square on the launch screen) and the white moon on notifications                                                    |
 | `sender/notify.mjs`            | Sends the push notifications (run by GitHub Actions)                                                                                                                              |
@@ -224,17 +224,27 @@ When the format changes, raise `Backup.VERSION` and keep reading the older versi
 
 ## Offline and updates
 
-`sw.js` fetches every file network-first with `{cache: 'no-cache'}` (so the files never come from different versions),
-keeps a copy of the app's files (`APP_FILES`) for offline use and shows push notifications. It only touches caches named
-`nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores successful responses, only handles
-requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab.
+`sw.js` keeps a copy of the app's files (`APP_FILES`) in a cache named after the version and opens the app from it,
+so opening never waits for the network and works offline. Network-first made every open wait for one round trip per
+file once the app was split into files (found 2026-10-25), so don't go back to it.
+
+How a release reaches a phone: the browser checks `sw.js` whenever the app is opened (registered with
+`updateViaCache: 'none'`) and `main.js` asks again whenever the app comes back to the screen. A release changes the
+cache name, so the new worker downloads every file fresh (`?v=` so GitHub's CDN can't hand out an old copy, and
+`cache: 'reload'` to skip the phone's HTTP cache) into a new cache. Only when all of them arrived does it take over;
+`main.js` then reloads the page once, so the phone moves from one complete version to the next. The first open after a
+release still shows the old version for a moment. Files not in the cache (an icon) come from the server once, with
+`{cache: 'no-cache'}`, and are kept if they worked.
+
+It only touches caches named `nap-log-…` (plus its old `nap-v…` ones), reads only from its own cache, only stores
+successful responses, only handles requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab.
 
 **Check for updates** (in Settings) fetches `sw.js` with `cache: 'no-store'`, reads the version from its cache name
 (`versionInSw`) and compares it with `VER`. If the server has a newer one, it updates the service worker, deletes only
 Nap Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push: after pushing,
 check `https://germani144.github.io/nap-log/sw.js` shows the new version; if not, push again to re-trigger the build.
 Phones on older versions read that version with the regex `C=P\+'v([\d.]+)'`, so the cache-name line in `sw.js` keeps
-exactly the shape `const P='nap-log-',C=P+'v3.16';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
+exactly the shape `const P='nap-log-',C=P+'v3.17';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
 checks it).
 
 ## Security
@@ -265,7 +275,7 @@ TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
 | `backup.test.mjs`       | Export/import: round-trips, refused files, old exports with missing fields, Merge and Replace        |
 | `core.test.mjs`         | The shared helpers: escaping, tap actions, typed times, extra naps, when the reminder is (re)planned |
 | `storage.test.mjs`      | localStorage keys under `nap-log.` and the one-time move from `nt_`, run on `js/storage.js` itself   |
-| `sw.test.mjs`           | The service worker only touches its own caches and scope, and saves every file `index.html` loads    |
+| `sw.test.mjs`           | The service worker opens from its cache, only touches its own caches and scope, saves every file     |
 | `clock-change.test.mjs` | The days the clocks change: reminders, saved predictions and "the past 7 days" still use clock time  |
 | `version.test.mjs`      | `VER` matches the `sw.js` cache name, in the shape older versions read                               |
 

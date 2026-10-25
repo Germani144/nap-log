@@ -496,6 +496,64 @@ test('works offline from the service worker; Check for updates', async () => {
   await done();
 });
 
+// Opening the app must not wait for the server (one round trip per file made it slow after the split into files),
+// and a new release must still reach the phone by itself. Runs on a copy of the app so the test can "release" one.
+test('opens from the phone without downloading the app; a new release takes over by itself', async () => {
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const root = new URL('../..', import.meta.url).pathname;
+  const copy = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'nap-log-release-'));
+  nodeFs.cpSync(root, copy, { recursive: true, filter: (f) => !/[/\\](\.git|node_modules|tests)([/\\]|$)/.test(f) });
+  const own = await startServer(copy);
+  const asked = [];
+  own.server.on('request', (r) => asked.push(new URL(r.url, 'http://x').pathname.replace('/nap-log/', '')));
+  try {
+    const p = await openPhone(own.base, {
+      now: at(D0, 0, 12, 0),
+      serviceWorkers: 'allow',
+      storage: { entries: madeUpHistory(D0, 3), settings: S3 },
+    });
+    phones.push(p);
+    await p.page.evaluate(() => navigator.serviceWorker.ready);
+    await until(
+      () => p.page.evaluate(() => !!navigator.serviceWorker.controller) || p.page.reload().then(() => false),
+      {
+        what: 'controlled',
+        timeout: 8000,
+      },
+    );
+    await p.page.reload(); // anything not saved at install (icons) is kept from here on
+    await p.page.waitForFunction(() => document.querySelector('#hero')?.innerHTML.length > 0);
+    asked.length = 0;
+    await p.page.reload();
+    await p.page.waitForFunction(() => document.querySelector('#hero')?.innerHTML.length > 0);
+    const appFiles = asked.filter((u) => /(^|\.html|\.js|\.css)$/.test(u) && u !== 'sw.js');
+    assert.deepEqual(appFiles, [], 'opening the app downloaded app files');
+    const ver = await p.text('#ver');
+
+    // "release" a new version on the server: only the version changes, like a real release
+    const swFile = path.join(copy, 'sw.js'),
+      cfg = path.join(copy, 'js/config.js');
+    const next = '99.' + (Date.now() % 1000);
+    nodeFs.writeFileSync(swFile, nodeFs.readFileSync(swFile, 'utf8').replace(/C=P\+'v[\d.]+'/, `C=P+'v${next}'`));
+    nodeFs.writeFileSync(
+      cfg,
+      nodeFs.readFileSync(cfg, 'utf8').replace(/const VER = '[\d.]+';/, `const VER = '${next}';`),
+    );
+    await p.page.reload(); // the phone opens the app as usual: still the old version, the new one installs meanwhile
+    await until(async () => (await p.text('#ver').catch(() => '')) === 'v' + next, {
+      what: `the app reloads into v${next} by itself (was ${ver})`,
+      timeout: 10000,
+    });
+    const keys = await p.page.evaluate(() => caches.keys());
+    assert.deepEqual(keys, ['nap-log-v' + next], 'only the new version is kept');
+    await done();
+  } finally {
+    own.server.close();
+    nodeFs.rmSync(copy, { recursive: true, force: true });
+  }
+});
+
 test('a suggested extra nap can be added from its row and from the ring', async () => {
   const E = [
     ...madeUpHistory(D0, 10),

@@ -46,7 +46,10 @@ function makeEnv(scope) {
   }
   const fetch = async (input, init = {}) => {
     const url = urlOf(input);
-    net.calls.push({ url, init });
+    net.calls.push({
+      url,
+      init: { ...init, cache: init.cache ?? (typeof input === 'object' ? input.cache : undefined) },
+    });
     if (net.offline) throw new TypeError('offline');
     return new FakeResponse('net:' + url, { status: net.status[url] ?? 200 });
   };
@@ -151,6 +154,12 @@ export async function checkSw({ swPath, repo }) {
 
   // 1. install: opens exactly one cache and it carries this app's prefix
   await fire(env.state, 'install', {});
+  const installCalls = env.net.calls.slice();
+  add(
+    'install downloads the app fresh (skips the HTTP cache)',
+    installCalls.length > 0 && installCalls.every((c) => c.init.cache === 'reload' || c.init.cache === 'no-cache'),
+    installCalls.map((c) => c.url + ' ' + c.init.cache).join(', '),
+  );
   const created = [...env.store.keys()];
   const own = created[0];
   add(
@@ -188,7 +197,16 @@ export async function checkSw({ swPath, repo }) {
   r = await fire(env.state, 'fetch', { request: req(scope + 'x.json', { method: 'POST' }) });
   add('ignores non-GET requests', !r.responded);
 
-  // 4. online: network first with revalidation, success is stored in its own cache
+  // 4a. opening the app never waits for the network: a file saved at install is answered from the cache
+  env.net.calls.length = 0;
+  r = await fire(env.state, 'fetch', { request: req(scope + '?from=homescreen', { mode: 'navigate' }) });
+  add(
+    'online: opens the app from its own cache, without the network',
+    r.responded && r.response && r.response.ok && env.net.calls.length === 0,
+    env.net.calls.map((c) => c.url).join(', '),
+  );
+
+  // 4b. a file that is not saved yet: from the server with revalidation, success is stored in its own cache
   const fresh = scope + 'fresh.js';
   env.net.calls.length = 0;
   r = await fire(env.state, 'fetch', { request: req(fresh) });

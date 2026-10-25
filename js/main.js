@@ -22,8 +22,26 @@ document.addEventListener('click', (e) => {
 
 fillSettingsForm();
 
-if ('serviceWorker' in navigator)
-  navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' }).catch(() => {});
+// The app opens from the service worker's cache (see sw.js). When a new version's worker takes over, reload once so
+// the screen runs the new files; not on the very first install, when there was no worker before.
+if ('serviceWorker' in navigator) {
+  const hadWorker = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadWorker || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+  navigator.serviceWorker
+    .register('sw.js', { scope: './', updateViaCache: 'none' })
+    .then((reg) => {
+      // an installed app is often resumed rather than reopened, so also look for a new version when it comes back
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    })
+    .catch(() => {});
+}
 $('#ver').textContent = 'v' + VER;
 // Check for updates: read the version the server is serving from sw.js (its cache name, kept equal to VER), bypassing
 // every cache. If it differs, delete only Nap Log's own caches (the address may be shared), update the worker (it saves a
