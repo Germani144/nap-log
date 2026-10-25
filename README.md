@@ -234,7 +234,7 @@ requests inside `/nap-log/`, and a notification tap only focuses a Nap Log tab.
 Nap Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push: after pushing,
 check `https://germani144.github.io/nap-log/sw.js` shows the new version; if not, push again to re-trigger the build.
 Phones on older versions read that version with the regex `C=P\+'v([\d.]+)'`, so the cache-name line in `sw.js` keeps
-exactly the shape `const P='nap-log-',C=P+'v3.15';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
+exactly the shape `const P='nap-log-',C=P+'v3.16';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
 checks it).
 
 ## Security
@@ -259,14 +259,15 @@ TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
 
 **Unit tests** (`tests/*.test.mjs`, Node's built-in runner):
 
-| File               | What it checks                                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------------------------- |
-| `plan.test.mjs`    | The plan maths: awake windows, catch-up, extra naps, bedtime limits, predictions, daily statistics   |
-| `backup.test.mjs`  | Export/import: round-trips, refused files, old exports with missing fields, Merge and Replace        |
-| `core.test.mjs`    | The shared helpers: escaping, tap actions, typed times, extra naps, when the reminder is (re)planned |
-| `storage.test.mjs` | localStorage keys under `nap-log.` and the one-time move from `nt_`, run on `js/storage.js` itself   |
-| `sw.test.mjs`      | The service worker only touches its own caches and scope, and saves every file `index.html` loads    |
-| `version.test.mjs` | `VER` matches the `sw.js` cache name, in the shape older versions read                               |
+| File                    | What it checks                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| `plan.test.mjs`         | The plan maths: awake windows, catch-up, extra naps, bedtime limits, predictions, daily statistics   |
+| `backup.test.mjs`       | Export/import: round-trips, refused files, old exports with missing fields, Merge and Replace        |
+| `core.test.mjs`         | The shared helpers: escaping, tap actions, typed times, extra naps, when the reminder is (re)planned |
+| `storage.test.mjs`      | localStorage keys under `nap-log.` and the one-time move from `nt_`, run on `js/storage.js` itself   |
+| `sw.test.mjs`           | The service worker only touches its own caches and scope, and saves every file `index.html` loads    |
+| `clock-change.test.mjs` | The days the clocks change: reminders, saved predictions and "the past 7 days" still use clock time  |
+| `version.test.mjs`      | `VER` matches the `sw.js` cache name, in the shape older versions read                               |
 
 **Browser tests** (`tests/browser/`): the real app in mobile-emulated Chromium (Pixel 7, one iPhone check) with a fixed
 clock and no network. The Firebase SDK is replaced by `fake-firebase.js`, a small fake Firestore whose data the test
@@ -286,7 +287,11 @@ or after the suggestion (a hint of how much the suggestions steer you).
 
 - **Releases:** every release gets a version `vMAJOR.MINOR` (minor +1 per release, major for big redesigns), set in two
   places: `VER` in `js/config.js` (shown next to the title and saved with each prediction) and the cache name in `sw.js`
-  (`nap-log-v3.15`), or phones keep showing the old version. Run all tests, then push to main.
+  (`nap-log-v3.16`), or phones keep showing the old version. Run all tests, then push to main.
+- **Clock changes:** a day is not always 24 hours (23 in March, 25 in October). Go from a day to the next with
+  `addDays`, and from a plan time (minutes of the day) to a moment with `timeAtMinute` (both in `plan.js`); never add
+  `DAY` or `minutes × 60000` to a midnight. `tests/clock-change.test.mjs` covers both clock changes (fixed in v3.16:
+  a typed wake-up after the October night was saved an hour early, and that day's reminders came an hour early).
 - **Plan logic** goes in `plan.js` with a test; screen code in `js/`; small pure helpers in `js/core.js` with a test.
 - **A new tap action:** add it to `ACTIONS` in `js/main.js` and put `tapAction('name', { … })` on the element. Never
   `onclick=` (the CSP blocks it, and the browser tests fail on it).

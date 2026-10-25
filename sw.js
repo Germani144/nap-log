@@ -2,7 +2,7 @@
 // touches caches with its own prefix, and only handles requests inside its own scope (/nap-log/).
 // Older versions' "Check for updates" read the version with /C=P\+'v([\d.]+)'/, so this line keeps exactly this shape.
 // prettier-ignore
-const P='nap-log-',C=P+'v3.15';
+const P='nap-log-',C=P+'v3.16';
 const mine = (k) => k.startsWith(P) || /^nap-v\d/.test(k); // 'nap-v…' = this app's cache names before v3.4
 // The app's own files, saved at install so it opens offline. Every local file index.html loads must be listed here
 // (tests/sw.test.mjs checks it).

@@ -27,6 +27,20 @@ const isoDay = (t) => {
   const d = new Date(t);
   return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 };
+// Days are not always 24 hours: on the night the clocks change a day has 23 or 25. So these two count calendar days
+// and clock time, never fixed hours.
+// local midnight `n` calendar days after the local midnight `dayStart` (n may be negative)
+const addDays = (dayStart, n) => {
+  const d = new Date(dayStart);
+  d.setDate(d.getDate() + n);
+  return +d;
+};
+// the moment a minute-of-day (as the plan uses, fractions allowed) falls on the day that starts at `dayStart`: "08:26"
+// is 08:26 on the clock even on a day the clocks changed earlier (dayStart + minutes alone would be an hour off then)
+const timeAtMinute = (dayStart, minutes) => {
+  const naive = dayStart + minutes * 60000;
+  return naive + (new Date(naive).getTimezoneOffset() - new Date(dayStart).getTimezoneOffset()) * 60000;
+};
 
 // ---------- the plan ----------
 // makePlan(entries, now, settings) works out today's plan from the logged history. It is pure: it only uses its
@@ -57,7 +71,7 @@ function makePlan(entries, nowMs, settings) {
     latestBedtime = targetBedtime + BEDTIME_FLEX;
   const today = startOfDay(nowMs),
     nowMin = minuteOfDay(nowMs),
-    weekStart = today - 7 * DAY,
+    weekStart = addDays(today, -7),
     inPastWeek = (d) => +d >= weekStart && +d < today; // "past 7 days" = the 7 full days before today
   const naps = entries.filter((e) => e.type === 'nap').sort((a, b) => a.start - b.start),
     finishedNapsByDay = groupByDay(naps.filter((e) => e.end));
@@ -340,7 +354,7 @@ function makePlan(entries, nowMs, settings) {
         : { label: 'Next nap', name: 'Nap ' + r.n, key: 'nap' + r.n, t: r.s };
     else if (!r && bedtime != null) next = { label: 'Bedtime', name: 'Bedtime', key: 'bed', t: bedtime };
     if (next) {
-      const ev = today + next.t * 60000;
+      const ev = timeAtMinute(today, next.t);
       want = {
         key: next.key + '-' + isoDay(today),
         at: ev - 30 * 60000,
@@ -399,10 +413,12 @@ function makePlan(entries, nowMs, settings) {
 function predFor(plan, type) {
   if (type === 'nap') {
     const r = plan.rows.find((x) => !x.a && !x.nodata);
-    return r ? { s: Math.round(plan.today + r.s * 6e4), len: Math.round(r.e - r.s), n: r.n } : null;
+    return r ? { s: Math.round(timeAtMinute(plan.today, r.s)), len: Math.round(r.e - r.s), n: r.n } : null;
   }
   if (type === 'night')
-    return plan.bn || plan.B == null ? null : { s: Math.round(plan.today + plan.B * 6e4), len: Math.round(plan.avgN) };
+    return plan.bn || plan.B == null
+      ? null
+      : { s: Math.round(timeAtMinute(plan.today, plan.B)), len: Math.round(plan.avgN) };
   return null;
 }
 
@@ -453,6 +469,8 @@ if (typeof module !== 'undefined')
   module.exports = {
     makePlan,
     predFor,
+    addDays,
+    timeAtMinute,
     predBefore,
     dailyStats,
     startOfDay,

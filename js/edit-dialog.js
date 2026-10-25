@@ -66,7 +66,9 @@ $('#esave').addEventListener('click', () => {
   let en = null;
   if (ev) {
     en = timeOnDay(editing.day, ev);
-    if (en <= st) en += DAY; // an end before the start is the next day (a night crossing midnight)
+    // an end before the start is on the next day (a night crossing midnight); by calendar day, not + 24 hours, so a
+    // night when the clocks change still gets the wake-up time that was typed
+    if (en <= st) en = timeOnDay(addDays(editing.day, 1), ev);
   } else if (!editing.wasOpen) return alert('Set an end time, or delete the entry');
   if (st > Date.now() + 6e4 || (en && en > Date.now() + 6e4))
     return alert('That time is still in the future. Log it once it has happened.');

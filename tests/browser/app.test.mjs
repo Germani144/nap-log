@@ -524,3 +524,25 @@ test('the sun on the ring logs an unlogged wake-up', async () => {
   await p.page.click('#ecancel');
   await done();
 });
+
+// the nights the clocks change are 25 hours (October) and 23 hours (March) long: a typed wake-up must stay the typed time
+for (const [name, y, m, d] of [
+  ['autumn', 2026, 9, 25],
+  ['spring', 2026, 2, 29],
+]) {
+  test(`${name} clock change: a typed wake-up is saved at the typed time`, async () => {
+    const day = new Date(y, m, d).getTime();
+    const E = [
+      ...madeUpHistory(day, 7, { noLastNight: true }),
+      { id: 'cc', type: 'night', start: at(day, -1, 19, 30), end: at(day, 0, 6, 30) },
+    ];
+    const p = await phone({ now: at(day, 0, 7, 0), storage: { entries: E, settings: S3 } });
+    await p.row('Wake-up').click();
+    await p.page.fill('#ee', '06:10');
+    await p.page.click('#esave');
+    const n = (await p.storage('entries')).find((e) => e.id === 'cc');
+    assert.equal(n.end, new Date(y, m, d, 6, 10).getTime());
+    assert.equal((await p.row('Wake-up').innerText()).replace(/\s+/g, ' '), 'Wake-up 06:10');
+    await done();
+  });
+}

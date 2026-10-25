@@ -22,6 +22,8 @@ No build step: GitHub Pages serves the files as they are.
   pure, no screen, storage, network or clock, each tested in Node. Keep new logic pure and put it here, with a test.
 - `js/*.js`: the app, classic scripts sharing one global scope, loaded in the order of the `<script>` tags (README has
   the table). Code that runs at load may only use earlier files.
+- Days are not always 24 hours (clock changes): use `addDays` and `timeAtMinute` from plan.js, never `+ DAY` or
+  `midnight + minutes * 60000`. tests/clock-change.test.mjs checks both clock changes.
 - Taps in generated HTML use `tapAction('name', {...})` and an entry in `ACTIONS` (js/main.js), never `onclick=`.
 - A new file needs its `<script>` tag in index.html and its path in `APP_FILES` in sw.js (tests/sw.test.mjs checks).
 - The cache-name line in sw.js keeps exactly the shape `const P='nap-log-',C=P+'vX.Y';` under `// prettier-ignore`:
