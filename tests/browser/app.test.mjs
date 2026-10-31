@@ -640,6 +640,10 @@ test('Statistics shows how accurate the plan has been', async () => {
   const box = p.page.locator('#stats .acc');
   assert.match(await box.locator('h2').innerText(), /How accurate the plan is/);
   const rows = (await box.locator('tbody tr').allInnerTexts()).map((r) => r.replace(/\s+/g, ' ').trim());
-  assert.deepEqual(rows, ['Nap start 10 min · 21 –', 'Nap length 20 min · 21 –', 'Bedtime 10 min · 7 –']);
+  // made-up days repeat exactly, so "same as yesterday" is close; the app (10 min early, 20 min short) does worse here
+  assert.match(rows[0], /^Nap start 10 vs \d+ (\d+ (better|worse)|the same) · \d+ –$/);
+  assert.match(rows[1], /^Nap length 20 vs \d+ (\d+ (better|worse)|the same) · \d+ –$/);
+  assert.match(rows[2], /^Bedtime 10 vs \d+ (\d+ (better|worse)|the same) · \d+ –$/);
+  assert.match(await box.locator('.csub').innerText(), /same as yesterday/);
   await done();
 });

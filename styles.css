@@ -1029,3 +1029,13 @@ button.x.wide {
   color: var(--mute);
   font-size: 12.5px;
 }
+.acc td small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mute);
+}
+.acc td b {
+  font-size: 16px;
+}

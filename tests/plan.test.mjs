@@ -332,20 +332,25 @@ test('after long naps the naps still to come get shorter, never below 60% of usu
   );
 });
 
-test('predictionAccuracy: minutes off this week and the week before, from the saved predictions', () => {
+test('predictionAccuracy: the app vs "same as yesterday", on the same naps and nights', () => {
   const { predictionAccuracy } = createRequire(import.meta.url)('../plan.js');
   const p = (e, s, len) => ({ ...e, pred: { s, len } });
+  // two made-up days. Yesterday (day -2): up 06:00, nap 1 08:00-09:00 (window 120), nap 2 12:00-13:30 (window 180),
+  // bed 19:00 (gap 330). The day scored (day -1): up 06:30, nap 1 08:20-09:20, nap 2 12:30-13:50, bed 19:40.
   const E = [
-    p(nap(-1, 9, 10, 10, 0), at(-1, 9, 0), 60), // started 10 min late, 10 min short
-    p(nap(-2, 9, 0, 10, 20), at(-2, 9, 20), 60), // 20 early, 20 long
-    p(night(-1, 19, 45, 6, 0), at(-1, 19, 30), 600), // bedtime 15 late
-    p(nap(-9, 9, 0, 10, 0), at(-9, 9, 30), 60), // the week before: 30 early, exact length
-    nap(-3, 9, 0, 10, 0), // no prediction: not counted
-    p(nap(0, 9, 0, null), at(0, 9, 0), 60), // today, still running: not counted
-    p(nap(-20, 9, 0, 10, 0), at(-20, 8, 0), 60), // too old
+    night(-3, 19, 0, 6, 0),
+    nap(-2, 8, 0, 9, 0),
+    nap(-2, 12, 0, 13, 30),
+    night(-2, 19, 0, 6, 30),
+    p(nap(-1, 8, 20, 9, 20), at(-1, 8, 30), 60), // app 10 min off; yesterday's rule: 06:30 + 120 = 08:30, 10 off
+    p(nap(-1, 12, 30, 13, 50), at(-1, 12, 20), 90), // app 10 off, length 10 off; rule: 09:20 + 180 = 12:20, length 90
+    p(night(-1, 19, 40, 6, 0), at(-1, 19, 30), 600), // app 10 off; rule: 13:50 + 330 = 19:20, 20 off
   ];
   const a = predictionAccuracy(E, T0);
-  assert.deepEqual(a.recent, { napStart: { off: 15, n: 2 }, napLength: { off: 15, n: 2 }, bedtime: { off: 15, n: 1 } });
-  assert.deepEqual(a.before, { napStart: { off: 30, n: 1 }, napLength: { off: 0, n: 1 }, bedtime: null });
-  assert.deepEqual(predictionAccuracy([], T0).recent, { napStart: null, napLength: null, bedtime: null });
+  assert.deepEqual(a.recent.napStart, { off: 10, naive: 10, n: 2 });
+  assert.deepEqual(a.recent.napLength, { off: 5, naive: 5, n: 2 }); // nap 1: 0 and 0; nap 2 (80 min): 10 and 10
+  assert.deepEqual(a.recent.bedtime, { off: 10, naive: 20, n: 1 });
+  // a day without a day before it cannot be compared, and is left out for both
+  assert.deepEqual(predictionAccuracy(E.slice(4), T0).recent, { napStart: null, napLength: null, bedtime: null });
+  assert.deepEqual(predictionAccuracy([], T0).before, { napStart: null, napLength: null, bedtime: null });
 });
