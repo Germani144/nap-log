@@ -326,7 +326,8 @@ or after the suggestion (a hint of how much the suggestions steer you).
   a typed wake-up after the October night was saved an hour early, and that day's reminders came an hour early).
 - **Plan changes and rollback:** model changes are made on a feature branch (one commit per idea), benchmarked with
   `tools/backtest.mjs` on an export, then merged into main with a merge commit (`git merge --no-ff`) followed by a
-  separate release commit that bumps the version. Releases are tagged (`v3.18`, `v3.19`, …). To roll one idea back,
+  separate release commit that bumps the version. Each release gets a branch `release/vX.Y` on its release commit
+  (`release/v3.18`, `release/v3.19`, …; Claude's cloud sessions cannot push git tags). To roll one idea back,
   `git revert <its commit>`; to roll the whole branch back, `git revert -m 1 <merge commit>`. Either way, then bump
   the version again (for example v3.20): phones only take a release whose cache name changed, so a revert without a
   new version would not reach them. Watch **How accurate the plan is** in Statistics for a week after a model change.

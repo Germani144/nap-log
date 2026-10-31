@@ -14,7 +14,8 @@
   commits is pushed together, with one version bump, so phones never load a half-done state.
 - Changes to the plan model (plan.js): feature branch, one commit per idea, benchmark with tools/backtest.mjs on an
   export kept outside the repo (old vs new plan.js, same days), then `git merge --no-ff` into main plus a separate
-  release commit for the version bump; tag every release (`git tag -a vX.Y`). Rollback = `git revert` the idea's commit
+  release commit for the version bump; mark every release with a branch `release/vX.Y` on that commit (the cloud
+  session's git proxy refuses tag pushes). Rollback = `git revert` the idea's commit
   (or `-m 1` the merge commit) and bump the version again, or the revert never reaches the phones.
 
 ## Layout
