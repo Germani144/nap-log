@@ -184,12 +184,12 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   asleep, when she wakes up, how long naps last, night sleep, and her day as stacked bars. Per-day figures come from
   `dailyStats` in `plan.js`. One scale per chart, so night sleep has its own chart. Colours were checked for
   colour-blind separation and contrast on the dark background.
-  At the bottom, **How accurate the plan is**: minutes off for nap starts, nap lengths and bedtime, from the predictions
-  saved with each entry, for the last 7 days and the 7 before (`predictionAccuracy` in `plan.js`, v3.19). Since v3.20
-  each number stands next to a yardstick on the very same naps, "same as yesterday" (nap start = her previous wake-up +
-  yesterday's awake window for that nap, length = yesterday's length, bedtime = last nap end + yesterday's gap before
-  bed), and the difference is shown ("7 better"). A 6-month-old's weeks keep changing, which moves both numbers; the
-  difference is what the plan adds, so after a model change watch that, not the raw minutes.
+  The last chart, **How far off the plan was** (v3.21), plots per day how many minutes the app was off, from the
+  predictions saved with each entry (`planErrors` in `plan.js`): nap start, nap length, bedtime and wake-up (night
+  length vs the expected night). Several naps on a day are averaged as absolute errors, so −20 and +20 count as 20. The
+  legend shows the average over all naps or nights in the period and how many, e.g. "Nap start 13 min (48)". It
+  replaced the v3.19–v3.20 table. Fair comparisons of two plan models are done offline with `tools/backtest.mjs` on
+  the same days, because her weeks differ.
 - Swipe left or right to change tab.
 
 ## Push reminders
@@ -309,8 +309,8 @@ Check for updates. Every test also fails on any console error or Content-Securit
 **Benchmarking a plan change:** export from the phone (Settings → Export data, keep the file outside the repo), then run
 `tools/backtest.mjs` on it with the old and the new `plan.js` over the same days (`--from`, `--to`; the export's target
 bedtime is used unless `--bedtime` is given). It reports next-nap and bedtime error, the same from the middle of a nap,
-nap length (the target a minute into each nap) and night length. After a release, the **How accurate the plan is** table
-in Statistics shows the real-world effect within a week (watch how much better than "same as yesterday" the app is); `tools/accuracy.mjs --days 7` gives the same per app version.
+nap length (the target a minute into each nap) and night length. After a release, the **How far off the plan was** plot
+in Statistics shows the real-world effect day by day; `tools/accuracy.mjs --days 7` gives the same per app version.
 
 All test data is made up. The backtest and accuracy tools need an export of the logged entries; it holds personal
 data, so keep it out of the repo (`history*.json` and `nap-log-*.json` are ignored). Run the backtest before and after
@@ -333,7 +333,7 @@ or after the suggestion (a hint of how much the suggestions steer you).
   (`release/v3.18`, `release/v3.19`, …; Claude's cloud sessions cannot push git tags). To roll one idea back,
   `git revert <its commit>`; to roll the whole branch back, `git revert -m 1 <merge commit>`. Either way, then bump
   the version again (for example v3.20): phones only take a release whose cache name changed, so a revert without a
-  new version would not reach them. Watch **How accurate the plan is** in Statistics for a week after a model change.
+  new version would not reach them. Watch **How far off the plan was** in Statistics after a model change, and replay old vs new on an export.
 - **Plan logic** goes in `plan.js` with a test; screen code in `js/`; small pure helpers in `js/core.js` with a test.
 - **A new tap action:** add it to `ACTIONS` in `js/main.js` and put `tapAction('name', { … })` on the element. Never
   `onclick=` (the CSP blocks it, and the browser tests fail on it).

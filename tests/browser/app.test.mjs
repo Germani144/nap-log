@@ -315,14 +315,14 @@ test('shared History loads older months; Statistics draws its charts', async () 
   assert.match(await p.text('#day'), /Wednesday 14 October/);
 
   await p.page.click('#t-stats');
-  assert.equal(await p.page.locator('#stats .chart:not(.acc)').count(), 5);
-  assert.equal(await p.page.locator('#stats .acc').count(), 1, 'and the accuracy table');
-  assert.deepEqual(await p.page.locator('#stats .chart:not(.acc) h2').allInnerTexts(), [
+  assert.equal(await p.page.locator('#stats .chart').count(), 6);
+  assert.deepEqual(await p.page.locator('#stats .chart h2').allInnerTexts(), [
     'When she falls asleep',
     'When she wakes up',
     'How long naps last',
     'Night sleep',
     'Her day',
+    'How far off the plan was',
   ]);
   await p.page.getByRole('button', { name: '7 days' }).click();
   assert.equal(await p.page.evaluate(() => localStorage.getItem('nap-log.statsN')), '7');
@@ -631,19 +631,25 @@ test('a night logged twice counts once (plan, export)', async () => {
   await done();
 });
 
-test('Statistics shows how accurate the plan has been', async () => {
+test('Statistics plots how far off the plan was', async () => {
+  // made-up: the last 7 days have saved predictions that were 10 min early and 20 min short of each nap and night
   const withPred = madeUpHistory(D0, 10).map((e) =>
-    e.start >= at(D0, -7, 0) ? { ...e, pred: { s: e.start - 10 * MIN, len: (e.end - e.start) / MIN + 20 } } : e,
+    e.start >= at(D0, -7, 0) ? { ...e, pred: { s: e.start - 10 * MIN, len: (e.end - e.start) / MIN - 20 } } : e,
   );
   const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: withPred, settings: S3 } });
   await p.page.click('#t-stats');
-  const box = p.page.locator('#stats .acc');
-  assert.match(await box.locator('h2').innerText(), /How accurate the plan is/);
-  const rows = (await box.locator('tbody tr').allInnerTexts()).map((r) => r.replace(/\s+/g, ' ').trim());
-  // made-up days repeat exactly, so "same as yesterday" is close; the app (10 min early, 20 min short) does worse here
-  assert.match(rows[0], /^Nap start 10 vs \d+ (\d+ (better|worse)|the same) · \d+ –$/);
-  assert.match(rows[1], /^Nap length 20 vs \d+ (\d+ (better|worse)|the same) · \d+ –$/);
-  assert.match(rows[2], /^Bedtime 10 vs \d+ (\d+ (better|worse)|the same) · \d+ –$/);
-  assert.match(await box.locator('.csub').innerText(), /same as yesterday/);
+  const chart = p.page.locator('#stats .chart[data-k=errors]');
+  assert.equal(await chart.locator('h2').innerText(), 'How far off the plan was');
+  assert.match(await chart.locator('.csub').innerText(), /Lower is better/);
+  assert.deepEqual(
+    (await chart.locator('.leg2 span').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim()),
+    ['Nap start 10 min (21)', 'Nap length 20 min (21)', 'Bedtime 10 min (7)', 'Wake-up 20 min (6)'],
+  );
+  assert.equal(await chart.locator('svg path[stroke]').count(), 4, 'four curves');
+  const svg = chart.locator('svg');
+  const box = await svg.boundingBox();
+  await svg.dispatchEvent('pointermove', { clientX: box.x + box.width - 5, clientY: box.y + 20 });
+  assert.match(await chart.locator('.tip').innerText(), /Nap start\s*10 min/);
+  assert.equal(await p.page.locator('#stats .acc').count(), 0, 'the old table is gone');
   await done();
 });
