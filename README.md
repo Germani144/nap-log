@@ -113,7 +113,8 @@ The full explanation is in the app under **How the plan works**. In short:
 
 - **Next nap** = end of the previous sleep + her usual awake window before that nap (past 7 days,
   recent days weighted more: a day's weight halves every 4 days). Awake windows are kept between 30 min and 3h 30m.
-- **Catch-up** after short naps stretches the remaining naps to at most 1.5× their usual length (and 3 h). If 15+ min are
+- **Catch-up** after short naps stretches the remaining naps to at most 1.5× their usual length (and 3 h); after long
+  naps the remaining naps get shorter, never below 60% of their usual length (v3.19, shown as "−20m"). If 15+ min are
   still missing, an **extra ("bridge") nap** of 30–45 min is suggested halfway between the last nap and the target bedtime,
   only with 75 min to 3h 30m awake on each side. Until it is added it is only a suggestion: the countdown and the
   notification go to bedtime, planned without it (usually earlier); once added, bedtime aims for its target.
@@ -126,7 +127,8 @@ The full explanation is in the app under **How the plan works**. In short:
   only); the plan re-times the remaining naps. **＋ Log a nap** enters real times.
 - A nap number with **no data** in the past 7 days is planned like a bridge nap: at most 45 min (or the last nap
   number's usual length), halfway between the previous nap and bedtime.
-- **Nap in progress** gets a target length. Before the day's last nap: her usual length for that nap. The last nap: today's
+- **Nap in progress** gets a target length. Before the day's last nap: her usual length for that nap, balanced by half
+  of how far today's earlier naps were from their usual lengths (v3.19). The last nap: today's
   nap-time target − naps already done today (at least 20 min), but long enough that the stretch to the target bedtime is
   at most her usual gap before bed + 35 min (capped at 1.5× its usual length). Checked 10 min into every logged nap (v3.3):
   nap-length error went from 46 to 30 min (the budget overestimated earlier naps), the last nap stayed at ~24 min. Shown as
@@ -146,6 +148,13 @@ The full explanation is in the app under **How the plan works**. In short:
 today's naps, `wk0` wake-up, `we` this morning's night, `bn` tonight's bedtime, `cur` the nap in progress, `rows` the
 plan rows, `want` the reminder, …; the comment above the return in `plan.js` lists them) and are kept as they are,
 because the tools and the saved predictions rely on them.
+
+**v3.19, nap balancing:** her naps make up for each other (after a short nap the next averaged 81 min, after a long one
+52 min; the daily total varies less than single naps). Replaying 1–30 Oct, predicting each day from the days before it:
+nap-length error 29.1 → 25.3 min (last 7 days) and 26.0 → 24.9 (14 days), next-nap start 15.0 → 14.2 and 12.2 → 11.2;
+bedtime unchanged. It helped with a 19:30 and a 20:00 target alike. Leaning bedtime harder towards "last nap + usual gap"
+was tried and left out: it helped with a 20:00 target but hurt with 19:30. Night length (about ±34 min night to night)
+cannot be predicted much better than its average.
 
 These choices were backtested on the logged history (46 days, predicting each day from the days before it):
 next-nap error went from about 45 to 16 minutes, bedtime from about 25 to 20 minutes (`tools/backtest.mjs`).

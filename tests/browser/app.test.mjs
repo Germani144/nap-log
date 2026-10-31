@@ -604,3 +604,12 @@ for (const [name, y, m, d] of [
     await done();
   });
 }
+
+test('after a long nap the plan shortens the naps still to come and says by how much', async () => {
+  // made-up history: naps of 60, 80 and 40 min a day; today nap 1 lasted 120 min
+  const E = [...madeUpHistory(D0, 10), { id: 'long1', type: 'nap', start: at(D0, 0, 8, 30), end: at(D0, 0, 10, 30) }];
+  const p = await phone({ now: at(D0, 0, 11, 0), storage: { entries: E, settings: S3 } });
+  assert.match(await p.row('Nap 2').innerText(), /\(−32m\)/);
+  assert.match(await p.row('Nap 3').innerText(), /\(−16m\)/);
+  await done();
+});

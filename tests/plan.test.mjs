@@ -295,3 +295,39 @@ test('nap in progress: earlier naps get their usual length; the last one is long
   const q = makePlan([...week(), nap(0, 8, 30, null)], at(0, 8, 40), S); // a first nap: its usual length
   assert.equal(Math.round(q.cur.len), 60);
 });
+
+// Naps balance each other (v3.19): her usual lengths in week() are nap 1 60 min, nap 2 90 min, nap 3 45 min (195 a day).
+test('nap in progress: balanced by half of how far the earlier naps today were from usual', () => {
+  const second = (firstEnd) => {
+    const E = [...week(), nap(0, 8, 30, 8, 30 + firstEnd), nap(0, 12, 0, null)];
+    return makePlan(E, at(0, 12, 10), S).cur.len;
+  };
+  assert.equal(Math.round(second(60)), 90, 'a usual first nap: the usual length');
+  assert.equal(Math.round(second(30)), 105, 'first nap 30 min short: 90 + 15');
+  assert.equal(Math.round(second(100)), 70, 'first nap 40 min long: 90 − 20');
+  // never below 20 minutes, never beyond 3 hours
+  const E = [...week(), nap(0, 6, 40, 11, 40), nap(0, 12, 0, null)];
+  assert.equal(Math.round(makePlan(E, at(0, 12, 10), S).cur.len), 20);
+});
+
+test('after long naps the naps still to come get shorter, never below 60% of usual', () => {
+  const plan = (firstLen) => makePlan([...week(), nap(0, 8, 30, 8, 30 + firstLen)], at(0, 11, 0), S);
+  // first nap 90 min (30 over): 30 min too much for the day, taken off naps 2 and 3 in proportion (20 + 10)
+  let p = plan(90);
+  const [n2, n3] = p.rows.filter((r) => !r.a);
+  assert.deepEqual([Math.round(n2.e - n2.s), Math.round(n3.e - n3.s)], [70, 35]);
+  assert.deepEqual([Math.round(n2.add), Math.round(n3.add)], [-20, -10]);
+  // first nap 130 min: the cut stops at 60% of each usual length
+  p = plan(130);
+  const [m2, m3] = p.rows.filter((r) => !r.a);
+  assert.deepEqual([Math.round(m2.e - m2.s), Math.round(m3.e - m3.s)], [54, 27]);
+  // a usual first nap changes nothing
+  p = plan(60);
+  assert.deepEqual(
+    p.rows.filter((r) => !r.a).map((r) => [Math.round(r.e - r.s), Math.round(r.add)]),
+    [
+      [90, 0],
+      [45, 0],
+    ],
+  );
+});
