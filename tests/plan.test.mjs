@@ -332,25 +332,33 @@ test('after long naps the naps still to come get shorter, never below 60% of usu
   );
 });
 
-test('predictionAccuracy: the app vs "same as yesterday", on the same naps and nights', () => {
-  const { predictionAccuracy } = createRequire(import.meta.url)('../plan.js');
+test('planErrors: minutes off per day, absolute, for nap start, nap length, bedtime and wake-up', () => {
+  const { planErrors } = createRequire(import.meta.url)('../plan.js');
   const p = (e, s, len) => ({ ...e, pred: { s, len } });
-  // two made-up days. Yesterday (day -2): up 06:00, nap 1 08:00-09:00 (window 120), nap 2 12:00-13:30 (window 180),
-  // bed 19:00 (gap 330). The day scored (day -1): up 06:30, nap 1 08:20-09:20, nap 2 12:30-13:50, bed 19:40.
   const E = [
-    night(-3, 19, 0, 6, 0),
-    nap(-2, 8, 0, 9, 0),
-    nap(-2, 12, 0, 13, 30),
-    night(-2, 19, 0, 6, 30),
-    p(nap(-1, 8, 20, 9, 20), at(-1, 8, 30), 60), // app 10 min off; yesterday's rule: 06:30 + 120 = 08:30, 10 off
-    p(nap(-1, 12, 30, 13, 50), at(-1, 12, 20), 90), // app 10 off, length 10 off; rule: 09:20 + 180 = 12:20, length 90
-    p(night(-1, 19, 40, 6, 0), at(-1, 19, 30), 600), // app 10 off; rule: 13:50 + 330 = 19:20, 20 off
+    p(nap(-1, 8, 20, 9, 20), at(-1, 8, 40), 60), // started 20 min early, length exact
+    p(nap(-1, 12, 20, 13, 50), at(-1, 12, 0), 70), // 20 min late (must not cancel the −20), 20 min long
+    p(night(-1, 19, 40, 6, 0), at(-1, 19, 30), 600), // bedtime 10 late; night 620 min vs 600 expected: wake-up 20 off
+    p(nap(-2, 9, 0, 10, 0), at(-2, 9, 30), 60), // the day before: 30 off, exact length
+    nap(-3, 9, 0, 10, 0), // no prediction: not counted
+    p(nap(0, 9, 0, null), at(0, 9, 0), 60), // today, still running: not counted
   ];
-  const a = predictionAccuracy(E, T0);
-  assert.deepEqual(a.recent.napStart, { off: 10, naive: 10, n: 2 });
-  assert.deepEqual(a.recent.napLength, { off: 5, naive: 5, n: 2 }); // nap 1: 0 and 0; nap 2 (80 min): 10 and 10
-  assert.deepEqual(a.recent.bedtime, { off: 10, naive: 20, n: 1 });
-  // a day without a day before it cannot be compared, and is left out for both
-  assert.deepEqual(predictionAccuracy(E.slice(4), T0).recent, { napStart: null, napLength: null, bedtime: null });
-  assert.deepEqual(predictionAccuracy([], T0).before, { napStart: null, napLength: null, bedtime: null });
+  const { days, totals } = planErrors(E, T0, 3);
+  assert.deepEqual(
+    days.map((d) => [new Date(d.day).getDate(), d.napStart, d.napLength, d.bedtime, d.wakeUp]),
+    [
+      [12, null, null, null, null],
+      [13, 30, 0, null, null],
+      [14, 20, 10, 10, null],
+    ],
+  );
+  // the wake-up belongs to the morning she woke up, which is today (not in the 3 full days before today)
+  assert.deepEqual(totals, {
+    napStart: { off: 70 / 3, n: 3 },
+    napLength: { off: 20 / 3, n: 3 },
+    bedtime: { off: 10, n: 1 },
+    wakeUp: null,
+  });
+  assert.equal(planErrors(E, T0 + 864e5, 3).totals.wakeUp.off, 20, 'counted the next day, on the morning she woke');
+  assert.deepEqual(planErrors([], T0, 7).totals, { napStart: null, napLength: null, bedtime: null, wakeUp: null });
 });

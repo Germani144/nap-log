@@ -54,7 +54,7 @@ const meanOf = (a) => {
   return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
 };
 // a line chart: series [{name, color, vals: one value per day or null}], fmt formats a value
-function lineChart(key, title, sub, days, series, fmt, step) {
+function lineChart(key, title, sub, days, series, fmt, step, opts = {}) {
   const W = 340,
     H = 190,
     L = 44,
@@ -68,6 +68,7 @@ function lineChart(key, title, sub, days, series, fmt, step) {
   if (!all.length) return chartBox(key, title, sub, '<div class="mu nodata">Not enough data yet for this range.</div>');
   let lo = Math.floor((Math.min(...all) - step * 0.3) / step) * step,
     hi = Math.ceil((Math.max(...all) + step * 0.3) / step) * step;
+  if (opts.fromZero) lo = Math.max(0, lo); // errors and other amounts that cannot go below zero
   if (hi - lo < step * 2) hi = lo + step * 2;
   const X = (i) => L + (n < 2 ? pw / 2 : (i * pw) / (n - 1)),
     Y = (v) => T + ph - ((v - lo) / (hi - lo)) * ph;
@@ -173,8 +174,9 @@ function chartBox(key, title, sub, body, series, fmt, geo) {
     series && series.length > 1
       ? `<div class="leg2">${series
           .map((s) => {
-            const m = meanOf(s.vals);
-            return `<span><i style="background:${s.color}"></i>${s.name}${m != null ? ` <b>${fmt(m)}</b>` : ''}</span>`;
+            // the period's average (a series may bring its own, e.g. over all naps rather than per day) and how many
+            const m = s.avg != null ? s.avg : meanOf(s.vals);
+            return `<span><i style="background:${s.color}"></i>${s.name}${m != null ? ` <b>${fmt(m)}</b>` : ''}${s.count != null ? ` (${s.count})` : ''}</span>`;
           })
           .join('')}</div>`
       : '';
@@ -220,28 +222,6 @@ function chartLeave(ev) {
   if (!sec) return;
   sec.querySelector('.hov').innerHTML = '';
   sec.querySelector('.tip').hidden = true;
-}
-// How accurate the plan has been: what the app expected when each nap or bedtime began vs what happened, next to the
-// "same as yesterday" yardstick on the same naps (see predictionAccuracy in plan.js). Her weeks differ; the difference
-// between the two is what the app adds, and that is what to watch after a change to the plan.
-function accuracyBox(acc) {
-  const cell = (s) => {
-    if (!s) return '<span class="mu">–</span>';
-    const gain = Math.round(s.naive) - Math.round(s.off);
-    const verdict = gain > 0 ? `${gain} better` : gain < 0 ? `${-gain} worse` : 'the same';
-    return `<b>${Math.round(s.off)}</b><span class="mu"> vs ${Math.round(s.naive)}</span><small>${verdict} · ${s.n}</small>`;
-  };
-  const rows = [
-    ['Nap start', 'napStart'],
-    ['Nap length', 'napLength'],
-    ['Bedtime', 'bedtime'],
-  ].map(([label, k]) => `<tr><th>${label}</th><td>${cell(acc.recent[k])}</td><td>${cell(acc.before[k])}</td></tr>`);
-  return (
-    `<section class="chart acc"><h2>How accurate the plan is</h2>` +
-    `<div class="csub">Minutes off: <b>the app</b> vs "same as yesterday" on the same naps. Her weeks differ and move both; ` +
-    `the difference is what the app adds · how many</div>` +
-    `<table><thead><tr><th></th><th>Last 7 days</th><th>7 days before</th></tr></thead><tbody>${rows.join('')}</tbody></table></section>`
-  );
 }
 function renderStats() {
   if (currentTab !== 'stats') return;
@@ -302,8 +282,31 @@ function renderStats() {
     { name: 'Naps', color: CHART_COLORS.naps, vals: days.map((d) => d.napSum) },
     { name: 'Awake', color: CHART_COLORS.awake, vals: days.map((d) => d.awake) },
   ]);
+  // how far off the plan was: one curve per kind of prediction, average minutes off per day (see planErrors in plan.js)
+  const pe = planErrors(allEntries(), startOfDay(Date.now()), statsDays),
+    errSeries = [
+      ['Nap start', 'napStart', CHART_COLORS.n1],
+      ['Nap length', 'napLength', CHART_COLORS.n3],
+      ['Bedtime', 'bedtime', CHART_COLORS.bed],
+      ['Wake-up', 'wakeUp', CHART_COLORS.n4],
+    ].map(([name, k, color]) => ({
+      name,
+      color,
+      vals: pe.days.map((d) => d[k]),
+      avg: pe.totals[k] && pe.totals[k].off,
+      count: pe.totals[k] && pe.totals[k].n,
+    }));
+  h += lineChart(
+    'errors',
+    'How far off the plan was',
+    'Minutes between what the app expected and what happened, per day. Lower is better.',
+    pe.days,
+    errSeries,
+    (v) => Math.round(v) + ' min',
+    15,
+    { fromZero: true },
+  );
   h += `<div class="foot">Bold numbers are the averages over the period. Touch a chart to see each day.</div>`;
-  h += accuracyBox(predictionAccuracy(allEntries(), startOfDay(Date.now())));
   const el = $('#stats');
   el.innerHTML = h;
   el.querySelectorAll('.chart svg').forEach((s) => {
