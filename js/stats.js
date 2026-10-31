@@ -221,10 +221,16 @@ function chartLeave(ev) {
   sec.querySelector('.hov').innerHTML = '';
   sec.querySelector('.tip').hidden = true;
 }
-// How accurate the plan has been: what the app expected when each nap or night started vs what happened, this week
-// against the week before (from the predictions saved with each entry; see predictionAccuracy in plan.js).
+// How accurate the plan has been: what the app expected when each nap or bedtime began vs what happened, next to the
+// "same as yesterday" yardstick on the same naps (see predictionAccuracy in plan.js). Her weeks differ; the difference
+// between the two is what the app adds, and that is what to watch after a change to the plan.
 function accuracyBox(acc) {
-  const cell = (s) => (s ? `${Math.round(s.off)} min<span class="mu"> · ${s.n}</span>` : '<span class="mu">–</span>');
+  const cell = (s) => {
+    if (!s) return '<span class="mu">–</span>';
+    const gain = Math.round(s.naive) - Math.round(s.off);
+    const verdict = gain > 0 ? `${gain} better` : gain < 0 ? `${-gain} worse` : 'the same';
+    return `<b>${Math.round(s.off)}</b><span class="mu"> vs ${Math.round(s.naive)}</span><small>${verdict} · ${s.n}</small>`;
+  };
   const rows = [
     ['Nap start', 'napStart'],
     ['Nap length', 'napLength'],
@@ -232,7 +238,8 @@ function accuracyBox(acc) {
   ].map(([label, k]) => `<tr><th>${label}</th><td>${cell(acc.recent[k])}</td><td>${cell(acc.before[k])}</td></tr>`);
   return (
     `<section class="chart acc"><h2>How accurate the plan is</h2>` +
-    `<div class="csub">Average minutes off from what the app expected when each nap or bedtime began · how many</div>` +
+    `<div class="csub">Minutes off: <b>the app</b> vs "same as yesterday" on the same naps. Her weeks differ and move both; ` +
+    `the difference is what the app adds · how many</div>` +
     `<table><thead><tr><th></th><th>Last 7 days</th><th>7 days before</th></tr></thead><tbody>${rows.join('')}</tbody></table></section>`
   );
 }

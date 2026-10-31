@@ -464,19 +464,83 @@ function predBefore(entries, e, settings) {
 //   wake: morning wake-up · bed: bedtime · night: length of the night that started that evening
 //   naps: [{s, e, len}] in order · napSum: total nap time · awake: wake-up to bedtime minus naps
 // How far the plan was off, from the predictions saved with each entry (pred: what the app expected just before it
-// started): naps' start and length, and bedtime. For the `days` full days before `today` and the `days` before those,
-// so a change in the model shows within a week. Minutes; null where there is nothing to compare yet.
-//   { recent: {napStart, napLength, bedtime}, before: {…} }, each {off: mean minutes off, n: how many}
+// started), next to a simple yardstick on the very same naps and nights: "same as yesterday" (nap start = her previous
+// wake-up + yesterday's awake window for that nap, nap length = yesterday's length for that nap, bedtime = today's last
+// nap end + yesterday's gap before bed). Her days vary from week to week, which moves both numbers; the difference is
+// what the plan adds, so a worse model shows as a smaller difference whatever kind of week she had.
+// For the `days` full days before `today` and the `days` before those. Minutes; null where nothing can be compared.
+//   { recent: {napStart, napLength, bedtime}, before: {…} }, each {off: app, naive: yardstick, n: how many}
 function predictionAccuracy(entries, today, days = 7) {
+  const napsOn = {};
+  entries
+    .filter((e) => e.type === 'nap' && e.end)
+    .sort((a, b) => a.start - b.start)
+    .forEach((e) => (napsOn[startOfDay(e.start)] ??= []).push(e));
+  const nightEndingOn = (day) => entries.find((e) => e.type === 'night' && e.end && startOfDay(e.end) === day);
+  const nightStartingOn = (day) => entries.find((e) => e.type === 'night' && startOfDay(e.start) === day);
+  // her awake windows on a day (wake-up to nap 1, nap 1 to nap 2, …), or null without a logged wake-up
+  const windowsOn = (day) => {
+    const wake = nightEndingOn(day),
+      naps = napsOn[day] || [];
+    if (!wake) return null;
+    let prev = wake.end;
+    return naps.map((n) => {
+      const w = (n.start - prev) / 6e4;
+      prev = n.end;
+      return w;
+    });
+  };
+  const yardstick = (e) => {
+    const day = startOfDay(e.start),
+      yesterday = addDays(day, -1),
+      naps = napsOn[day] || [],
+      yNaps = napsOn[yesterday] || [];
+    if (e.type === 'nap') {
+      const k = naps.indexOf(e),
+        wake = nightEndingOn(day),
+        prevEnd = k > 0 ? naps[k - 1].end : wake && wake.end,
+        yWindows = windowsOn(yesterday);
+      if (k < 0 || !prevEnd || !yWindows || yWindows[k] == null || !yNaps[k]) return null;
+      return { start: prevEnd + yWindows[k] * 6e4, len: (yNaps[k].end - yNaps[k].start) / 6e4 };
+    }
+    const yBed = nightStartingOn(yesterday),
+      last = naps.filter((n) => n.end <= e.start).pop(),
+      yLast = yNaps[yNaps.length - 1];
+    if (!yBed || !last || !yLast || yBed.start < yLast.end) return null;
+    return { start: last.end + (yBed.start - yLast.end) };
+  };
   const span = (from, to) => {
-    const inSpan = entries.filter((e) => e.pred && e.end && e.start >= from && e.start < to);
-    const stat = (xs) => (xs.length ? { off: average(xs.map(Math.abs)), n: xs.length } : null);
-    const naps = inSpan.filter((e) => e.type === 'nap'),
-      nights = inSpan.filter((e) => e.type === 'night');
+    const both = entries
+      .filter((e) => e.pred && e.end && e.start >= from && e.start < to)
+      .map((e) => ({ e, y: yardstick(e) }))
+      .filter((x) => x.y);
+    const stat = (xs, app, naive) =>
+      xs.length
+        ? {
+            off: average(xs.map((x) => Math.abs(app(x)))),
+            naive: average(xs.map((x) => Math.abs(naive(x)))),
+            n: xs.length,
+          }
+        : null;
+    const naps = both.filter((x) => x.e.type === 'nap'),
+      nights = both.filter((x) => x.e.type === 'night');
+    const len = (e) => (e.end - e.start) / 6e4;
     return {
-      napStart: stat(naps.map((e) => (e.start - e.pred.s) / 6e4)),
-      napLength: stat(naps.map((e) => (e.end - e.start) / 6e4 - e.pred.len)),
-      bedtime: stat(nights.map((e) => (e.start - e.pred.s) / 6e4)),
+      napStart: stat(
+        naps,
+        ({ e }) => (e.start - e.pred.s) / 6e4,
+        ({ e, y }) => (e.start - y.start) / 6e4,
+      ),
+      napLength: stat(
+        naps,
+        ({ e }) => len(e) - e.pred.len,
+        ({ e, y }) => len(e) - y.len,
+      ),
+      bedtime: stat(
+        nights,
+        ({ e }) => (e.start - e.pred.s) / 6e4,
+        ({ e, y }) => (e.start - y.start) / 6e4,
+      ),
     };
   };
   const mid = addDays(today, -days);
