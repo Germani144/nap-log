@@ -315,8 +315,9 @@ test('shared History loads older months; Statistics draws its charts', async () 
   assert.match(await p.text('#day'), /Wednesday 14 October/);
 
   await p.page.click('#t-stats');
-  assert.equal(await p.page.locator('#stats .chart').count(), 5);
-  assert.deepEqual(await p.page.locator('#stats .chart h2').allInnerTexts(), [
+  assert.equal(await p.page.locator('#stats .chart:not(.acc)').count(), 5);
+  assert.equal(await p.page.locator('#stats .acc').count(), 1, 'and the accuracy table');
+  assert.deepEqual(await p.page.locator('#stats .chart:not(.acc) h2').allInnerTexts(), [
     'When she falls asleep',
     'When she wakes up',
     'How long naps last',
