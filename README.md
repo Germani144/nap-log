@@ -324,6 +324,12 @@ or after the suggestion (a hint of how much the suggestions steer you).
   `addDays`, and from a plan time (minutes of the day) to a moment with `timeAtMinute` (both in `plan.js`); never add
   `DAY` or `minutes × 60000` to a midnight. `tests/clock-change.test.mjs` covers both clock changes (fixed in v3.16:
   a typed wake-up after the October night was saved an hour early, and that day's reminders came an hour early).
+- **Plan changes and rollback:** model changes are made on a feature branch (one commit per idea), benchmarked with
+  `tools/backtest.mjs` on an export, then merged into main with a merge commit (`git merge --no-ff`) followed by a
+  separate release commit that bumps the version. Releases are tagged (`v3.18`, `v3.19`, …). To roll one idea back,
+  `git revert <its commit>`; to roll the whole branch back, `git revert -m 1 <merge commit>`. Either way, then bump
+  the version again (for example v3.20): phones only take a release whose cache name changed, so a revert without a
+  new version would not reach them. Watch **How accurate the plan is** in Statistics for a week after a model change.
 - **Plan logic** goes in `plan.js` with a test; screen code in `js/`; small pure helpers in `js/core.js` with a test.
 - **A new tap action:** add it to `ACTIONS` in `js/main.js` and put `tapAction('name', { … })` on the element. Never
   `onclick=` (the CSP blocks it, and the browser tests fail on it).

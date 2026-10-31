@@ -12,6 +12,10 @@
 - Every release: bump the version (minor +1) in both `VER` in js/config.js and the cache name in sw.js (`nap-log-vX.Y`). They must match.
 - Commit and push to main after each change; the app is served by GitHub Pages from main. A change made in several
   commits is pushed together, with one version bump, so phones never load a half-done state.
+- Changes to the plan model (plan.js): feature branch, one commit per idea, benchmark with tools/backtest.mjs on an
+  export kept outside the repo (old vs new plan.js, same days), then `git merge --no-ff` into main plus a separate
+  release commit for the version bump; tag every release (`git tag -a vX.Y`). Rollback = `git revert` the idea's commit
+  (or `-m 1` the merge commit) and bump the version again, or the revert never reaches the phones.
 
 ## Layout
 
