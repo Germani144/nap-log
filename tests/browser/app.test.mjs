@@ -629,3 +629,16 @@ test('a night logged twice counts once (plan, export)', async () => {
   assert.equal(x.entries.filter((e) => e.start === dup.start && e.type === 'night').length, 1);
   await done();
 });
+
+test('Statistics shows how accurate the plan has been', async () => {
+  const withPred = madeUpHistory(D0, 10).map((e) =>
+    e.start >= at(D0, -7, 0) ? { ...e, pred: { s: e.start - 10 * MIN, len: (e.end - e.start) / MIN + 20 } } : e,
+  );
+  const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: withPred, settings: S3 } });
+  await p.page.click('#t-stats');
+  const box = p.page.locator('#stats .acc');
+  assert.match(await box.locator('h2').innerText(), /How accurate the plan is/);
+  const rows = (await box.locator('tbody tr').allInnerTexts()).map((r) => r.replace(/\s+/g, ' ').trim());
+  assert.deepEqual(rows, ['Nap start 10 min · 21 –', 'Nap length 20 min · 21 –', 'Bedtime 10 min · 7 –']);
+  await done();
+});

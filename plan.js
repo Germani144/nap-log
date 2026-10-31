@@ -463,6 +463,26 @@ function predBefore(entries, e, settings) {
 // Times are minutes of the day (a bedtime after midnight counts as 24:xx); lengths are minutes.
 //   wake: morning wake-up · bed: bedtime · night: length of the night that started that evening
 //   naps: [{s, e, len}] in order · napSum: total nap time · awake: wake-up to bedtime minus naps
+// How far the plan was off, from the predictions saved with each entry (pred: what the app expected just before it
+// started): naps' start and length, and bedtime. For the `days` full days before `today` and the `days` before those,
+// so a change in the model shows within a week. Minutes; null where there is nothing to compare yet.
+//   { recent: {napStart, napLength, bedtime}, before: {…} }, each {off: mean minutes off, n: how many}
+function predictionAccuracy(entries, today, days = 7) {
+  const span = (from, to) => {
+    const inSpan = entries.filter((e) => e.pred && e.end && e.start >= from && e.start < to);
+    const stat = (xs) => (xs.length ? { off: average(xs.map(Math.abs)), n: xs.length } : null);
+    const naps = inSpan.filter((e) => e.type === 'nap'),
+      nights = inSpan.filter((e) => e.type === 'night');
+    return {
+      napStart: stat(naps.map((e) => (e.start - e.pred.s) / 6e4)),
+      napLength: stat(naps.map((e) => (e.end - e.start) / 6e4 - e.pred.len)),
+      bedtime: stat(nights.map((e) => (e.start - e.pred.s) / 6e4)),
+    };
+  };
+  const mid = addDays(today, -days);
+  return { recent: span(mid, today), before: span(addDays(mid, -days), mid) };
+}
+
 function dailyStats(entries, today, days) {
   const out = [];
   for (let i = days; i >= 1; i--) {
@@ -498,6 +518,7 @@ if (typeof module !== 'undefined')
     addDays,
     timeAtMinute,
     predBefore,
+    predictionAccuracy,
     dailyStats,
     startOfDay,
     minuteOfDay,

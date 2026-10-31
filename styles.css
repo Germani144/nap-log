@@ -1008,3 +1008,24 @@ button.x.wide {
 #addnap .lnk[hidden] {
   display: none;
 }
+/* Statistics: the plan accuracy table */
+.acc table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.acc th,
+.acc td {
+  padding: 8px 4px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+}
+.acc th:first-child {
+  text-align: left;
+}
+.acc thead th {
+  color: var(--mute);
+  font-size: 12.5px;
+}

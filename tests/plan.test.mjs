@@ -331,3 +331,21 @@ test('after long naps the naps still to come get shorter, never below 60% of usu
     ],
   );
 });
+
+test('predictionAccuracy: minutes off this week and the week before, from the saved predictions', () => {
+  const { predictionAccuracy } = createRequire(import.meta.url)('../plan.js');
+  const p = (e, s, len) => ({ ...e, pred: { s, len } });
+  const E = [
+    p(nap(-1, 9, 10, 10, 0), at(-1, 9, 0), 60), // started 10 min late, 10 min short
+    p(nap(-2, 9, 0, 10, 20), at(-2, 9, 20), 60), // 20 early, 20 long
+    p(night(-1, 19, 45, 6, 0), at(-1, 19, 30), 600), // bedtime 15 late
+    p(nap(-9, 9, 0, 10, 0), at(-9, 9, 30), 60), // the week before: 30 early, exact length
+    nap(-3, 9, 0, 10, 0), // no prediction: not counted
+    p(nap(0, 9, 0, null), at(0, 9, 0), 60), // today, still running: not counted
+    p(nap(-20, 9, 0, 10, 0), at(-20, 8, 0), 60), // too old
+  ];
+  const a = predictionAccuracy(E, T0);
+  assert.deepEqual(a.recent, { napStart: { off: 15, n: 2 }, napLength: { off: 15, n: 2 }, bedtime: { off: 15, n: 1 } });
+  assert.deepEqual(a.before, { napStart: { off: 30, n: 1 }, napLength: { off: 0, n: 1 }, bedtime: null });
+  assert.deepEqual(predictionAccuracy([], T0).recent, { napStart: null, napLength: null, bedtime: null });
+});

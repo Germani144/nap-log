@@ -221,6 +221,21 @@ function chartLeave(ev) {
   sec.querySelector('.hov').innerHTML = '';
   sec.querySelector('.tip').hidden = true;
 }
+// How accurate the plan has been: what the app expected when each nap or night started vs what happened, this week
+// against the week before (from the predictions saved with each entry; see predictionAccuracy in plan.js).
+function accuracyBox(acc) {
+  const cell = (s) => (s ? `${Math.round(s.off)} min<span class="mu"> · ${s.n}</span>` : '<span class="mu">–</span>');
+  const rows = [
+    ['Nap start', 'napStart'],
+    ['Nap length', 'napLength'],
+    ['Bedtime', 'bedtime'],
+  ].map(([label, k]) => `<tr><th>${label}</th><td>${cell(acc.recent[k])}</td><td>${cell(acc.before[k])}</td></tr>`);
+  return (
+    `<section class="chart acc"><h2>How accurate the plan is</h2>` +
+    `<div class="csub">Average minutes off from what the app expected when each nap or bedtime began · how many</div>` +
+    `<table><thead><tr><th></th><th>Last 7 days</th><th>7 days before</th></tr></thead><tbody>${rows.join('')}</tbody></table></section>`
+  );
+}
 function renderStats() {
   if (currentTab !== 'stats') return;
   const days = dailyStats(allEntries(), startOfDay(Date.now()), statsDays),
@@ -281,6 +296,7 @@ function renderStats() {
     { name: 'Awake', color: CHART_COLORS.awake, vals: days.map((d) => d.awake) },
   ]);
   h += `<div class="foot">Bold numbers are the averages over the period. Touch a chart to see each day.</div>`;
+  h += accuracyBox(predictionAccuracy(allEntries(), startOfDay(Date.now())));
   const el = $('#stats');
   el.innerHTML = h;
   el.querySelectorAll('.chart svg').forEach((s) => {

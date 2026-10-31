@@ -184,6 +184,9 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   asleep, when she wakes up, how long naps last, night sleep, and her day as stacked bars. Per-day figures come from
   `dailyStats` in `plan.js`. One scale per chart, so night sleep has its own chart. Colours were checked for
   colour-blind separation and contrast on the dark background.
+  At the bottom, **How accurate the plan is** (v3.19): how many minutes the app was off for nap starts, nap lengths and
+  bedtime, from the predictions saved with each entry, for the last 7 days and the 7 before (`predictionAccuracy` in
+  `plan.js`). After a change to the plan, it shows within a week whether it is better or worse.
 - Swipe left or right to change tab.
 
 ## Push reminders
