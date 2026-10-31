@@ -144,3 +144,17 @@ test('versionInSw reads the cache name, also from the real sw.js', () => {
   assert.equal(versionInSw(''), null);
   assert.match(versionInSw(readFileSync(new URL('../sw.js', import.meta.url), 'utf8')), /^\d+\.\d+$/);
 });
+
+test('withoutDuplicates: the same nap or night logged twice counts once', () => {
+  const { withoutDuplicates } = core;
+  const a = { id: 'imp-1', type: 'night', start: 1000, end: 5000 };
+  const b = { id: 'app-1', type: 'night', start: 1000, end: 5000 };
+  const c = { id: 'app-2', type: 'nap', start: 1000, end: 5000 }; // same times, other type: kept
+  const d = { id: 'app-3', type: 'night', start: 1000, end: 6000 }; // other end: kept
+  assert.deepEqual(withoutDuplicates([a, b, c, d]), [a, c, d]);
+  const withPred = { ...b, pred: { s: 900, len: 60 } };
+  assert.deepEqual(withoutDuplicates([a, withPred]), [withPred], 'the copy with a saved prediction is kept');
+  const running = { id: 'r', type: 'nap', start: 7000, end: null };
+  assert.deepEqual(withoutDuplicates([running, { ...running, id: 'r2' }]), [running]);
+  assert.deepEqual(withoutDuplicates([]), []);
+});

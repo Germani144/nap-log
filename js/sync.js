@@ -15,7 +15,7 @@ function saveEntry(e) {
       renderHistory();
     }
   } else {
-    entries = entries.filter((x) => x.id !== e.id).concat(e);
+    entries = withoutDuplicates(entries.filter((x) => x.id !== e.id).concat(e));
     save('entries', entries);
     render();
   }
@@ -75,7 +75,7 @@ function connectSync() {
       .collection('entries')
       .where('start', '>=', startOfDay(Date.now()) - 14 * DAY)
       .onSnapshot((q) => {
-        entries = q.docs.map((d) => d.data()).filter(isValidEntry);
+        entries = withoutDuplicates(q.docs.map((d) => d.data()).filter(isValidEntry));
         save('entries', entries);
         render();
       }),

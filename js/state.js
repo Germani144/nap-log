@@ -6,7 +6,7 @@ const $ = (s) => document.querySelector(s);
 // (or malicious) value must never reach the screen as markup or script. Bad entries are dropped, bad settings reset.
 // isValidEntry (entries) and cleanSettings (settings) live in backup.js, which is tested and also checks imported files.
 let settings = cleanSettings(load('settings', {})),
-  entries = [].concat(load('entries', [])).filter(isValidEntry),
+  entries = withoutDuplicates([].concat(load('entries', [])).filter(isValidEntry)),
   familyCode = load('family', ''),
   db = null,
   unsubscribers = [],
@@ -23,6 +23,6 @@ const allEntries = () => {
   const m = {};
   Object.values(olderEntries).forEach((e) => (m[e.id] = e));
   entries.forEach((e) => (m[e.id] = e));
-  return Object.values(m);
+  return withoutDuplicates(Object.values(m));
 };
 const findEntry = (id) => entries.find((x) => x.id === id) || olderEntries[id];

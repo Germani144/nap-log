@@ -613,3 +613,19 @@ test('after a long nap the plan shortens the naps still to come and says by how 
   assert.match(await p.row('Nap 3').innerText(), /\(−16m\)/);
   await done();
 });
+
+test('a night logged twice counts once (plan, export)', async () => {
+  const fs = new FakeFirestore();
+  const H = madeUpHistory(D0, 10);
+  const dup = { ...H.find((e) => e.id === 'hn3'), id: 'imported-copy' }; // same night, another id
+  fs.seedEntries(FAMILY, [...H, dup]);
+  fs.seedDoc('families/' + FAMILY, { settings: S3 });
+  const p = await phone({ fs, now: at(D0, 0, 12, 0), storage: { family: FAMILY } });
+  await until(async () => (await p.text('#sync')) === 'shared');
+  await p.page.click('#cog');
+  const [dl] = await Promise.all([p.page.waitForEvent('download'), p.page.click('#bkexp')]);
+  const x = JSON.parse(nodeFs.readFileSync(await dl.path(), 'utf8'));
+  assert.equal(x.entries.length, H.length, 'exported once');
+  assert.equal(x.entries.filter((e) => e.start === dup.start && e.type === 'night').length, 1);
+  await done();
+});

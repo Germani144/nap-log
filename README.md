@@ -68,6 +68,10 @@ real-world accuracy (`tools/accuracy.mjs`).
 added to today's plan, today only), the next reminder (`notifyAt`, `notifyEvent`, `notifyKey`, `notifyLabel`,
 `notifyTime`, `notifyText`, `notifySent`) and `deadSubs` (subscriptions the push service rejected).
 
+**Duplicates:** the same nap or night stored twice (same type, start and end, different ids, for example once
+imported and once logged) counts once everywhere: plan, History, Statistics, export (`withoutDuplicates` in
+`js/core.js`, v3.19). The copy with a saved prediction is kept.
+
 **This phone** (localStorage, shared with any other app on the address, so every key starts with `nap-log.`):
 `settings`, `entries` (a copy of the live entries, or all of them in local-only mode), `family` (the family code),
 `extra` (extra naps in local-only mode), `pushoff` (notifications turned off on this phone) and `statsN` (the

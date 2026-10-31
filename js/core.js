@@ -13,6 +13,19 @@ const tapAction = (name, data = {}) =>
     .map(([k, v]) => ` data-${k}="${escapeHtml(v)}"`)
     .join('');
 
+// ---------- entries ----------
+// The same nap or night logged twice (same type, start and end, different ids; for example once imported and once
+// logged) counts once. The copy with a saved prediction is kept, otherwise the first one.
+function withoutDuplicates(list) {
+  const kept = new Map();
+  for (const e of list) {
+    const k = e.type + '|' + e.start + '|' + e.end,
+      had = kept.get(k);
+    if (!had || (!had.pred && e.pred)) kept.set(k, e);
+  }
+  return list.filter((e) => kept.get(e.type + '|' + e.start + '|' + e.end) === e);
+}
+
 // ---------- typed times ----------
 // A typed "HH:MM" on a given day (local midnight) as a timestamp.
 const timeOnDay = (day, v) => {
@@ -108,6 +121,7 @@ if (typeof module !== 'undefined')
   module.exports = {
     escapeHtml,
     tapAction,
+    withoutDuplicates,
     timeOnDay,
     parseTypedTime,
     extraNapsFrom,
