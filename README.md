@@ -279,8 +279,8 @@ npm install                                             # once, for the browser 
 npx playwright install chromium                         # once, if Chromium is not installed yet
 npm run test:browser                                    # browser tests
 npm run format                                          # Prettier (npm run format:check only checks)
-TZ=Europe/Copenhagen node tools/backtest.mjs history.json
-TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
+TZ=Europe/Copenhagen node tools/backtest.mjs nap-log-2026-10-31.json --from 2026-10-17   # replay with this plan.js
+TZ=Europe/Copenhagen node tools/accuracy.mjs nap-log-2026-10-31.json --days 7            # what the app predicted
 ```
 
 **Unit tests** (`tests/*.test.mjs`, Node's built-in runner):
@@ -302,6 +302,12 @@ and by hand, editing and deleting (typed times, refusals), the plan screen, extr
 sharing between two phones (naps, extra naps, settings, the reminder), History loading older months, Statistics,
 export → import (Merge, Replace with its second confirmation, a broken file), the bell, tab swipes, offline use and
 Check for updates. Every test also fails on any console error or Content-Security-Policy violation.
+
+**Benchmarking a plan change:** export from the phone (Settings → Export data, keep the file outside the repo), then run
+`tools/backtest.mjs` on it with the old and the new `plan.js` over the same days (`--from`, `--to`; the export's target
+bedtime is used unless `--bedtime` is given). It reports next-nap and bedtime error, the same from the middle of a nap,
+nap length (the target a minute into each nap) and night length. After a release, the **How accurate the plan is** table
+in Statistics shows the real-world effect within a week; `tools/accuracy.mjs --days 7` gives the same per app version.
 
 All test data is made up. The backtest and accuracy tools need an export of the logged entries; it holds personal
 data, so keep it out of the repo (`history*.json` and `nap-log-*.json` are ignored). Run the backtest before and after

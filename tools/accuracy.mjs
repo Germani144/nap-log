@@ -1,14 +1,23 @@
 // Real-world accuracy of each app version, from the predictions saved when a nap or night was started (`pred`).
 // Unlike tools/backtest.mjs this uses what the app actually predicted at the time, with the settings of that day.
 // The history file holds personal data: keep it out of the repo.
-// Run: TZ=Europe/Copenhagen node tools/accuracy.mjs path/to/entries.json
+// Run: TZ=Europe/Copenhagen node tools/accuracy.mjs <file> [--days N]
+//   <file>    the app's export (Settings > Export data) or a JSON array of entries
+//   --days N  only the last N days before the newest entry (the app's Statistics shows the last 7 and the 7 before)
 import fs from 'node:fs';
-const file = process.argv[2];
+import { createRequire } from 'node:module';
+const { withoutDuplicates } = createRequire(import.meta.url)('../js/core.js');
+const args = process.argv.slice(2);
+const daysArg = args.includes('--days') ? +args[args.indexOf('--days') + 1] : null;
+const file = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1] === '--days'));
 if (!file) {
-  console.error('usage: node tools/accuracy.mjs entries.json');
+  console.error('usage: node tools/accuracy.mjs <export.json> [--days N]');
   process.exit(1);
 }
-const E = JSON.parse(fs.readFileSync(file, 'utf8')).filter((e) => e.pred && e.end);
+const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+const all = withoutDuplicates(Array.isArray(data) ? data : data.entries);
+const newest = Math.max(...all.map((e) => e.start));
+const E = all.filter((e) => e.pred && e.end && (daysArg == null || e.start >= newest - daysArg * 864e5));
 if (!E.length) {
   console.log(
     'No finished entries with saved predictions yet (they are saved from v2.15 on, for button and hand-filled entries alike).',
@@ -19,7 +28,9 @@ const groups = {};
 for (const e of E) (groups[`v${e.pred.v} ${e.type}`] ??= []).push(e);
 const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length,
   f = (x) => x.toFixed(0);
-for (const [k, l] of Object.entries(groups).sort()) {
+// versions in number order (v3.2 before v3.10), naps before nights
+const order = (k) => k.replace(/\d+/g, (n) => n.padStart(4, '0'));
+for (const [k, l] of Object.entries(groups).sort(([a], [b]) => (order(a) < order(b) ? -1 : 1))) {
   const ds = l.map((e) => (e.start - e.pred.s) / 6e4),
     dl = l.map((e) => (e.end - e.start) / 6e4 - e.pred.len);
   const early = ds.filter((d) => d < -5).length,
