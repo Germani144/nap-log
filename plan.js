@@ -129,6 +129,12 @@ function makePlan(entries, nowMs, settings) {
   // target length of a nap in progress: what is left of the day's nap-time target after the other naps today and
   // the usual length of the naps still to come (between 20 min and 3 h); just its usual length when there is no target
   const CATCH_UP_CAP = 1.5; // catching up: a nap is stretched to at most 1.5× its usual length
+  // Naps balance each other: after short naps the next one tends to be longer, after a long one shorter (her daily nap
+  // total varies less than single naps). Backtested on the logged history (v3.19): a nap in progress expects its usual
+  // length plus half of what today's earlier naps were short (or minus half of what they were long), and the naps still
+  // to come are shortened after long naps, never below 60% of their usual length.
+  const BALANCE = 0.5,
+    SHRINK_FLOOR = 0.6;
   // a nap number with no data in the past 7 days (say a 4th nap on 3-nap days) borrows the awake window and length of
   // the last nap number that has data, so the plan and bedtime can still be worked out (from = the nap it borrows from)
   const usualOrBorrowedNap = (n) => {
@@ -158,8 +164,20 @@ function makePlan(entries, nowMs, settings) {
     // a nap beyond her usual number (added, or no data for that nap number) is a bridge nap: at most 45 min, as planned
     const cap = g && g.bridge ? Math.min(45, g.len) : MAX_NAP;
     if (napTarget == null) return g ? Math.min(g.len, cap) : null;
-    // a nap before the day's last one: its usual length (the nap-time budget overestimated these by ~25 min in the backtest)
-    if (n < plannedNaps && g) return Math.min(cap, g.len);
+    // a nap before the day's last one: its usual length (the nap-time budget overestimated these by ~25 min in the
+    // backtest), balanced by half of how much today's earlier naps differed from their usual lengths
+    if (n < plannedNaps && g) {
+      let usualSoFar = 0,
+        doneSoFar = 0;
+      todaysNaps.forEach((x, i) => {
+        const u = i < n - 1 && x.end && napFor(i + 1);
+        if (u) {
+          usualSoFar += u.len;
+          doneSoFar += (x.end - x.start) / 6e4;
+        }
+      });
+      return Math.min(cap, Math.max(20, g.len + BALANCE * (usualSoFar - doneSoFar)));
+    }
     // the day's last nap: what is left of today's nap time, at least 20 min; but long enough that the stretch to the target
     // bedtime is at most her usual gap before bed + 35 min (and never beyond 1.5× its usual length)
     const otherNapsToday = todaysNaps
@@ -208,6 +226,14 @@ function makePlan(entries, nowMs, settings) {
           upcoming[n].len += add;
           napTimeMissing -= add;
         }
+      });
+    } else if (def < 0 && S > 0) {
+      // more nap time than usual already (long naps): the regular naps still to come get shorter, in proportion to
+      // their length, never below SHRINK_FLOOR of their usual length (shown as "(−20m)" in the plan)
+      stretchable.forEach((n) => {
+        const cut = Math.min((-def * upcoming[n].len) / S, upcoming[n].len * (1 - SHRINK_FLOOR));
+        upcoming[n].add = -cut;
+        upcoming[n].len -= cut;
       });
     }
   }
@@ -437,6 +463,26 @@ function predBefore(entries, e, settings) {
 // Times are minutes of the day (a bedtime after midnight counts as 24:xx); lengths are minutes.
 //   wake: morning wake-up · bed: bedtime · night: length of the night that started that evening
 //   naps: [{s, e, len}] in order · napSum: total nap time · awake: wake-up to bedtime minus naps
+// How far the plan was off, from the predictions saved with each entry (pred: what the app expected just before it
+// started): naps' start and length, and bedtime. For the `days` full days before `today` and the `days` before those,
+// so a change in the model shows within a week. Minutes; null where there is nothing to compare yet.
+//   { recent: {napStart, napLength, bedtime}, before: {…} }, each {off: mean minutes off, n: how many}
+function predictionAccuracy(entries, today, days = 7) {
+  const span = (from, to) => {
+    const inSpan = entries.filter((e) => e.pred && e.end && e.start >= from && e.start < to);
+    const stat = (xs) => (xs.length ? { off: average(xs.map(Math.abs)), n: xs.length } : null);
+    const naps = inSpan.filter((e) => e.type === 'nap'),
+      nights = inSpan.filter((e) => e.type === 'night');
+    return {
+      napStart: stat(naps.map((e) => (e.start - e.pred.s) / 6e4)),
+      napLength: stat(naps.map((e) => (e.end - e.start) / 6e4 - e.pred.len)),
+      bedtime: stat(nights.map((e) => (e.start - e.pred.s) / 6e4)),
+    };
+  };
+  const mid = addDays(today, -days);
+  return { recent: span(mid, today), before: span(addDays(mid, -days), mid) };
+}
+
 function dailyStats(entries, today, days) {
   const out = [];
   for (let i = days; i >= 1; i--) {
@@ -472,6 +518,7 @@ if (typeof module !== 'undefined')
     addDays,
     timeAtMinute,
     predBefore,
+    predictionAccuracy,
     dailyStats,
     startOfDay,
     minuteOfDay,

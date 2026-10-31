@@ -11,7 +11,7 @@ const showBackupMessage = (t, ok) => {
 async function loadAllEntries() {
   if (!db) return entries.slice();
   const q = await familyRef().collection('entries').get({ source: 'server' });
-  return q.docs.map((d) => d.data()).filter(isValidEntry);
+  return withoutDuplicates(q.docs.map((d) => d.data()).filter(isValidEntry));
 }
 $('#bkexp').addEventListener('click', async () => {
   showBackupMessage('Preparing the export…');

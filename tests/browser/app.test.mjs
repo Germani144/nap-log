@@ -315,8 +315,9 @@ test('shared History loads older months; Statistics draws its charts', async () 
   assert.match(await p.text('#day'), /Wednesday 14 October/);
 
   await p.page.click('#t-stats');
-  assert.equal(await p.page.locator('#stats .chart').count(), 5);
-  assert.deepEqual(await p.page.locator('#stats .chart h2').allInnerTexts(), [
+  assert.equal(await p.page.locator('#stats .chart:not(.acc)').count(), 5);
+  assert.equal(await p.page.locator('#stats .acc').count(), 1, 'and the accuracy table');
+  assert.deepEqual(await p.page.locator('#stats .chart:not(.acc) h2').allInnerTexts(), [
     'When she falls asleep',
     'When she wakes up',
     'How long naps last',
@@ -604,3 +605,41 @@ for (const [name, y, m, d] of [
     await done();
   });
 }
+
+test('after a long nap the plan shortens the naps still to come and says by how much', async () => {
+  // made-up history: naps of 60, 80 and 40 min a day; today nap 1 lasted 120 min
+  const E = [...madeUpHistory(D0, 10), { id: 'long1', type: 'nap', start: at(D0, 0, 8, 30), end: at(D0, 0, 10, 30) }];
+  const p = await phone({ now: at(D0, 0, 11, 0), storage: { entries: E, settings: S3 } });
+  assert.match(await p.row('Nap 2').innerText(), /\(−32m\)/);
+  assert.match(await p.row('Nap 3').innerText(), /\(−16m\)/);
+  await done();
+});
+
+test('a night logged twice counts once (plan, export)', async () => {
+  const fs = new FakeFirestore();
+  const H = madeUpHistory(D0, 10);
+  const dup = { ...H.find((e) => e.id === 'hn3'), id: 'imported-copy' }; // same night, another id
+  fs.seedEntries(FAMILY, [...H, dup]);
+  fs.seedDoc('families/' + FAMILY, { settings: S3 });
+  const p = await phone({ fs, now: at(D0, 0, 12, 0), storage: { family: FAMILY } });
+  await until(async () => (await p.text('#sync')) === 'shared');
+  await p.page.click('#cog');
+  const [dl] = await Promise.all([p.page.waitForEvent('download'), p.page.click('#bkexp')]);
+  const x = JSON.parse(nodeFs.readFileSync(await dl.path(), 'utf8'));
+  assert.equal(x.entries.length, H.length, 'exported once');
+  assert.equal(x.entries.filter((e) => e.start === dup.start && e.type === 'night').length, 1);
+  await done();
+});
+
+test('Statistics shows how accurate the plan has been', async () => {
+  const withPred = madeUpHistory(D0, 10).map((e) =>
+    e.start >= at(D0, -7, 0) ? { ...e, pred: { s: e.start - 10 * MIN, len: (e.end - e.start) / MIN + 20 } } : e,
+  );
+  const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: withPred, settings: S3 } });
+  await p.page.click('#t-stats');
+  const box = p.page.locator('#stats .acc');
+  assert.match(await box.locator('h2').innerText(), /How accurate the plan is/);
+  const rows = (await box.locator('tbody tr').allInnerTexts()).map((r) => r.replace(/\s+/g, ' ').trim());
+  assert.deepEqual(rows, ['Nap start 10 min · 21 –', 'Nap length 20 min · 21 –', 'Bedtime 10 min · 7 –']);
+  await done();
+});

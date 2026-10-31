@@ -68,6 +68,10 @@ real-world accuracy (`tools/accuracy.mjs`).
 added to today's plan, today only), the next reminder (`notifyAt`, `notifyEvent`, `notifyKey`, `notifyLabel`,
 `notifyTime`, `notifyText`, `notifySent`) and `deadSubs` (subscriptions the push service rejected).
 
+**Duplicates:** the same nap or night stored twice (same type, start and end, different ids, for example once
+imported and once logged) counts once everywhere: plan, History, Statistics, export (`withoutDuplicates` in
+`js/core.js`, v3.19). The copy with a saved prediction is kept.
+
 **This phone** (localStorage, shared with any other app on the address, so every key starts with `nap-log.`):
 `settings`, `entries` (a copy of the live entries, or all of them in local-only mode), `family` (the family code),
 `extra` (extra naps in local-only mode), `pushoff` (notifications turned off on this phone) and `statsN` (the
@@ -113,7 +117,8 @@ The full explanation is in the app under **How the plan works**. In short:
 
 - **Next nap** = end of the previous sleep + her usual awake window before that nap (past 7 days,
   recent days weighted more: a day's weight halves every 4 days). Awake windows are kept between 30 min and 3h 30m.
-- **Catch-up** after short naps stretches the remaining naps to at most 1.5× their usual length (and 3 h). If 15+ min are
+- **Catch-up** after short naps stretches the remaining naps to at most 1.5× their usual length (and 3 h); after long
+  naps the remaining naps get shorter, never below 60% of their usual length (v3.19, shown as "−20m"). If 15+ min are
   still missing, an **extra ("bridge") nap** of 30–45 min is suggested halfway between the last nap and the target bedtime,
   only with 75 min to 3h 30m awake on each side. Until it is added it is only a suggestion: the countdown and the
   notification go to bedtime, planned without it (usually earlier); once added, bedtime aims for its target.
@@ -126,7 +131,8 @@ The full explanation is in the app under **How the plan works**. In short:
   only); the plan re-times the remaining naps. **＋ Log a nap** enters real times.
 - A nap number with **no data** in the past 7 days is planned like a bridge nap: at most 45 min (or the last nap
   number's usual length), halfway between the previous nap and bedtime.
-- **Nap in progress** gets a target length. Before the day's last nap: her usual length for that nap. The last nap: today's
+- **Nap in progress** gets a target length. Before the day's last nap: her usual length for that nap, balanced by half
+  of how far today's earlier naps were from their usual lengths (v3.19). The last nap: today's
   nap-time target − naps already done today (at least 20 min), but long enough that the stretch to the target bedtime is
   at most her usual gap before bed + 35 min (capped at 1.5× its usual length). Checked 10 min into every logged nap (v3.3):
   nap-length error went from 46 to 30 min (the budget overestimated earlier naps), the last nap stayed at ~24 min. Shown as
@@ -146,6 +152,13 @@ The full explanation is in the app under **How the plan works**. In short:
 today's naps, `wk0` wake-up, `we` this morning's night, `bn` tonight's bedtime, `cur` the nap in progress, `rows` the
 plan rows, `want` the reminder, …; the comment above the return in `plan.js` lists them) and are kept as they are,
 because the tools and the saved predictions rely on them.
+
+**v3.19, nap balancing:** her naps make up for each other (after a short nap the next averaged 81 min, after a long one
+52 min; the daily total varies less than single naps). Replaying 1–30 Oct, predicting each day from the days before it:
+nap-length error 29.1 → 25.3 min (last 7 days) and 26.0 → 24.9 (14 days), next-nap start 15.0 → 14.2 and 12.2 → 11.2;
+bedtime unchanged. It helped with a 19:30 and a 20:00 target alike. Leaning bedtime harder towards "last nap + usual gap"
+was tried and left out: it helped with a 20:00 target but hurt with 19:30. Night length (about ±34 min night to night)
+cannot be predicted much better than its average.
 
 These choices were backtested on the logged history (46 days, predicting each day from the days before it):
 next-nap error went from about 45 to 16 minutes, bedtime from about 25 to 20 minutes (`tools/backtest.mjs`).
@@ -171,6 +184,9 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   asleep, when she wakes up, how long naps last, night sleep, and her day as stacked bars. Per-day figures come from
   `dailyStats` in `plan.js`. One scale per chart, so night sleep has its own chart. Colours were checked for
   colour-blind separation and contrast on the dark background.
+  At the bottom, **How accurate the plan is** (v3.19): how many minutes the app was off for nap starts, nap lengths and
+  bedtime, from the predictions saved with each entry, for the last 7 days and the 7 before (`predictionAccuracy` in
+  `plan.js`). After a change to the plan, it shows within a week whether it is better or worse.
 - Swipe left or right to change tab.
 
 ## Push reminders
@@ -263,8 +279,8 @@ npm install                                             # once, for the browser 
 npx playwright install chromium                         # once, if Chromium is not installed yet
 npm run test:browser                                    # browser tests
 npm run format                                          # Prettier (npm run format:check only checks)
-TZ=Europe/Copenhagen node tools/backtest.mjs history.json
-TZ=Europe/Copenhagen node tools/accuracy.mjs history.json
+TZ=Europe/Copenhagen node tools/backtest.mjs nap-log-2026-10-31.json --from 2026-10-17   # replay with this plan.js
+TZ=Europe/Copenhagen node tools/accuracy.mjs nap-log-2026-10-31.json --days 7            # what the app predicted
 ```
 
 **Unit tests** (`tests/*.test.mjs`, Node's built-in runner):
@@ -287,6 +303,12 @@ sharing between two phones (naps, extra naps, settings, the reminder), History l
 export → import (Merge, Replace with its second confirmation, a broken file), the bell, tab swipes, offline use and
 Check for updates. Every test also fails on any console error or Content-Security-Policy violation.
 
+**Benchmarking a plan change:** export from the phone (Settings → Export data, keep the file outside the repo), then run
+`tools/backtest.mjs` on it with the old and the new `plan.js` over the same days (`--from`, `--to`; the export's target
+bedtime is used unless `--bedtime` is given). It reports next-nap and bedtime error, the same from the middle of a nap,
+nap length (the target a minute into each nap) and night length. After a release, the **How accurate the plan is** table
+in Statistics shows the real-world effect within a week; `tools/accuracy.mjs --days 7` gives the same per app version.
+
 All test data is made up. The backtest and accuracy tools need an export of the logged entries; it holds personal
 data, so keep it out of the repo (`history*.json` and `nap-log-*.json` are ignored). Run the backtest before and after
 changing the plan logic. It replays history with today's code and settings; `accuracy.mjs` instead uses the
@@ -302,6 +324,12 @@ or after the suggestion (a hint of how much the suggestions steer you).
   `addDays`, and from a plan time (minutes of the day) to a moment with `timeAtMinute` (both in `plan.js`); never add
   `DAY` or `minutes × 60000` to a midnight. `tests/clock-change.test.mjs` covers both clock changes (fixed in v3.16:
   a typed wake-up after the October night was saved an hour early, and that day's reminders came an hour early).
+- **Plan changes and rollback:** model changes are made on a feature branch (one commit per idea), benchmarked with
+  `tools/backtest.mjs` on an export, then merged into main with a merge commit (`git merge --no-ff`) followed by a
+  separate release commit that bumps the version. Releases are tagged (`v3.18`, `v3.19`, …). To roll one idea back,
+  `git revert <its commit>`; to roll the whole branch back, `git revert -m 1 <merge commit>`. Either way, then bump
+  the version again (for example v3.20): phones only take a release whose cache name changed, so a revert without a
+  new version would not reach them. Watch **How accurate the plan is** in Statistics for a week after a model change.
 - **Plan logic** goes in `plan.js` with a test; screen code in `js/`; small pure helpers in `js/core.js` with a test.
 - **A new tap action:** add it to `ACTIONS` in `js/main.js` and put `tapAction('name', { … })` on the element. Never
   `onclick=` (the CSP blocks it, and the browser tests fail on it).

@@ -399,7 +399,7 @@ function render() {
           '',
           'bd',
           'Nap ' + r.n,
-          `<b>~${clockTime(r.s)}–${clockTime(r.e)}</b> &nbsp;${duration(r.e - r.s)}${r.add >= 5 ? ' (+' + duration(r.add) + ')' : ''}${aw}${r.from ? `<br>no nap ${r.n} lately, based on nap ${r.from}` : ''}`,
+          `<b>~${clockTime(r.s)}–${clockTime(r.e)}</b> &nbsp;${duration(r.e - r.s)}${r.add >= 5 ? ' (+' + duration(r.add) + ')' : r.add <= -5 ? ' (−' + duration(-r.add) + ')' : ''}${aw}${r.from ? `<br>no nap ${r.n} lately, based on nap ${r.from}` : ''}`,
         );
     });
     if (bedtimeEntry)
