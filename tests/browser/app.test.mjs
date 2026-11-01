@@ -674,3 +674,48 @@ test('a copy at another address runs on its own until its settings are filled in
   assert.equal(await p.text('#pushstat'), 'Reminders are not set up in this copy of Nap Log.');
   await done();
 });
+
+// The settings files a parent's Claude writes when following SETUP.md, at the parent's own address.
+const FRIEND = 'https://a-friend.github.io/nap-log/';
+const level1Config = () =>
+  nodeFs
+    .readFileSync(new URL('../../SETUP.md', import.meta.url), 'utf8')
+    .match(/```js\n([\s\S]*?const VAPID_PUBLIC = null;)\n\s*```/)[1]
+    .replace(/^ {3}/gm, '')
+    .replace('USERNAME', 'a-friend');
+
+test('SETUP.md level 1: a copy with its own address and no sharing works on one phone', async () => {
+  const fs = new FakeFirestore();
+  const config = level1Config();
+  assert.match(config, /APP_ADDRESS = 'https:\/\/a-friend\.github\.io\/nap-log\/'/);
+  const p = await phone({ fs, now: at(D0, 0, 8, 30), address: FRIEND, config, storage: { settings: S3 } });
+  assert.equal(await p.text('#sync'), 'local only');
+  await p.page.getByRole('button', { name: 'Start nap' }).click();
+  assert.equal(await p.text('#nowbtns'), 'End nap');
+  assert.equal((await p.storage('entries')).length, 1, 'the nap is kept on the phone');
+  await p.page.click('#bell');
+  assert.equal(await p.text('#pushstat'), 'Reminders are not set up in this copy of Nap Log.');
+  assert.deepEqual(Object.keys(fs.docs), []);
+  await done();
+});
+
+test('SETUP.md level 2: a copy with its own Firebase project shares between two phones', async () => {
+  const fs = new FakeFirestore();
+  const config = level1Config().replace(
+    'const FIREBASE_CONFIG = null;',
+    "const FIREBASE_CONFIG = { apiKey: 'made-up-key', authDomain: 'friend-naps.firebaseapp.com', projectId: 'friend-naps', appId: '1:2:web:3' };",
+  );
+  const opts = { fs, now: at(D0, 0, 8, 30), address: FRIEND, config, storage: { settings: S3, family: FAMILY } };
+  const a = await phone(opts);
+  const b = await phone({ ...opts, device: 'iPhone 13' });
+  for (const p of [a, b]) await until(async () => (await p.text('#sync')) === 'shared', { what: 'shared' });
+  assert.equal(
+    await a.page.evaluate(() => firebase.apps[0].options.projectId),
+    'friend-naps',
+    "the copy's own project",
+  );
+  await a.page.getByRole('button', { name: 'Start nap' }).click();
+  await until(async () => (await b.text('#nowbtns')) === 'End nap', { what: 'B sees the nap' });
+  assert.equal(fs.entries(FAMILY).length, 1);
+  await done();
+});

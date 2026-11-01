@@ -159,6 +159,7 @@ export async function openPhone(
     serviceWorkers = 'block',
     offlineFonts = true,
     address = null,
+    config = null,
   } = {},
 ) {
   const b = await launch();
@@ -214,6 +215,13 @@ export async function openPhone(
     await context.route(
       (u) => u.href.startsWith(address),
       async (r) => r.fulfill({ response: await r.fetch({ url: base + r.request().url().slice(address.length) }) }),
+    );
+  }
+  // config: the text of js/config.js to serve instead of the repo's (a copy's own settings)
+  if (config != null) {
+    await context.route(
+      (u) => u.href.startsWith(address || base) && new URL(u.href).pathname.endsWith('/js/config.js'),
+      (r) => r.fulfill({ contentType: 'text/javascript', body: config }),
     );
   }
   await page.goto(address || base);
