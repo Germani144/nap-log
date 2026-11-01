@@ -5,13 +5,8 @@
 // This script reads it and, if it is due, sends it to every phone that enabled notifications.
 // The log is public (this repo is public), so it only prints counts, never codes or times.
 import webpush from 'web-push';
+import { readAppConfig, pagesAddress } from './config.mjs';
 
-const PROJECT_ID = 'nap-log-78cb6';
-const API_KEY = 'AIzaSyDDKYM5tvjTixUdBq0BAd9-recAyoL6TE4'; // public web key, same as in the app
-const VAPID_PUBLIC_KEY = 'BFiW5XF3dmk6tzUYTLA4dJeelx0_F-OlKKiaz41CSTytp5ro8gCZUZZt6vnPTJGGyTIVvm7NT8v28hVJ7UVQujY';
-const SITE = 'https://germani144.github.io/nap-log/';
-const FS =
-  process.env.FS_BASE || `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 // Each message also becomes a run annotation (visible without opening the log). Counts and statuses only, never codes or times.
 const log = (m) => console.log('::notice::' + m);
 const GRACE = 3 * 60e3; // do not send in the last 3 minutes before the event itself: too late to be useful
@@ -20,12 +15,29 @@ const code = process.env.FAMILY_CODE;
 const priv = process.env.VAPID_PRIVATE_KEY;
 const now = +process.env.TEST_NOW || Date.now();
 
+// Not set up (a copy of the app that skipped reminders): stop quietly, without failing the run.
 if (!code || !priv) {
-  console.error(
-    'Missing secret(s): add FAMILY_CODE and VAPID_PRIVATE_KEY under Settings > Secrets and variables > Actions.',
+  log(
+    'Reminders are not set up: add FAMILY_CODE and VAPID_PRIVATE_KEY under Settings > Secrets and variables > Actions.',
   );
-  process.exit(1);
+  process.exit(0);
 }
+const cfg = readAppConfig(new URL('../js/config.js', import.meta.url));
+if (!cfg.FIREBASE_CONFIG || !cfg.VAPID_PUBLIC || !cfg.APP_ADDRESS) {
+  log('js/config.js has no Firebase project, push key or address yet: nothing to send.');
+  process.exit(0);
+}
+const here = pagesAddress(process.env.GITHUB_REPOSITORY);
+if (here && here !== cfg.APP_ADDRESS) {
+  log('js/config.js belongs to another address (' + cfg.APP_ADDRESS + '); fill it in for ' + here + ' first.');
+  process.exit(0);
+}
+const PROJECT_ID = cfg.FIREBASE_CONFIG.projectId;
+const API_KEY = cfg.FIREBASE_CONFIG.apiKey; // public web key, the same as in the app
+const VAPID_PUBLIC_KEY = cfg.VAPID_PUBLIC;
+const SITE = cfg.APP_ADDRESS;
+const FS =
+  process.env.FS_BASE || `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 webpush.setVapidDetails(SITE, VAPID_PUBLIC_KEY, priv);
 
 const val = (v) =>

@@ -112,6 +112,19 @@ const base64UrlToBytes = (s) => {
 const deviceName = (userAgent) =>
   /iPhone|iPad|iPod/.test(userAgent) ? 'iPhone' : /Android/.test(userAgent) ? 'Android' : 'other';
 
+// ---------- this copy's settings ----------
+// Whether js/config.js belongs to the address the app runs at (its APP_ADDRESS). A copy someone made of the app runs at
+// another address and must not use the original's Firebase project or push key. localhost and 127.0.0.1 are for tests.
+function configAppliesHere(appAddress, origin) {
+  if (!appAddress) return false;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  try {
+    return new URL(appAddress).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
 // ---------- updates ----------
 // The version the server's sw.js carries in its cache name (kept equal to VER), or null. Older versions read it with the
 // same regex, so the cache-name line in sw.js keeps exactly this shape.
@@ -128,5 +141,6 @@ if (typeof module !== 'undefined')
     reminderUpdate,
     base64UrlToBytes,
     deviceName,
+    configAppliesHere,
     versionInSw,
   };

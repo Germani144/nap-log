@@ -9,7 +9,7 @@
 - Keep README.md up to date: update it in the same commit whenever a change affects what it describes.
 - Same for the in-app "How the plan works" section (`#algo` in index.html): update it whenever the logic or the
   screen it explains changes.
-- Every release: bump the version (minor +1) in both `VER` in js/config.js and the cache name in sw.js (`nap-log-vX.Y`). They must match.
+- Every release: bump the version (minor +1) in both `VER` in js/version.js and the cache name in sw.js (`nap-log-vX.Y`). They must match.
 - Commit and push to main after each change; the app is served by GitHub Pages from main. A change made in several
   commits is pushed together, with one version bump, so phones never load a half-done state.
 - Changes to the plan model (plan.js): feature branch, one commit per idea, benchmark with tools/backtest.mjs on an

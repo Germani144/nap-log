@@ -534,7 +534,7 @@ test('opens from the phone without downloading the app; a new release takes over
 
     // "release" a new version on the server: only the version changes, like a real release
     const swFile = path.join(copy, 'sw.js'),
-      cfg = path.join(copy, 'js/config.js');
+      cfg = path.join(copy, 'js/version.js');
     const next = '99.' + (Date.now() % 1000);
     nodeFs.writeFileSync(swFile, nodeFs.readFileSync(swFile, 'utf8').replace(/C=P\+'v[\d.]+'/, `C=P+'v${next}'`));
     nodeFs.writeFileSync(
@@ -651,5 +651,26 @@ test('Statistics plots how far off the plan was', async () => {
   await svg.dispatchEvent('pointermove', { clientX: box.x + box.width - 5, clientY: box.y + 20 });
   assert.match(await chart.locator('.tip').innerText(), /Nap start\s*10 min/);
   assert.equal(await p.page.locator('#stats .acc').count(), 0, 'the old table is gone');
+  await done();
+});
+
+test('a copy at another address runs on its own until its settings are filled in', async () => {
+  const fs = new FakeFirestore();
+  const p = await phone({
+    fs,
+    now: at(D0, 0, 12, 0),
+    address: 'https://a-friend.github.io/nap-log/',
+    storage: { entries: madeUpHistory(D0, 3), settings: S3, family: 'their made-up code' },
+  });
+  assert.equal(await p.page.evaluate(() => location.origin), 'https://a-friend.github.io');
+  assert.equal(
+    await p.text('#sync'),
+    'local only',
+    'the family code is ignored: the settings are not for this address',
+  );
+  assert.match(await p.row('Nap 1').innerText(), /\d\d:\d\d/);
+  assert.deepEqual(Object.keys(fs.docs), [], "nothing was written to the original's Firebase project");
+  await p.page.click('#bell');
+  assert.equal(await p.text('#pushstat'), 'Reminders are not set up in this copy of Nap Log.');
   await done();
 });
