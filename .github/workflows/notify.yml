@@ -22,7 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          sparse-checkout: sender
+          # the sender and the app's settings file (its Firebase project, push key and address)
+          sparse-checkout: |
+            sender
+            js/config.js
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22

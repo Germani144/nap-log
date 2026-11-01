@@ -36,7 +36,12 @@ function connectSync() {
   unsubscribers = [];
   db = null;
   familyDoc = null;
-  if (typeof firebase === 'undefined' || !FIREBASE_CONFIG || !familyCode) {
+  if (
+    typeof firebase === 'undefined' ||
+    !FIREBASE_CONFIG ||
+    !configAppliesHere(APP_ADDRESS, location.origin) ||
+    !familyCode
+  ) {
     showSyncStatus('local only', true);
     return render();
   }

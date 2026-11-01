@@ -16,6 +16,8 @@ function syncReminder(want) {
     });
 }
 
+// reminders need a push key in js/config.js that belongs to this address (a copy may not have one)
+const remindersSetUp = () => !!VAPID_PUBLIC && configAppliesHere(APP_ADDRESS, location.origin);
 const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
 const isStandalone =
   (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
@@ -57,7 +59,7 @@ let pushNote = '';
 let refreshingSubscription = false;
 async function refreshSubscription() {
   // keep the saved copy current; quietly re-subscribe if the phone dropped the subscription
-  if (!(pushSupported && db && Notification.permission === 'granted')) return;
+  if (!(pushSupported && remindersSetUp() && db && Notification.permission === 'granted')) return;
   try {
     let s = await getSubscription();
     // the sender marks subscriptions the push service rejected (deadSubs): drop ours if it is one, then subscribe afresh
@@ -105,6 +107,7 @@ async function renderPush() {
   if (!pushSupported) return set('This browser does not support notifications.', true);
   if (isIos && !isStandalone)
     return set('On iPhone, open the app from its home-screen icon first, then come back here.', true);
+  if (!remindersSetUp()) return set('Reminders are not set up in this copy of Nap Log.', true);
   if (!db) return set('Needs sharing: add the family code in Settings (⚙ at the top) first.', true);
   if (Notification.permission === 'denied')
     return set('Blocked. Allow notifications for this app in the phone settings, then reopen it.', true);

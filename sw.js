@@ -14,6 +14,7 @@ const APP_FILES = [
   'backup.js',
   'js/core.js',
   'js/config.js',
+  'js/version.js',
   'js/storage.js',
   'js/state.js',
   'js/sync.js',

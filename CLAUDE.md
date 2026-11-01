@@ -1,5 +1,11 @@
 # Notes for Claude
 
+**If this repository is a copy (a fork, not Germani144/nap-log):** you are most likely helping a parent run their own
+Nap Log. Follow `SETUP.md` and change only `js/config.js`. The notes below about Pedro's chats, his history rewrite,
+releases and his other apps' addresses are about the original only. These rules apply to every copy: never put a family
+code, a private push key or anything about the baby (names, times, exports) into the repository, and never change the
+manifest `id`.
+
 - Scope: work only in this repository (Germani144/nap-log). Do not clone, attach or change any other repository
   from a nap-log session. Each of Pedro's apps has its own chat.
 - **History was rewritten on 2026-10-22** to remove personal nap data from the public history (main is now b2ca908 or later). At the start of every session, before editing: `git fetch origin && git reset --hard origin/main` (or re-clone). Never push older local commits or branches, and never force-push old history: that would put the data back.
@@ -9,7 +15,7 @@
 - Keep README.md up to date: update it in the same commit whenever a change affects what it describes.
 - Same for the in-app "How the plan works" section (`#algo` in index.html): update it whenever the logic or the
   screen it explains changes.
-- Every release: bump the version (minor +1) in both `VER` in js/config.js and the cache name in sw.js (`nap-log-vX.Y`). They must match.
+- Every release: bump the version (minor +1) in both `VER` in js/version.js and the cache name in sw.js (`nap-log-vX.Y`). They must match.
 - Commit and push to main after each change; the app is served by GitHub Pages from main. A change made in several
   commits is pushed together, with one version bump, so phones never load a half-done state.
 - Changes to the plan model (plan.js): feature branch, one commit per idea, benchmark with tools/backtest.mjs on an

@@ -36,7 +36,8 @@ code that runs at load only touches earlier files):
 | `js/` file       | What it holds                                                                                                                                                  |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core.js`        | The pure helpers above                                                                                                                                         |
-| `config.js`      | Firebase web config, `VER` (the app version) and the public push key                                                                                           |
+| `config.js`      | This copy's settings: its address (`APP_ADDRESS`), Firebase web config and public push key. The only file a copy (fork) edits                                  |
+| `version.js`     | `VER`, the app version (kept out of `config.js` so a fork's settings never clash with updates)                                                                 |
 | `storage.js`     | localStorage under `nap-log.` (`load`, `save`, `lsGet`, `lsSet`, `lsDel`) and the one-time move from old `nt_` keys                                            |
 | `state.js`       | The app state: `settings`, `entries` (the live 14 days), `olderEntries`, `familyCode`, `db`, `familyDoc`, the History month and day, `allEntries`, `findEntry` |
 | `sync.js`        | `saveEntry` / `deleteEntry` (Firestore or this phone), `connectSync` (live listeners)                                                                          |
@@ -214,6 +215,12 @@ first: an expired token shows up there as HTTP 401.
 
 On iPhone, push only works when the app is opened from its home-screen icon (iOS 16.4 or later).
 
+**Settings come from the app (v3.22):** the sender reads the Firebase project, the public push key and the address from
+`js/config.js` (`sender/config.mjs`), and checks that the address is this repository's GitHub Pages address
+(from `GITHUB_REPOSITORY`). Without the two secrets, without settings, or with settings for another address, it logs
+why and stops without failing, so forks that skipped reminders get no error emails. The workflow checks out only
+`sender/` and `js/config.js`.
+
 ## Export and import
 
 In Settings (⚙): **Export data** downloads `nap-log-YYYY-MM-DD.json` with every entry (in shared mode the whole family
@@ -263,8 +270,20 @@ successful responses, only handles requests inside `/nap-log/`, and a notificati
 Nap Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push: after pushing,
 check `https://germani144.github.io/nap-log/sw.js` shows the new version; if not, push again to re-trigger the build.
 Phones on older versions read that version with the regex `C=P\+'v([\d.]+)'`, so the cache-name line in `sw.js` keeps
-exactly the shape `const P='nap-log-',C=P+'v3.21';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
+exactly the shape `const P='nap-log-',C=P+'v3.22';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
 checks it).
+
+## Copies of the app (forks)
+
+Friends can run their own Nap Log: fork this repository, switch on GitHub Pages, and optionally add their own Firebase
+project (sharing) and push keys (reminders). Everything a copy changes is in `js/config.js`; `SETUP.md` is the
+step-by-step guide, written for the person's own Claude to walk them through it. (It is shared privately as a link,
+not advertised here.) In a fresh fork `js/config.js` still holds this copy's settings, but `APP_ADDRESS` does not
+match the fork's address, so the app ignores them (`configAppliesHere` in `js/core.js`): it runs on its own (data on
+each phone), the family code field is ignored and the bell says reminders are not set up, until the fork's own
+settings are filled in. The user-facing texts say "your baby", not "she". The browser tests follow the guide: they open the app at a made-up
+fork address with the Level 1 `js/config.js` taken from `SETUP.md` itself (local only), and with its own Firebase
+project (two phones share). Keep those tests passing when `SETUP.md` changes.
 
 ## Security
 
@@ -303,8 +322,8 @@ clock and no network. The Firebase SDK is replaced by `fake-firebase.js`, a smal
 runner keeps (`harness.mjs`), so two "phones" share one family log. They cover logging naps and nights with the buttons
 and by hand, editing and deleting (typed times, refusals), the plan screen, extra naps, an unlogged wake-up, settings,
 sharing between two phones (naps, extra naps, settings, the reminder), History loading older months, Statistics,
-export → import (Merge, Replace with its second confirmation, a broken file), the bell, tab swipes, offline use and
-Check for updates. Every test also fails on any console error or Content-Security-Policy violation.
+export → import (Merge, Replace with its second confirmation, a broken file), the bell, tab swipes, offline use,
+Check for updates and copies at another address (`address` and `config` options of `openPhone`). Every test also fails on any console error or Content-Security-Policy violation.
 
 **Benchmarking a plan change:** export from the phone (Settings → Export data, keep the file outside the repo), then run
 `tools/backtest.mjs` on it with the old and the new `plan.js` over the same days (`--from`, `--to`; the export's target
@@ -321,8 +340,8 @@ or after the suggestion (a hint of how much the suggestions steer you).
 # Changing the code
 
 - **Releases:** every release gets a version `vMAJOR.MINOR` (minor +1 per release, major for big redesigns), set in two
-  places: `VER` in `js/config.js` (shown next to the title and saved with each prediction) and the cache name in `sw.js`
-  (`nap-log-v3.21`), or phones keep showing the old version. Run all tests, then push to main.
+  places: `VER` in `js/version.js` (shown next to the title and saved with each prediction) and the cache name in `sw.js`
+  (`nap-log-v3.22`), or phones keep showing the old version. Run all tests, then push to main.
 - **Clock changes:** a day is not always 24 hours (23 in March, 25 in October). Go from a day to the next with
   `addDays`, and from a plan time (minutes of the day) to a moment with `timeAtMinute` (both in `plan.js`); never add
   `DAY` or `minutes × 60000` to a midnight. `tests/clock-change.test.mjs` covers both clock changes (fixed in v3.16:

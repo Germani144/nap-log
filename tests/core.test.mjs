@@ -158,3 +158,14 @@ test('withoutDuplicates: the same nap or night logged twice counts once', () => 
   assert.deepEqual(withoutDuplicates([running, { ...running, id: 'r2' }]), [running]);
   assert.deepEqual(withoutDuplicates([]), []);
 });
+
+test('configAppliesHere: settings are used only at their own address (and locally for tests)', () => {
+  const { configAppliesHere } = core;
+  const mine = 'https://germani144.github.io/nap-log/';
+  assert.equal(configAppliesHere(mine, 'https://germani144.github.io'), true);
+  assert.equal(configAppliesHere(mine, 'https://a-friend.github.io'), false, 'a copy at another address');
+  assert.equal(configAppliesHere(mine, 'http://127.0.0.1:8080'), true);
+  assert.equal(configAppliesHere(mine, 'http://localhost:3000'), true);
+  assert.equal(configAppliesHere(null, 'https://germani144.github.io'), false);
+  assert.equal(configAppliesHere('not an address', 'https://germani144.github.io'), false);
+});

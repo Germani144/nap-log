@@ -151,7 +151,16 @@ export async function closeBrowser() {
 // violation is collected in phone.problems; tests assert it stays empty.
 export async function openPhone(
   base,
-  { fs: fakeFs, storage = {}, now, device = 'Pixel 7', serviceWorkers = 'block', offlineFonts = true } = {},
+  {
+    fs: fakeFs,
+    storage = {},
+    now,
+    device = 'Pixel 7',
+    serviceWorkers = 'block',
+    offlineFonts = true,
+    address = null,
+    config = null,
+  } = {},
 ) {
   const b = await launch();
   const { defaultBrowserType, ...desc } = devices[device];
@@ -201,7 +210,21 @@ export async function openPhone(
     yes ? await d.accept() : await d.dismiss();
   });
   if (now != null) await page.clock.setFixedTime(now);
-  await page.goto(base);
+  // address: open the app as if it were published at another address (a copy someone made), served from this repo
+  if (address) {
+    await context.route(
+      (u) => u.href.startsWith(address),
+      async (r) => r.fulfill({ response: await r.fetch({ url: base + r.request().url().slice(address.length) }) }),
+    );
+  }
+  // config: the text of js/config.js to serve instead of the repo's (a copy's own settings)
+  if (config != null) {
+    await context.route(
+      (u) => u.href.startsWith(address || base) && new URL(u.href).pathname.endsWith('/js/config.js'),
+      (r) => r.fulfill({ contentType: 'text/javascript', body: config }),
+    );
+  }
+  await page.goto(address || base);
   await page.waitForFunction(() => document.querySelector('#hero')?.innerHTML.length > 0);
   phone.setTime = (t) => page.clock.setFixedTime(t);
   // innerText with non-breaking spaces (used in durations like "3h 00m") turned into plain spaces
