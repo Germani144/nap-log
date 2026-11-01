@@ -316,7 +316,7 @@ function render() {
       heroLabel = 'Asleep for';
       heroBig = duration((nowMs - running.start) / 6e4);
       heroSmall = 'since ' + clockTime(minuteOfDay(running.start)) + ' · nap ' + (todaysNaps.indexOf(running) + 1);
-      // the nap's target (what is left of the day's nap-time goal): time left until it, or how far past it she is
+      // the nap's target (what is left of the day's nap-time goal): time left until it, or how far past it your baby is
       if (plan.cur) {
         const d = Math.round(plan.cur.end - nowMin),
           mn = (x) => (x < 60 ? x + ' min' : duration(x));

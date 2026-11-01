@@ -317,11 +317,11 @@ test('shared History loads older months; Statistics draws its charts', async () 
   await p.page.click('#t-stats');
   assert.equal(await p.page.locator('#stats .chart').count(), 6);
   assert.deepEqual(await p.page.locator('#stats .chart h2').allInnerTexts(), [
-    'When she falls asleep',
-    'When she wakes up',
+    'When your baby falls asleep',
+    'When your baby wakes up',
     'How long naps last',
     'Night sleep',
-    'Her day',
+    "Your baby's day",
     'How far off the plan was',
   ]);
   await p.page.getByRole('button', { name: '7 days' }).click();

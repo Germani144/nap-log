@@ -237,7 +237,7 @@ function renderStats() {
   let h = `<div class="seg">${[7, 14, 30].map((n) => `<button class="${n === statsDays ? 'on' : ''}"${tapAction('stats-range', { n })}>${n} days</button>`).join('')}</div>`;
   h += lineChart(
     'start',
-    'When she falls asleep',
+    'When your baby falls asleep',
     'Start of each nap and bedtime, per day',
     days,
     [
@@ -249,7 +249,7 @@ function renderStats() {
   );
   h += lineChart(
     'wake',
-    'When she wakes up',
+    'When your baby wakes up',
     'Morning wake-up and the end of each nap, per day',
     days,
     [
@@ -277,7 +277,7 @@ function renderStats() {
     (v) => duration(v),
     60,
   );
-  h += barChart('day', 'Her day', 'Awake, napping and night sleep, per day (complete days only)', days, [
+  h += barChart('day', "Your baby's day", 'Awake, napping and night sleep, per day (complete days only)', days, [
     { name: 'Night sleep', color: CHART_COLORS.night, vals: days.map((d) => d.night) },
     { name: 'Naps', color: CHART_COLORS.naps, vals: days.map((d) => d.napSum) },
     { name: 'Awake', color: CHART_COLORS.awake, vals: days.map((d) => d.awake) },
