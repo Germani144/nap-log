@@ -693,7 +693,7 @@ test('Statistics plots how far off the plan was', async () => {
   assert.equal(await chart.locator('h2').innerText(), 'How far off the plan was');
   assert.match(await chart.locator('.csub').innerText(), /Lower is better/);
   assert.deepEqual(
-    (await chart.locator('.leg2 span').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim()),
+    (await chart.locator('.leg2 .lg').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim()),
     ['Nap start 10 min (21)', 'Nap length 20 min (21)', 'Bedtime 10 min (7)', 'Wake-up 20 min (6)'],
   );
   assert.equal(await chart.locator('svg path[stroke]').count(), 4, 'four curves');
@@ -702,6 +702,52 @@ test('Statistics plots how far off the plan was', async () => {
   await svg.dispatchEvent('pointermove', { clientX: box.x + box.width - 5, clientY: box.y + 20 });
   assert.match(await chart.locator('.tip').innerText(), /Nap start\s*10 min/);
   assert.equal(await p.page.locator('#stats .acc').count(), 0, 'the old table is gone');
+  await done();
+});
+
+test('tapping a legend name shows only that line and fits the axis; tapping it again shows all', async () => {
+  const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
+  await p.page.click('#t-stats');
+  const chart = () => p.page.locator('#stats .chart[data-k=start]');
+  const axis = async () =>
+    (
+      await chart()
+        .locator('svg text[text-anchor=end]')
+        .evaluateAll((t) => t.map((x) => x.textContent))
+    ).filter((t) => t.includes(':'));
+  const allAxis = await axis();
+  assert.equal(await chart().locator('svg path[stroke]').count(), 4, 'three naps and bedtime');
+  await chart()
+    .getByRole('button', { name: /^Bedtime/ })
+    .click();
+  assert.equal(await chart().locator('svg path[stroke]').count(), 1);
+  assert.equal(await chart().locator('svg path[stroke]').getAttribute('stroke'), '#d55181');
+  const bedAxis = await axis();
+  assert.ok(bedAxis.length >= 2 && bedAxis[0] >= '18:00', 'the axis fits bedtime only: ' + bedAxis);
+  assert.notDeepEqual(bedAxis, allAxis);
+  assert.equal(await chart().locator('.lg.off').count(), 3, 'the others are dimmed, still tappable');
+  assert.equal(
+    await chart()
+      .getByRole('button', { name: /^Bedtime/ })
+      .getAttribute('aria-pressed'),
+    'true',
+  );
+  // another name switches to it; the same name again shows all
+  await chart()
+    .getByRole('button', { name: /^Nap 1/ })
+    .click();
+  assert.equal(await chart().locator('svg path[stroke]').getAttribute('stroke'), '#3987e5');
+  await chart()
+    .getByRole('button', { name: /^Nap 1/ })
+    .click();
+  assert.equal(await chart().locator('svg path[stroke]').count(), 4);
+  assert.deepEqual(await axis(), allAxis);
+  // the stacked day chart: one part on its own, with an axis in hours fitted to it
+  const day = p.page.locator('#stats .chart[data-k=day]');
+  await day.getByRole('button', { name: /^Naps/ }).click();
+  assert.equal(new Set(await day.locator('svg rect').evaluateAll((r) => r.map((x) => x.getAttribute('fill')))).size, 1);
+  const hours = (await day.locator('svg text[text-anchor=end]').evaluateAll((t) => t.map((x) => x.textContent))).at(-1);
+  assert.ok(parseInt(hours) < 24, 'fitted, not the whole day: ' + hours);
   await done();
 });
 

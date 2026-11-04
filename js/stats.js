@@ -63,9 +63,21 @@ function lineChart(key, title, sub, days, series, fmt, step, opts = {}) {
     B = 24,
     pw = W - L - R,
     ph = H - T - B,
-    n = days.length;
+    n = days.length,
+    legend = series;
+  series = focused(key, series);
   const all = series.flatMap((s) => s.vals).filter((v) => v != null);
-  if (!all.length) return chartBox(key, title, sub, '<div class="mu nodata">Not enough data yet for this range.</div>');
+  if (!all.length)
+    return chartBox(
+      key,
+      title,
+      sub,
+      '<div class="mu nodata">Not enough data yet for this range.</div>',
+      null,
+      fmt,
+      null,
+      legend,
+    );
   let lo = Math.floor((Math.min(...all) - step * 0.3) / step) * step,
     hi = Math.ceil((Math.max(...all) + step * 0.3) / step) * step;
   if (opts.fromZero) lo = Math.max(0, lo); // errors and other amounts that cannot go below zero
@@ -107,6 +119,7 @@ function lineChart(key, title, sub, days, series, fmt, step, opts = {}) {
     series,
     fmt,
     { X, Y, n, days, L, R, T, B, W, H, pw },
+    legend,
   );
 }
 // stacked bars per day: [{name,color,vals}] from the bottom up, values in minutes
@@ -120,15 +133,29 @@ function barChart(key, title, sub, days, series) {
     pw = W - L - R,
     ph = H - T - B,
     n = days.length,
-    hi = 24 * 60;
+    legend = series;
+  series = focused(key, series);
   const tot = days.map((_, i) => series.reduce((x, s) => x + (s.vals[i] || 0), 0));
   if (!tot.some((x) => x > 0))
-    return chartBox(key, title, sub, '<div class="mu nodata">Not enough data yet for this range.</div>');
+    return chartBox(
+      key,
+      title,
+      sub,
+      '<div class="mu nodata">Not enough data yet for this range.</div>',
+      null,
+      null,
+      null,
+      legend,
+    );
+  // the whole day is 24 hours; one part on its own gets an axis fitted to it, in whole hours
+  const hours = series.length > 1 ? 24 : Math.ceil(Math.max(...tot) / 60),
+    tick = series.length > 1 ? 6 : hours <= 4 ? 1 : hours <= 8 ? 2 : hours <= 12 ? 3 : 6,
+    hi = Math.max(tick, Math.ceil(hours / tick) * tick) * 60;
   const bw = pw / n,
     Y = (v) => T + ph - (v / hi) * ph,
     X = (i) => L + i * bw + bw / 2;
   let g = '';
-  [0, 6, 12, 18, 24].forEach(
+  Array.from({ length: hi / 60 / tick + 1 }, (_, k) => k * tick).forEach(
     (h) =>
       (g += `<line x1="${L}" x2="${W - R}" y1="${round1(Y(h * 60))}" y2="${round1(Y(h * 60))}" class="grid"/><text x="${L - 6}" y="${round1(Y(h * 60) + 4)}" class="ax" text-anchor="end">${h}h</text>`),
   );
@@ -158,25 +185,40 @@ function barChart(key, title, sub, days, series) {
     series,
     (v) => duration(v),
     { X, Y: null, n, days, L, R, T, B, W, H, pw, bars: true },
+    legend,
   );
 }
+// Tapping a name in a chart's legend shows only that line (or bar) and fits the axis to it; tapping it again shows them
+// all. Remembered per chart while the app is open.
+const chartFocus = {};
+function setChartFocus(key, i) {
+  chartFocus[key] = chartFocus[key] === i ? undefined : i;
+  renderStats();
+}
+const focused = (key, series) => {
+  const i = chartFocus[key];
+  return i != null && series[i] ? [series[i]] : series;
+};
 const chartData = {};
-function chartBox(key, title, sub, body, series, fmt, geo) {
-  if (series) {
+function chartBox(key, title, sub, body, series, fmt, geo, legend = series) {
+  if (series && geo) {
     chartData[key] = { series, fmt, geo };
   } else delete chartData[key];
   // one series: no legend box (the title names it), its average goes in the subtitle
-  if (series && series.length === 1) {
-    const m = meanOf(series[0].vals);
+  if (legend && legend.length === 1) {
+    const m = meanOf(legend[0].vals);
     if (m != null) sub += ` · average <b>${fmt(m)}</b>`;
   }
+  // a legend name is a button: tap it to show only that series (again to show all), see chartFocus
+  const on = chartFocus[key];
   const leg =
-    series && series.length > 1
-      ? `<div class="leg2">${series
-          .map((s) => {
+    legend && legend.length > 1
+      ? `<div class="leg2">${legend
+          .map((s, i) => {
             // the period's average (a series may bring its own, e.g. over all naps rather than per day) and how many
             const m = s.avg != null ? s.avg : meanOf(s.vals);
-            return `<span><i style="background:${s.color}"></i>${s.name}${m != null ? ` <b>${fmt(m)}</b>` : ''}${s.count != null ? ` (${s.count})` : ''}</span>`;
+            const state = on == null ? '' : on === i ? ' on' : ' off';
+            return `<button class="lg${state}" aria-pressed="${on === i}"${tapAction('chart-focus', { k: key, i })}><i style="background:${s.color}"></i>${s.name}${m != null && fmt ? ` <b>${fmt(m)}</b>` : ''}${s.count != null ? ` (${s.count})` : ''}</button>`;
           })
           .join('')}</div>`
       : '';
@@ -306,7 +348,7 @@ function renderStats() {
     15,
     { fromZero: true },
   );
-  h += `<div class="foot">Bold numbers are the averages over the period. Touch a chart to see each day.</div>`;
+  h += `<div class="foot">Bold numbers are the averages over the period. Touch a chart to see each day; tap a name to show only that line.</div>`;
   const el = $('#stats');
   el.innerHTML = h;
   el.querySelectorAll('.chart svg').forEach((s) => {
