@@ -275,7 +275,7 @@ successful responses, only handles requests inside `/nap-log/`, and a notificati
 Nap Log's own caches and reloads. It also shows whether GitHub Pages is really serving the latest push: after pushing,
 check `https://germani144.github.io/nap-log/sw.js` shows the new version; if not, push again to re-trigger the build.
 Phones on older versions read that version with the regex `C=P\+'v([\d.]+)'`, so the cache-name line in `sw.js` keeps
-exactly the shape `const P='nap-log-',C=P+'v3.22';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
+exactly the shape `const P='nap-log-',C=P+'v3.23';` (it is marked `prettier-ignore`, and `tests/version.test.mjs`
 checks it).
 
 ## Copies of the app (forks)
@@ -346,7 +346,7 @@ or after the suggestion (a hint of how much the suggestions steer you).
 
 - **Releases:** every release gets a version `vMAJOR.MINOR` (minor +1 per release, major for big redesigns), set in two
   places: `VER` in `js/version.js` (shown next to the title and saved with each prediction) and the cache name in `sw.js`
-  (`nap-log-v3.22`), or phones keep showing the old version. Run all tests, then push to main.
+  (`nap-log-v3.23`), or phones keep showing the old version. Run all tests, then push to main.
 - **Clock changes:** a day is not always 24 hours (23 in March, 25 in October). Go from a day to the next with
   `addDays`, and from a plan time (minutes of the day) to a moment with `timeAtMinute` (both in `plan.js`); never add
   `DAY` or `minutes × 60000` to a midnight. `tests/clock-change.test.mjs` covers both clock changes (fixed in v3.16:
