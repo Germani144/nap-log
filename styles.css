@@ -659,10 +659,22 @@ button.alt .zz {
   margin-top: 10px;
   font-size: 13px;
 }
-.leg2 span {
+.leg2 .lg {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+  padding: 4px 0;
+  border-radius: 6px;
+}
+.leg2 .lg.off {
+  opacity: 0.4;
+}
+.leg2 .lg.on {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .leg2 i,
 .tip i {

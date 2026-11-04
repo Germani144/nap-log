@@ -12,6 +12,7 @@ const ACTIONS = {
   stop: (d) => endSleep(d.id),
   tab: (d) => setTab(d.tab),
   'stats-range': (d) => setStatsDays(+d.n),
+  'chart-focus': (d) => setChartFocus(d.k, +d.i),
   'pick-day': (d) => pickDay(+d.day),
   month: (d) => showMonth(+d.y, +d.m),
 };

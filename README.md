@@ -44,9 +44,9 @@ code that runs at load only touches earlier files):
 | `entries.js`     | Start / end a nap or night (`startSleep`, `endSleep`, with the saved prediction), extra naps (`setExtraNaps`, `extraNapsToday`)                                |
 | `ring.js`        | SVG drawing helpers for the day ring and `planRow` for the plan list                                                                                           |
 | `today.js`       | `render()`: the Today tab (ring, countdown, buttons, plan), the plan animation, then History and Statistics                                                    |
-| `edit-dialog.js` | The edit box for a nap or night: `openEdit`, `openAdd`, `logWake`, Save and Delete                                                                             |
+| `edit-dialog.js` | The edit box for a nap or night: `openEdit`, `openAdd`, `logWake`, Save, Resume and Delete                                                                     |
 | `notify.js`      | The reminder written for the sender (`syncReminder`), push subscriptions and the bell box                                                                      |
-| `stats.js`       | The Statistics tab (line and bar charts, touch tooltips)                                                                                                       |
+| `stats.js`       | The Statistics tab (line and bar charts, touch tooltips, tap a legend name to show only that line)                                                             |
 | `tabs.js`        | Switching tabs by tapping or swiping                                                                                                                           |
 | `history.js`     | The History tab: month calendar and the selected day; loads older months on demand                                                                             |
 | `settings.js`    | The Settings box (targets, family code hidden until Show)                                                                                                      |
@@ -180,11 +180,16 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   **Start nap** the outlined one. They keep their places; only the styles swap.
 - **The edit box** opens without focusing a time field, so the keyboard only appears when a time is tapped. Times are
   typed on the numeric keypad ("1437" → 14:37, "730" → 07:30, `parseTypedTime`). A night's fields are Bedtime and Wake-up.
+  **Resume** (v3.23) next to Save starts the last nap or night again (its end is removed, the same entry runs on), for
+  when she wakes up and falls asleep again. Only the most recent entry, and only while nothing is running
+  (`canResume` in `js/core.js`), from its row, from History or from the ring (a nap's bar, or the sun for the night).
 - **History**: a month calendar (each bar is that day's nap total) and the selected day's wake-up, naps and bedtime.
 - **Statistics** (v3): charts of the last 7, 14 or 30 full days (touch a chart for each day's values): when she falls
   asleep, when she wakes up, how long naps last, night sleep, and her day as stacked bars. Per-day figures come from
   `dailyStats` in `plan.js`. One scale per chart, so night sleep has its own chart. Colours were checked for
-  colour-blind separation and contrast on the dark background.
+  colour-blind separation and contrast on the dark background. Each name in a legend is a button (v3.23): tapping it
+  shows only that line (or that part of the day chart) with the axis fitted to it, the other names dimmed; tapping it
+  again shows them all (`chartFocus` in `stats.js`, kept while the app is open).
   The last chart, **How far off the plan was** (v3.21), plots per day how many minutes the app was off, from the
   predictions saved with each entry (`planErrors` in `plan.js`): nap start, nap length, bedtime and wake-up (night
   length vs the expected night). Several naps on a day are averaged as absolute errors, so −20 and +20 count as 20. The
@@ -320,8 +325,8 @@ TZ=Europe/Copenhagen node tools/accuracy.mjs nap-log-2026-10-31.json --days 7   
 **Browser tests** (`tests/browser/`): the real app in mobile-emulated Chromium (Pixel 7, one iPhone check) with a fixed
 clock and no network. The Firebase SDK is replaced by `fake-firebase.js`, a small fake Firestore whose data the test
 runner keeps (`harness.mjs`), so two "phones" share one family log. They cover logging naps and nights with the buttons
-and by hand, editing and deleting (typed times, refusals), the plan screen, extra naps, an unlogged wake-up, settings,
-sharing between two phones (naps, extra naps, settings, the reminder), History loading older months, Statistics,
+and by hand, editing, resuming and deleting (typed times, refusals), the plan screen, extra naps, an unlogged wake-up, settings,
+sharing between two phones (naps, extra naps, settings, the reminder), History loading older months, Statistics (and its tappable legends),
 export → import (Merge, Replace with its second confirmation, a broken file), the bell, tab swipes, offline use,
 Check for updates and copies at another address (`address` and `config` options of `openPhone`). Every test also fails on any console error or Content-Security-Policy violation.
 

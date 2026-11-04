@@ -1,4 +1,4 @@
-// The edit box for a nap or night: opening it for an entry or a new one, typed times, Save and Delete.
+// The edit box for a nap or night: opening it for an entry or a new one, typed times, Save, Resume and Delete.
 
 let editing = null;
 // a night's fields are its bedtime and wake-up; a nap's are its start and end
@@ -21,6 +21,7 @@ function openEdit(id) {
   $('#es').value = clockTime(minuteOfDay(e.start));
   $('#ee').value = e.end ? clockTime(minuteOfDay(e.end)) : '';
   $('#edel').style.display = '';
+  $('#eresume').hidden = !canResume(allEntries(), id);
   showEditDialog();
 }
 function openAdd(type, day, title) {
@@ -33,6 +34,7 @@ function openAdd(type, day, title) {
   $('#es').value = type === 'night' ? settings.bedtime : '';
   $('#ee').value = '';
   $('#edel').style.display = 'none';
+  $('#eresume').hidden = true;
   showEditDialog();
 }
 // Today's wake-up when it was not logged (the plan shows the 7-day average, "~05:37"): tapping it edits last night's
@@ -75,6 +77,15 @@ $('#esave').addEventListener('click', () => {
   const old = editing.id && findEntry(editing.id);
   animateNextRender();
   saveEntry(withPrediction({ ...(old || {}), id: editing.id || newId(), type: editing.type, start: st, end: en }, old));
+  $('#dlg').close();
+});
+// Resume: the last nap or night is running again (its end removed), as if it had never ended
+$('#eresume').addEventListener('click', () => {
+  const e = findEntry(editing.id);
+  if (e && canResume(allEntries(), e.id)) {
+    animateNextRender();
+    saveEntry({ ...e, end: null });
+  }
   $('#dlg').close();
 });
 $('#ecancel').addEventListener('click', () => $('#dlg').close());

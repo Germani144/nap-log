@@ -169,3 +169,17 @@ test('configAppliesHere: settings are used only at their own address (and locall
   assert.equal(configAppliesHere(null, 'https://germani144.github.io'), false);
   assert.equal(configAppliesHere('not an address', 'https://germani144.github.io'), false);
 });
+
+test('canResume: only the most recent entry, and only while nothing is running', () => {
+  const { canResume } = core;
+  const night = { id: 'n', type: 'night', start: 100, end: 500 },
+    nap1 = { id: 'a', type: 'nap', start: 600, end: 700 },
+    nap2 = { id: 'b', type: 'nap', start: 800, end: 900 };
+  assert.equal(canResume([night], 'n'), true, 'woke up, fell asleep again');
+  assert.equal(canResume([nap2, night, nap1], 'b'), true, 'in any order');
+  assert.equal(canResume([night, nap1, nap2], 'a'), false, 'not an earlier nap');
+  assert.equal(canResume([night, nap1, nap2], 'n'), false, 'not the night once a nap is logged');
+  assert.equal(canResume([night, nap1, { ...nap2, end: null }], 'a'), false, 'not while one is running');
+  assert.equal(canResume([night, { ...nap1, end: null }], 'a'), false, 'not the running one itself');
+  assert.equal(canResume([], 'a'), false);
+});

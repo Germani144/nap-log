@@ -573,6 +573,57 @@ test('a suggested extra nap can be added from its row and from the ring', async 
   await done();
 });
 
+test('the last nap can be resumed from its row and from the ring, earlier ones cannot', async () => {
+  const E = [
+    ...madeUpHistory(D0, 10),
+    { id: 'td1', type: 'nap', start: at(D0, 0, 8, 30), end: at(D0, 0, 9, 20) },
+    { id: 'td2', type: 'nap', start: at(D0, 0, 11, 30), end: at(D0, 0, 11, 40) },
+  ];
+  const p = await phone({ now: at(D0, 0, 11, 50), storage: { entries: E, settings: S3 } });
+  await p.row('Nap 1').click();
+  assert.equal(await p.page.isVisible('#eresume'), false, 'not the last one');
+  await p.page.click('#ecancel');
+  // the last nap, from the ring (its arc on the dial)
+  await p.page.locator('#hero svg [data-id="td2"]').first().dispatchEvent('click');
+  assert.equal(await p.text('#dt'), 'Nap · 10-14');
+  assert.equal(await p.page.isVisible('#eresume'), true);
+  await p.page.click('#eresume');
+  assert.equal(await p.text('#nowbtns'), 'End nap');
+  assert.match(await p.text('#hero'), /Asleep for/);
+  const td2 = (await p.storage('entries')).find((e) => e.id === 'td2');
+  assert.deepEqual([td2.start, td2.end], [at(D0, 0, 11, 30), null], 'the same nap, running again');
+  // while it runs, nothing else offers Resume
+  await p.row('Nap 1').click();
+  assert.equal(await p.page.isVisible('#eresume'), false);
+  await p.page.click('#ecancel');
+  await p.setTime(at(D0, 0, 12, 30));
+  await p.page.getByRole('button', { name: 'End nap' }).click();
+  assert.match(await p.row('Nap 2').innerText(), /11:30–12:30\s+1h\s00m/);
+  assert.equal((await p.storage('entries')).length, E.length, 'no new entry');
+  await done();
+});
+
+test('the night can be resumed from the sun on the ring until the first nap', async () => {
+  const p = await phone({ now: at(D0, 0, 7, 30), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
+  await p.page.locator('#hero svg g.hit:has(circle[r="19"])').first().dispatchEvent('click'); // the sun
+  assert.equal(await p.text('#dt'), 'Night sleep · 10-13');
+  await p.page.click('#eresume');
+  assert.equal(await p.text('#nowbtns'), 'Wake up');
+  const night = (await p.storage('entries')).find((e) => e.type === 'night' && e.start >= at(D0, -1, 12, 0));
+  assert.equal(night.end, null);
+  await p.setTime(at(D0, 0, 8, 0));
+  await p.page.getByRole('button', { name: 'Wake up' }).click();
+  assert.match(await p.row('Wake-up').innerText(), /08:00/);
+  // once a nap is logged, the night is no longer the last entry
+  await p.page.getByRole('button', { name: 'Start nap' }).click();
+  await p.setTime(at(D0, 0, 8, 40));
+  await p.page.getByRole('button', { name: 'End nap' }).click();
+  await p.row('Wake-up').click();
+  assert.equal(await p.page.isVisible('#eresume'), false);
+  await p.page.click('#ecancel');
+  await done();
+});
+
 test('the sun on the ring logs an unlogged wake-up', async () => {
   const p = await phone({
     now: at(D0, 0, 7, 0),
@@ -642,7 +693,7 @@ test('Statistics plots how far off the plan was', async () => {
   assert.equal(await chart.locator('h2').innerText(), 'How far off the plan was');
   assert.match(await chart.locator('.csub').innerText(), /Lower is better/);
   assert.deepEqual(
-    (await chart.locator('.leg2 span').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim()),
+    (await chart.locator('.leg2 .lg').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim()),
     ['Nap start 10 min (21)', 'Nap length 20 min (21)', 'Bedtime 10 min (7)', 'Wake-up 20 min (6)'],
   );
   assert.equal(await chart.locator('svg path[stroke]').count(), 4, 'four curves');
@@ -651,6 +702,52 @@ test('Statistics plots how far off the plan was', async () => {
   await svg.dispatchEvent('pointermove', { clientX: box.x + box.width - 5, clientY: box.y + 20 });
   assert.match(await chart.locator('.tip').innerText(), /Nap start\s*10 min/);
   assert.equal(await p.page.locator('#stats .acc').count(), 0, 'the old table is gone');
+  await done();
+});
+
+test('tapping a legend name shows only that line and fits the axis; tapping it again shows all', async () => {
+  const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
+  await p.page.click('#t-stats');
+  const chart = () => p.page.locator('#stats .chart[data-k=start]');
+  const axis = async () =>
+    (
+      await chart()
+        .locator('svg text[text-anchor=end]')
+        .evaluateAll((t) => t.map((x) => x.textContent))
+    ).filter((t) => t.includes(':'));
+  const allAxis = await axis();
+  assert.equal(await chart().locator('svg path[stroke]').count(), 4, 'three naps and bedtime');
+  await chart()
+    .getByRole('button', { name: /^Bedtime/ })
+    .click();
+  assert.equal(await chart().locator('svg path[stroke]').count(), 1);
+  assert.equal(await chart().locator('svg path[stroke]').getAttribute('stroke'), '#d55181');
+  const bedAxis = await axis();
+  assert.ok(bedAxis.length >= 2 && bedAxis[0] >= '18:00', 'the axis fits bedtime only: ' + bedAxis);
+  assert.notDeepEqual(bedAxis, allAxis);
+  assert.equal(await chart().locator('.lg.off').count(), 3, 'the others are dimmed, still tappable');
+  assert.equal(
+    await chart()
+      .getByRole('button', { name: /^Bedtime/ })
+      .getAttribute('aria-pressed'),
+    'true',
+  );
+  // another name switches to it; the same name again shows all
+  await chart()
+    .getByRole('button', { name: /^Nap 1/ })
+    .click();
+  assert.equal(await chart().locator('svg path[stroke]').getAttribute('stroke'), '#3987e5');
+  await chart()
+    .getByRole('button', { name: /^Nap 1/ })
+    .click();
+  assert.equal(await chart().locator('svg path[stroke]').count(), 4);
+  assert.deepEqual(await axis(), allAxis);
+  // the stacked day chart: one part on its own, with an axis in hours fitted to it
+  const day = p.page.locator('#stats .chart[data-k=day]');
+  await day.getByRole('button', { name: /^Naps/ }).click();
+  assert.equal(new Set(await day.locator('svg rect').evaluateAll((r) => r.map((x) => x.getAttribute('fill')))).size, 1);
+  const hours = (await day.locator('svg text[text-anchor=end]').evaluateAll((t) => t.map((x) => x.textContent))).at(-1);
+  assert.ok(parseInt(hours) < 24, 'fitted, not the whole day: ' + hours);
   await done();
 });
 

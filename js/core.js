@@ -14,6 +14,13 @@ const tapAction = (name, data = {}) =>
     .join('');
 
 // ---------- entries ----------
+// Resume: only the most recent nap or night can be started again (its end removed), and only while nothing is running,
+// for example when she wakes up and falls asleep again a few minutes later.
+function canResume(list, id) {
+  if (list.some((e) => !e.end)) return false;
+  const last = list.reduce((a, e) => (!a || e.start > a.start ? e : a), null);
+  return !!last && last.id === id;
+}
 // The same nap or night logged twice (same type, start and end, different ids; for example once imported and once
 // logged) counts once. The copy with a saved prediction is kept, otherwise the first one.
 function withoutDuplicates(list) {
@@ -135,6 +142,7 @@ if (typeof module !== 'undefined')
     escapeHtml,
     tapAction,
     withoutDuplicates,
+    canResume,
     timeOnDay,
     parseTypedTime,
     extraNapsFrom,
