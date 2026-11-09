@@ -1,3 +1,5 @@
 node_modules/
 history*.json
 nap-log-*.json
+# Claude Code saves approved commands here, word for word (they can contain passwords or tokens): never commit it
+.claude/settings.local.json
