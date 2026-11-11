@@ -730,6 +730,42 @@ test('a nap started with the button keeps the plan it had, shown at once', async
   await done();
 });
 
+test('ring labels: all follow the ring; a running nap shows its start, a short nap its times in one label', async () => {
+  const ringTexts = (p) =>
+    p.page
+      .locator('#hero svg text')
+      .evaluateAll((ts) => ts.map((t) => [t.textContent, t.getAttribute('transform') || '']));
+  // a nap in progress: its start and target end on the ring, not the current time
+  let p = await phone({
+    now: at(D0, 0, 8, 45),
+    storage: {
+      entries: [...madeUpHistory(D0, 10), { id: 'r', type: 'nap', start: at(D0, 0, 8, 22), end: null }],
+      settings: S3,
+    },
+  });
+  let t = await ringTexts(p);
+  const along = t.filter(([, tr]) => tr.startsWith('rotate')).map(([x]) => x);
+  assert.ok(along.includes('08:22'), 'the start of the nap in progress: ' + along);
+  assert.ok(!t.some(([x]) => x === '08:45'), 'no current-time label while she sleeps');
+  await done();
+  // awake: the current time is written along the ring too; the 40-minute nap 3 gets one label if two do not fit
+  p = await phone({
+    now: at(D0, 0, 10, 5),
+    storage: {
+      entries: [...madeUpHistory(D0, 10), { id: 'r', type: 'nap', start: at(D0, 0, 8, 22), end: at(D0, 0, 9, 25) }],
+      settings: S3,
+    },
+  });
+  t = await ringTexts(p);
+  assert.match(t.find(([x]) => x === '10:05')[1], /^rotate/);
+  const nap3 = t.map(([x]) => x).filter((x) => /^15:5\d|^16:3\d/.test(x));
+  assert.ok(
+    nap3.length === 2 || (nap3.length === 1 && /^15:5\d–16:3\d$/.test(nap3[0])),
+    'nap 3 shows start and end: ' + nap3,
+  );
+  await done();
+});
+
 test('the sun on the ring logs an unlogged wake-up', async () => {
   const p = await phone({
     now: at(D0, 0, 7, 0),
