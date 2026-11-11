@@ -161,9 +161,12 @@ summary:focus-visible {
   padding: 16px;
   margin: 14px 0;
 }
+/* fields are at least 16px: an iPhone zooms in on a smaller field when it is tapped, and an installed app often
+   stays zoomed and shifted sideways afterwards (even after reopening it) */
 input,
 select {
   font: inherit;
+  font-size: max(16px, 1em);
   padding: 11px 12px;
   border-radius: 12px;
   border: 1px solid var(--line);

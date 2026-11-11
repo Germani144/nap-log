@@ -35,6 +35,8 @@ No build step: GitHub Pages serves the files as they are.
   the table). Code that runs at load may only use earlier files.
 - Days are not always 24 hours (clock changes): use `addDays` and `timeAtMinute` from plan.js, never `+ DAY` or
   `midnight + minutes * 60000`. tests/clock-change.test.mjs checks both clock changes.
+- Text fields stay at least 16px (`font-size: max(16px, 1em)` on input/select): an iPhone zooms in on smaller fields and
+  an installed app stays zoomed and shifted sideways. tests/browser checks it.
 - Taps in generated HTML use `tapAction('name', {...})` and an entry in `ACTIONS` (js/main.js), never `onclick=`.
 - A new file needs its `<script>` tag in index.html and its path in `APP_FILES` in sw.js (tests/sw.test.mjs checks).
 - The cache-name line in sw.js keeps exactly the shape `const P='nap-log-',C=P+'vX.Y';` under `// prettier-ignore`:
