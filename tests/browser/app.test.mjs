@@ -766,6 +766,42 @@ test('ring labels: all follow the ring; a running nap shows its start, a short n
   await done();
 });
 
+test('iPhone: every field is at least 16px (no zoom on tap) and nothing is wider than the screen', async () => {
+  const p = await phone({
+    device: 'iPhone SE',
+    now: at(D0, 0, 8, 45),
+    storage: { entries: madeUpHistory(D0, 10), settings: S3 },
+  });
+  const small = await p.page.evaluate(() =>
+    [...document.querySelectorAll('input:not([type=radio]):not([type=checkbox]):not([type=file]),select,textarea')]
+      .filter((i) => parseFloat(getComputedStyle(i).fontSize) < 16)
+      .map((i) => i.id),
+  );
+  assert.deepEqual(small, []);
+  for (const t of ['today', 'hist', 'stats']) {
+    await p.page.click('#t-' + t);
+    assert.equal(await p.page.evaluate(() => document.documentElement.scrollWidth), 320, t);
+  }
+  await done();
+});
+
+test('leaving the app in the middle of a tab swipe never leaves the page shifted', async () => {
+  const p = await phone({ now: at(D0, 0, 8, 45), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
+  // a swipe that the phone interrupts: touchstart and touchmove, then the app is hidden (no touchend)
+  await p.page.evaluate(() => {
+    const t = (x) => new Touch({ identifier: 1, target: document.body, clientX: x, clientY: 300 });
+    document.body.dispatchEvent(new TouchEvent('touchstart', { touches: [t(300)], bubbles: true }));
+    document.body.dispatchEvent(new TouchEvent('touchmove', { touches: [t(200)], bubbles: true }));
+  });
+  assert.match(await p.page.$eval('#v-today', (el) => el.style.transform), /translateX\(-/);
+  await p.page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  assert.equal(await p.page.$eval('#v-today', (el) => el.style.transform), '');
+  await done();
+});
+
 test('the sun on the ring logs an unlogged wake-up', async () => {
   const p = await phone({
     now: at(D0, 0, 7, 0),

@@ -192,6 +192,9 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   bedtime's is the expected time; the wake-up's is the night's real bedtime plus its expected length, as in the
   accuracy chart (`planVsReal` in `js/core.js`, the row text in `plannedFor` in `js/ring.js`). Entries without a saved
   prediction (before v2.13, or logged with no data yet) show no plan line.
+- **iPhone** (v3.26): text fields are at least 16px, because iOS zooms in on a smaller field when it is tapped and an
+  installed app often stays zoomed and shifted sideways afterwards, even after reopening it. A tab swipe that the phone
+  interrupts (leaving the app mid-swipe) is undone when the app is hidden or shown again (`js/tabs.js`).
 - **History**: a month calendar (each bar is that day's nap total) and the selected day's wake-up, naps and bedtime.
 - **Statistics** (v3): charts of the last 7, 14 or 30 full days (touch a chart for each day's values): when she falls
   asleep, when she wakes up, how long naps last, night sleep, and her day as stacked bars. Per-day figures come from

@@ -113,3 +113,14 @@ document.addEventListener(
   { passive: true },
 );
 document.addEventListener('touchcancel', resetSwipe, { passive: true });
+// leaving the app mid-swipe (the home gesture, a call) may end the touch without touchend or touchcancel on iPhone:
+// the page must never come back shifted to the side
+const unshift = () => {
+  resetSwipe();
+  TAB_ORDER.forEach((k) => {
+    const p = $('#v-' + k);
+    if (p) p.style.transform = p.style.opacity = '';
+  });
+};
+document.addEventListener('visibilitychange', unshift);
+window.addEventListener('pageshow', unshift);
