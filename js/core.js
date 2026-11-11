@@ -14,6 +14,23 @@ const tapAction = (name, data = {}) =>
     .join('');
 
 // ---------- entries ----------
+// What the app expected for a logged nap or night (its saved prediction, see predBefore in plan.js) next to what
+// happened, for the plan rows. start/end in ms, len in minutes; the offsets are in whole minutes, positive = later or
+// longer than planned, null while it is still running. For a night, end is the expected wake-up: its real bedtime
+// plus the expected night length (as in the accuracy chart), so lenOff is also how early or late she woke up.
+// null without a saved prediction (entries from before v2.13, or no data then).
+function planVsReal(e) {
+  const p = e && e.pred;
+  if (!p || !(p.s > 0) || !(p.len > 0)) return null;
+  const start = e.type === 'night' ? e.start : p.s;
+  return {
+    start: p.s,
+    end: start + p.len * 6e4,
+    len: p.len,
+    startOff: Math.round((e.start - p.s) / 6e4),
+    lenOff: e.end ? Math.round((e.end - e.start) / 6e4 - p.len) : null,
+  };
+}
 // Resume: only the most recent nap or night can be started again (its end removed), and only while nothing is running,
 // for example when she wakes up and falls asleep again a few minutes later.
 function canResume(list, id) {
@@ -143,6 +160,7 @@ if (typeof module !== 'undefined')
     tapAction,
     withoutDuplicates,
     canResume,
+    planVsReal,
     timeOnDay,
     parseTypedTime,
     extraNapsFrom,

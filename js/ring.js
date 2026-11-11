@@ -107,3 +107,28 @@ const ROW_ICONS = {
 // one timeline row: node icon, label, right-hand details
 const planRow = (icon, cls, t, r, action, k) =>
   `<div class="it${action ? ' tap' : ''}"${k ? ` data-k="${k}"` : ''}${action || ''}><div class="nd ${cls || ''}">${icon}</div><span class="t">${t}</span><span class="r">${r}</span></div>`;
+
+// Under a logged row: the plan line (what the app expected when it started, see planVsReal in js/core.js) and the
+// small notes line, where how far off the plan was comes last, in amber.
+const offWords = (m, less, more) => (!m ? '' : duration(Math.abs(m)) + ' ' + (m < 0 ? less : more));
+const planLine = (txt) => `<br><span class="pl"><span class="tag">plan</span>${txt}</span>`;
+const notesLine = (parts, off) => {
+  const all = parts.filter(Boolean);
+  if (off) all.push(`<span class="dv">${off}</span>`);
+  return all.length ? `<br><span class="nt">${all.join(' · ')}</span>` : '';
+};
+// what the plan said for this entry, as { line, off }: a nap, its bedtime, or (wake) the wake-up after a night
+function plannedFor(e, what) {
+  const p = planVsReal(e);
+  if (!p) return { line: '', off: '' };
+  const at = (ms) => '~' + clockTime(minuteOfDay(ms));
+  if (what === 'wake') {
+    const off = e.end ? offWords(p.lenOff, 'early', 'late') || 'on plan' : '';
+    return { line: planLine(at(p.end)), off };
+  }
+  if (what === 'bed') return { line: planLine(at(p.start)), off: offWords(p.startOff, 'early', 'late') || 'on plan' };
+  const off =
+    [offWords(p.startOff, 'early', 'late'), offWords(p.lenOff, 'shorter', 'longer')].filter(Boolean).join(', ') ||
+    'on plan';
+  return { line: planLine(`${at(p.start)}–${at(p.end).slice(1)} &nbsp;${duration(p.len)}`), off };
+}

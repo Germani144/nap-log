@@ -97,6 +97,7 @@ test('the plan screen from a week of history', async () => {
   assert.deepEqual(lines(await p.text('#plan')), [
     'Wake-up',
     '06:30',
+    'night 11h 00m',
     'Nap 1',
     '~08:30–09:30  1h 00m',
     'awake 2h 00m first',
@@ -219,7 +220,7 @@ test('an unlogged wake-up can be set from the plan and the ring', async () => {
   assert.deepEqual([await p.page.inputValue('#es'), await p.page.inputValue('#ee')], ['19:30', '']);
   await p.page.fill('#ee', '05:40');
   await p.page.click('#esave');
-  assert.equal((await p.row('Wake-up').innerText()).replace(/\s+/g, ' '), 'Wake-up 05:40');
+  assert.match((await p.row('Wake-up').innerText()).replace(/\s+/g, ' '), /^Wake-up 05:40 PLAN/);
   const n = (await p.storage('entries')).find((e) => e.type === 'night' && e.end >= D0);
   assert.deepEqual([n.start, n.end], [at(D0, -1, 19, 30), at(D0, 0, 5, 40)]);
   // the sun on the ring now edits that night
@@ -624,6 +625,111 @@ test('the night can be resumed from the sun on the ring until the first nap', as
   await done();
 });
 
+// What the app expected for each logged row (its saved prediction) next to what happened. Made-up predictions.
+const withPlans = () => {
+  const E = madeUpHistory(D0, 10).map((e) =>
+    e.id === 'hn0' ? { ...e, pred: { s: at(D0, -1, 19, 25), len: 671 } } : e,
+  );
+  return [
+    ...E,
+    {
+      id: 'p1',
+      type: 'nap',
+      start: at(D0, 0, 8, 22),
+      end: at(D0, 0, 9, 25),
+      pred: { s: at(D0, 0, 8, 30), len: 62, n: 1 },
+    },
+    {
+      id: 'p2',
+      type: 'nap',
+      start: at(D0, 0, 12, 9),
+      end: at(D0, 0, 13, 40),
+      pred: { s: at(D0, 0, 12, 0), len: 80, n: 2 },
+    },
+    {
+      id: 'p3',
+      type: 'nap',
+      start: at(D0, 0, 16, 5),
+      end: at(D0, 0, 16, 41),
+      pred: { s: at(D0, 0, 16, 5), len: 36, n: 3 },
+    },
+  ];
+};
+const rowText = async (p, name) => (await p.row(name).innerText()).replace(/\s+/g, ' ');
+
+test('logged rows show what the plan expected and how far off it was', async () => {
+  // a nap that is running: its plan, its target and how early it started
+  const running = withPlans()
+    .filter((e) => e.id !== 'p2' && e.id !== 'p3')
+    .map((e) => (e.id === 'p1' ? { ...e, end: null } : e));
+  let p = await phone({ now: at(D0, 0, 8, 25), storage: { entries: running, settings: S3 } });
+  assert.equal(await rowText(p, 'Wake-up'), 'Wake-up 06:30 PLAN~06:41 night 11h 00m · 11m early');
+  assert.match(
+    await rowText(p, 'Nap 1'),
+    /^Nap 1 08:22–now 3m PLAN~08:30–09:32 1h 02m target ~\d\d:\d\d · awake 1h 52m first · 8m early$/,
+  );
+  assert.equal(
+    await p.page
+      .locator('#plan .it .dv')
+      .first()
+      .evaluate((el) => getComputedStyle(el).color),
+    'rgb(255, 181, 71)',
+  );
+  assert.match(await rowText(p, 'Nap 2'), /^Nap 2 ~\d\d:\d\d–\d\d:\d\d/, 'a nap still to come has no plan line');
+  assert.doesNotMatch(await rowText(p, 'Nap 2'), /PLAN/);
+  await done();
+  // the whole day, then the night view after bedtime
+  const night = {
+    id: 'nb',
+    type: 'night',
+    start: at(D0, 0, 19, 36),
+    end: null,
+    pred: { s: at(D0, 0, 19, 30), len: 660 },
+  };
+  p = await phone({ now: at(D0, 0, 20, 0), storage: { entries: [...withPlans(), night], settings: S3 } });
+  assert.equal(
+    await rowText(p, 'Nap 1'),
+    'Nap 1 08:22–09:25 1h 03m PLAN~08:30–09:32 1h 02m awake 1h 52m first · 8m early, 1m longer',
+  );
+  assert.equal(
+    await rowText(p, 'Nap 2'),
+    'Nap 2 12:09–13:40 1h 31m PLAN~12:00–13:20 1h 20m awake 2h 44m first · 9m late, 11m longer',
+  );
+  assert.equal(await rowText(p, 'Nap 3'), 'Nap 3 16:05–16:41 36m PLAN~16:05–16:41 36m awake 2h 25m first · on plan');
+  assert.equal(await rowText(p, 'Bedtime'), 'Bedtime 19:36 PLAN~19:30 target 19:30 · awake 2h 55m · 6m late');
+  await done();
+  // the next morning, in History: the same plan lines, and the wake-up against the night's expected length
+  const woke = { ...night, end: at(D0, 1, 6, 10) };
+  p = await phone({ now: at(D0, 1, 10, 0), storage: { entries: [...withPlans(), woke], settings: S3 } });
+  assert.equal(await rowText(p, 'Wake-up'), 'Wake-up 06:10 PLAN~06:36 night 10h 34m · 26m early');
+  await p.page.click('#t-hist');
+  await p.page.locator('#cal button', { hasText: /^14$/ }).click();
+  const hist = (name) =>
+    p.page
+      .locator('#day .it', { hasText: name })
+      .first()
+      .innerText()
+      .then((t) => t.replace(/\s+/g, ' '));
+  assert.equal(await hist('Nap 2'), 'Nap 2 12:09–13:40 1h 31m PLAN~12:00–13:20 1h 20m 9m late, 11m longer');
+  assert.equal(await hist('Bedtime'), 'Bedtime 19:36 PLAN~19:30 6m late');
+  assert.equal(await hist('Wake-up'), 'Wake-up 06:30 slept 11h 00m PLAN~06:41 11m early');
+  await done();
+});
+
+test('a nap started with the button keeps the plan it had, shown at once', async () => {
+  const p = await phone({ now: at(D0, 0, 8, 35), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
+  const before = lines(await p.text('#plan'))[lines(await p.text('#plan')).indexOf('Nap 1') + 1];
+  await p.page.getByRole('button', { name: 'Start nap' }).click();
+  const nap = (await p.storage('entries')).find((e) => e.start === at(D0, 0, 8, 35));
+  assert.ok(nap.pred, 'the prediction is saved with the nap');
+  assert.match(
+    await rowText(p, 'Nap 1'),
+    new RegExp('PLAN' + before.split('  ')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+  );
+  assert.match(await rowText(p, 'Nap 1'), /5m late$/);
+  await done();
+});
+
 test('the sun on the ring logs an unlogged wake-up', async () => {
   const p = await phone({
     now: at(D0, 0, 7, 0),
@@ -652,7 +758,7 @@ for (const [name, y, m, d] of [
     await p.page.click('#esave');
     const n = (await p.storage('entries')).find((e) => e.id === 'cc');
     assert.equal(n.end, new Date(y, m, d, 6, 10).getTime());
-    assert.equal((await p.row('Wake-up').innerText()).replace(/\s+/g, ' '), 'Wake-up 06:10');
+    assert.match((await p.row('Wake-up').innerText()).replace(/\s+/g, ' '), /^Wake-up 06:10 PLAN/);
     await done();
   });
 }

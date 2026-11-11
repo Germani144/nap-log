@@ -183,3 +183,24 @@ test('canResume: only the most recent entry, and only while nothing is running',
   assert.equal(canResume([night, { ...nap1, end: null }], 'a'), false, 'not the running one itself');
   assert.equal(canResume([], 'a'), false);
 });
+
+test('planVsReal: the saved prediction next to what happened', () => {
+  const { planVsReal } = core;
+  const t = new Date(2026, 9, 14, 8, 30).getTime();
+  const nap = { type: 'nap', start: t - 8 * MIN, end: t + 55 * MIN, pred: { s: t, len: 62, n: 1 } };
+  assert.deepEqual(planVsReal(nap), { start: t, end: t + 62 * MIN, len: 62, startOff: -8, lenOff: 1 });
+  assert.equal(planVsReal({ ...nap, end: null }).lenOff, null, 'still running');
+  // a night: the expected wake-up is its real bedtime plus the expected night length
+  const bed = new Date(2026, 9, 14, 19, 36).getTime();
+  const night = { type: 'night', start: bed, end: bed + 640 * MIN, pred: { s: bed - 6 * MIN, len: 660 } };
+  assert.deepEqual(planVsReal(night), {
+    start: bed - 6 * MIN,
+    end: bed + 660 * MIN,
+    len: 660,
+    startOff: 6,
+    lenOff: -20,
+  });
+  assert.equal(planVsReal({ ...nap, pred: undefined }), null, 'no saved prediction');
+  assert.equal(planVsReal({ ...nap, pred: { s: 0, len: 60 } }), null);
+  assert.equal(planVsReal(null), null);
+});

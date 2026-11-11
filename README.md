@@ -42,7 +42,7 @@ code that runs at load only touches earlier files):
 | `state.js`       | The app state: `settings`, `entries` (the live 14 days), `olderEntries`, `familyCode`, `db`, `familyDoc`, the History month and day, `allEntries`, `findEntry` |
 | `sync.js`        | `saveEntry` / `deleteEntry` (Firestore or this phone), `connectSync` (live listeners)                                                                          |
 | `entries.js`     | Start / end a nap or night (`startSleep`, `endSleep`, with the saved prediction), extra naps (`setExtraNaps`, `extraNapsToday`)                                |
-| `ring.js`        | SVG drawing helpers for the day ring and `planRow` for the plan list                                                                                           |
+| `ring.js`        | SVG drawing helpers for the day ring, `planRow` for the plan list and `plannedFor` (the PLAN line)                                                             |
 | `today.js`       | `render()`: the Today tab (ring, countdown, buttons, plan), the plan animation, then History and Statistics                                                    |
 | `edit-dialog.js` | The edit box for a nap or night: `openEdit`, `openAdd`, `logWake`, Save, Resume and Delete                                                                     |
 | `notify.js`      | The reminder written for the sender (`syncReminder`), push subscriptions and the bell box                                                                      |
@@ -183,6 +183,13 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   **Resume** (v3.23) next to Save starts the last nap or night again (its end is removed, the same entry runs on), for
   when she wakes up and falls asleep again. Only the most recent entry, and only while nothing is running
   (`canResume` in `js/core.js`), from its row, from History or from the ring (a nap's bar, or the sun for the night).
+- **Plan vs what happened** (v3.24): every logged row (wake-up, naps, bedtime, on Today, in the night view and in
+  History) shows a **PLAN** line with what the app expected when it started: the saved prediction (`pred`, see
+  `predBefore`), never recalculated. Under it a small notes line (night length, target, awake time) ends in amber with
+  how far off the plan was ("8m early, 1m longer", "on plan"). A nap's plan is its expected start, end and length;
+  bedtime's is the expected time; the wake-up's is the night's real bedtime plus its expected length, as in the
+  accuracy chart (`planVsReal` in `js/core.js`, the row text in `plannedFor` in `js/ring.js`). Entries without a saved
+  prediction (before v2.13, or logged with no data yet) show no plan line.
 - **History**: a month calendar (each bar is that day's nap total) and the selected day's wake-up, naps and bedtime.
 - **Statistics** (v3): charts of the last 7, 14 or 30 full days (touch a chart for each day's values): when she falls
   asleep, when she wakes up, how long naps last, night sleep, and her day as stacked bars. Per-day figures come from

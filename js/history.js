@@ -88,7 +88,7 @@ function renderHistory() {
       ROW_ICONS.sun,
       '',
       'Wake-up',
-      `<b>${clockTime(minuteOfDay(wk.end))}</b> &nbsp;slept ${duration((wk.end - wk.start) / 6e4)}`,
+      `<b>${clockTime(minuteOfDay(wk.end))}</b> &nbsp;slept ${duration((wk.end - wk.start) / 6e4)}${plannedFor(wk, 'wake').line}${notesLine([], plannedFor(wk, 'wake').off)}`,
       tapAction('edit', { id: wk.id }),
     );
   ns.forEach(
@@ -97,9 +97,11 @@ function renderHistory() {
         ROW_ICONS.check,
         '',
         'Nap ' + (i + 1),
-        e.end
+        (e.end
           ? `<b>${clockTime(minuteOfDay(e.start))}–${clockTime(minuteOfDay(e.end))}</b> &nbsp;${duration((e.end - e.start) / 6e4)}`
-          : `<b>${clockTime(minuteOfDay(e.start))}</b> &nbsp;ongoing`,
+          : `<b>${clockTime(minuteOfDay(e.start))}</b> &nbsp;ongoing`) +
+          plannedFor(e, 'nap').line +
+          notesLine([], plannedFor(e, 'nap').off),
         tapAction('edit', { id: e.id }),
       )),
   );
@@ -108,7 +110,7 @@ function renderHistory() {
       ROW_ICONS.moon,
       '',
       'Bedtime',
-      `<b>${clockTime(minuteOfDay(bd.start))}</b>${bd.end ? '' : ' &nbsp;sleeping'}`,
+      `<b>${clockTime(minuteOfDay(bd.start))}</b>${bd.end ? '' : ' &nbsp;sleeping'}${plannedFor(bd, 'bed').line}${notesLine([], plannedFor(bd, 'bed').off)}`,
       tapAction('edit', { id: bd.id }),
     );
   const total = ns.filter((e) => e.end).reduce((s, e) => s + (e.end - e.start) / 6e4, 0);
