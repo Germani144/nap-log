@@ -302,18 +302,41 @@ function render() {
           blk.push([t, 40]);
         }
       }
+      // the start of the nap in progress (its end is the target above; "now" is the end of the growing bubble)
+      if (running) {
+        const r = naps.find((x) => x.a === running);
+        if (r && room(angleOf(r.s))) {
+          svg += labelAlongRing(angleOf(r.s), clockTime(r.s));
+          blk.push([angleOf(r.s), 40]);
+        }
+      }
+      // the naps still to come: start and end. When a short nap has no room for both, one label "15:59–16:40" is
+      // written over its middle instead; if that does not fit either, only the start.
       naps
         .filter((r) => !r.a)
-        .forEach((r) =>
-          [r.s, r.e].forEach((m) => {
-            const t = angleOf(m);
-            if (m > ringFrom && m < ringTo && room(t)) {
-              svg += labelAlongRing(t, clockTime(m));
-              blk.push([t, 40]);
-            }
-          }),
-        );
-      if (nowMin > ringFrom && nowMin < ringTo && room(angleOf(nowMin)))
+        .forEach((r) => {
+          const inside = (m) => m > ringFrom && m < ringTo,
+            ts = angleOf(r.s),
+            te = angleOf(r.e),
+            mid = (ts + te) / 2,
+            both = inside(r.s) && inside(r.e) && room(ts) && room(te),
+            apart = ((Math.abs(te - ts) * Math.PI) / 180) * LR >= 40;
+          if (both && apart) {
+            svg += labelAlongRing(ts, clockTime(r.s)) + labelAlongRing(te, clockTime(r.e));
+            blk.push([ts, 40], [te, 40]);
+          } else if (
+            inside(r.s) &&
+            inside(r.e) &&
+            blk.every(([q, g]) => ((Math.abs(q - mid) * Math.PI) / 180) * LR >= g + 26)
+          ) {
+            svg += labelAlongRing(mid, clockTime(r.s) + '–' + clockTime(r.e));
+            blk.push([mid, 66]);
+          } else if (inside(r.s) && room(ts)) {
+            svg += labelAlongRing(ts, clockTime(r.s));
+            blk.push([ts, 40]);
+          }
+        });
+      if (!running && nowMin > ringFrom && nowMin < ringTo && room(angleOf(nowMin)))
         svg += nowLabel(angleOf(nowMin), clockTime(nowMin));
       return svg + tail();
     };

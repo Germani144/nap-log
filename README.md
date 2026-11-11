@@ -173,7 +173,9 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   helpers in `js/ring.js`). A nap bar is a capsule only when at least 30px long, and gets the 💤 at full size from 38px
   long; shorter naps (and dots) get a smaller 💤 that fits inside them. Suggested naps get their expected start and end
   times written along the ring; a label is skipped when it would collide with another label or the sun/moon discs, and
-  nap times take priority over the current-time label. A nap in progress is a dotted outline up to its target end,
+  nap times take priority over the current-time label. A short nap with no room for two labels gets one over its
+  middle ("15:59–16:40"), and only its start if that does not fit either. The current time is written along the ring
+  too, but not while a nap runs: then the nap's start and its target end are labelled (v3.25). A nap in progress is a dotted outline up to its target end,
   filling up as she sleeps. The middle shows the countdown to the next nap or bedtime, its expected time ("at ~10:29")
   and the awake time underneath. Logged naps, the sun and the moon open the same edit box as their plan rows.
 - Once today's target naps (plus any added extra naps) are logged, **Start night** becomes the filled main button and

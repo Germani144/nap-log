@@ -84,15 +84,14 @@ const labelBelow = (t, txt, col) => {
   return svgText(p[0], p[1] + 38, txt, col);
 };
 // text written along the ring, rotated to follow it with the bottom of the letters always facing the ring
-const labelAlongRing = (t, txt) => {
+// (strong: the current time, bolder and fully opaque; the nap times are a little faded)
+const labelAlongRing = (t, txt, strong) => {
   const p = ringPoint(RING_RADIUS + BAR_HALF + 13, t),
     rot = ((t % 360) + 360) % 360;
-  return `<text x="${round1(p[0])}" y="${round1(p[1])}" transform="rotate(${round1(rot)} ${round1(p[0])} ${round1(p[1])})" text-anchor="middle" dominant-baseline="central" font-family="${SANS_FONT}" font-weight="600" font-size="12" fill="#FFB547" opacity=".85">${txt}</text>`;
+  return `<text x="${round1(p[0])}" y="${round1(p[1])}" transform="rotate(${round1(rot)} ${round1(p[0])} ${round1(p[1])})" text-anchor="middle" dominant-baseline="central" font-family="${SANS_FONT}" font-weight="${strong ? 700 : 600}" font-size="${strong ? 12.5 : 12}" fill="#FFB547"${strong ? '' : ' opacity=".85"'}>${txt}</text>`;
 };
-const nowLabel = (t, txt) => {
-  const p = ringPoint(RING_RADIUS + 34, t);
-  return svgText(p[0], p[1] + 4, txt, '#FFB547', 700, 12.5);
-};
+// the current time: along the ring like the nap times, so it reads as part of the dial
+const nowLabel = (t, txt) => labelAlongRing(t, txt, true);
 const RING_DEFS =
   '<defs><linearGradient id="cool" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8C86EE"/><stop offset="1" stop-color="#C4BFFF"/></linearGradient></defs>';
 const ROW_ICONS = {
