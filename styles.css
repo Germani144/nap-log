@@ -513,6 +513,25 @@ button.alt .zz {
   color: var(--milk);
   font-weight: 600;
 }
+/* under a logged row: the plan line (what the app expected) and the small notes line, how far off it was in amber */
+.it .r .tag {
+  display: inline-block;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(166, 169, 218, 0.45);
+  border-radius: 5px;
+  padding: 0 4px;
+  margin-right: 6px;
+  line-height: 14px;
+  vertical-align: 1px;
+}
+.it .r .nt {
+  font-size: 12.5px;
+}
+.it .r .dv {
+  color: var(--lamp);
+}
 .tc {
   display: inline-block;
   min-width: 72px;

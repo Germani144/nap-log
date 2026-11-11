@@ -1,5 +1,11 @@
 // The Today tab: the ring, the countdown, the buttons and today's plan, plus the plan animation.
 
+// the awake time before a bedtime: since the last nap before it (or since the wake-up), as a notes-line text
+const awakeBefore = (night, naps, woke) => {
+  const ends = naps.filter((e) => e.end && e.end <= night.start).map((e) => e.end);
+  const from = ends.length ? Math.max(...ends) : woke && woke.end;
+  return from && night.start > from ? 'awake ' + duration((night.start - from) / 6e4) : '';
+};
 let redrawRing = null,
   ringNaps = null;
 // what each plan row says, to see which rows changed after the plan was rearranged
@@ -171,33 +177,37 @@ function render() {
     const nd = todaysNaps.filter((e) => e.end).reduce((x, e) => x + (e.end - e.start) / 6e4, 0);
     napTimeLine = nd > 0 ? 'Naps today: ' + duration(nd) : '';
     buttonsHtml = `<button${tapAction('stop', { id: running.id })}>Wake up</button>`;
-    if (wokeThisMorning)
+    if (wokeThisMorning) {
+      const wakePlan = plannedFor(wokeThisMorning, 'wake');
       rowsHtml += planRow(
         ROW_ICONS.sun,
         '',
         'Wake-up',
-        `<b>${clockTime(minuteOfDay(wokeThisMorning.end))}</b>`,
+        `<b>${clockTime(minuteOfDay(wokeThisMorning.end))}</b>${wakePlan.line}${notesLine(['night ' + duration((wokeThisMorning.end - wokeThisMorning.start) / 6e4)], wakePlan.off)}`,
         tapAction('edit', { id: wokeThisMorning.id }),
         'w',
       );
+    }
     todaysNaps
       .filter((e) => e.end)
-      .forEach(
-        (e, i) =>
-          (rowsHtml += planRow(
-            ROW_ICONS.check,
-            '',
-            'Nap ' + (i + 1),
-            `<b>${clockTime(minuteOfDay(e.start))}–${clockTime(minuteOfDay(e.end))}</b> &nbsp;${duration((e.end - e.start) / 6e4)}`,
-            tapAction('edit', { id: e.id }),
-          )),
-      );
+      .forEach((e, i, done) => {
+        const napPlan = plannedFor(e, 'nap'),
+          before = i ? done[i - 1].end : wokeThisMorning && wokeThisMorning.end;
+        rowsHtml += planRow(
+          ROW_ICONS.check,
+          '',
+          'Nap ' + (i + 1),
+          `<b>${clockTime(minuteOfDay(e.start))}–${clockTime(minuteOfDay(e.end))}</b> &nbsp;${duration((e.end - e.start) / 6e4)}${napPlan.line}${notesLine([before && e.start > before ? `awake ${duration((e.start - before) / 6e4)} first` : ''], napPlan.off)}`,
+          tapAction('edit', { id: e.id }),
+        );
+      });
     // bedtime and expected wake-up, joined on the right by a faint line with the expected night length on it
+    const bedPlan = plannedFor(running, 'bed');
     rowsHtml += planRow(
       ROW_ICONS.moon,
       '',
       'Bedtime',
-      `<b class="tc">${clockTime(minuteOfDay(running.start))}</b>`,
+      `<b class="tc">${clockTime(minuteOfDay(running.start))}</b>${bedPlan.line}${notesLine(['target ' + settings.bedtime, awakeBefore(running, todaysNaps, wokeThisMorning)], bedPlan.off)}`,
       tapAction('edit', { id: running.id }),
       'b',
     );
@@ -356,12 +366,13 @@ function render() {
     }
     napTimeLine = napTarget != null ? `Nap time today: ${duration(napTimeToday)} of about ${duration(napTarget)}` : '';
 
+    const wakePlan = wokeThisMorning && plannedFor(wokeThisMorning, 'wake');
     rowsHtml += wokeThisMorning
       ? planRow(
           ROW_ICONS.sun,
           '',
           'Wake-up',
-          `<b>${clockTime(wakeUp)}</b>`,
+          `<b>${clockTime(wakeUp)}</b>${wakePlan.line}${notesLine(['night ' + duration((wokeThisMorning.end - wokeThisMorning.start) / 6e4)], wakePlan.off)}`,
           tapAction('edit', { id: wokeThisMorning.id }),
         )
       : planRow(
@@ -377,16 +388,18 @@ function render() {
         return;
       }
       const x = r.a,
-        aw = r.aw != null ? `<br>awake ${duration(r.aw)} first` : '';
-      if (x)
+        awake = r.aw != null ? `awake ${duration(r.aw)} first` : '',
+        aw = awake ? '<br>' + awake : '';
+      if (x) {
+        const napPlan = plannedFor(x, 'nap');
         rowsHtml += planRow(
           ROW_ICONS.check,
           '',
           'Nap ' + r.n,
-          `<b>${clockTime(r.s)}–${x.end ? clockTime(r.e) : 'now'}</b> &nbsp;${duration((x.end ? r.e : nowMin) - r.s)}${!x.end && plan.cur ? '<br>target ' + duration(plan.cur.len) + ' (~' + clockTime(plan.cur.end) + ')' : ''}${aw}`,
+          `<b>${clockTime(r.s)}–${x.end ? clockTime(r.e) : 'now'}</b> &nbsp;${duration((x.end ? r.e : nowMin) - r.s)}${napPlan.line}${notesLine([!x.end && plan.cur ? 'target ~' + clockTime(plan.cur.end) : '', awake], napPlan.off)}`,
           tapAction('edit', { id: x.id }),
         );
-      else if (r.extra)
+      } else if (r.extra)
         rowsHtml += planRow(
           '',
           'bd',
@@ -402,15 +415,16 @@ function render() {
           `<b>~${clockTime(r.s)}–${clockTime(r.e)}</b> &nbsp;${duration(r.e - r.s)}${r.add >= 5 ? ' (+' + duration(r.add) + ')' : r.add <= -5 ? ' (−' + duration(-r.add) + ')' : ''}${aw}${r.from ? `<br>no nap ${r.n} lately, based on nap ${r.from}` : ''}`,
         );
     });
-    if (bedtimeEntry)
+    if (bedtimeEntry) {
+      const bedPlan = plannedFor(bedtimeEntry, 'bed');
       rowsHtml += planRow(
         ROW_ICONS.moon,
         '',
         'Bedtime',
-        `<b>${clockTime(minuteOfDay(bedtimeEntry.start))}</b><br>target ${settings.bedtime}`,
+        `<b>${clockTime(minuteOfDay(bedtimeEntry.start))}</b>${bedPlan.line}${notesLine(['target ' + settings.bedtime, awakeBefore(bedtimeEntry, todaysNaps, wokeThisMorning)], bedPlan.off)}`,
         tapAction('edit', { id: bedtimeEntry.id }),
       );
-    else {
+    } else {
       const dev = bedtime != null ? Math.round(bedtime - targetBedtime) : 0;
       const t =
         bedtime != null
