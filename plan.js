@@ -64,7 +64,7 @@ function makePlan(entries, nowMs, settings) {
   const MAX_AWAKE = 210,
     MIN_AWAKE = 30,
     MAX_NAP = 200,
-    BEDTIME_FLEX = 60; // awake windows stay within 30m-3.5h; a lengthened nap is capped at 3h; bedtime may move 30m from the target
+    BEDTIME_FLEX = 60; // awake windows stay within 30m-3.5h; a lengthened nap is capped at 3h20; bedtime may move 60m from the target
   const [bedHour, bedMinute] = (settings.bedtime || '19:30').split(':').map(Number),
     targetBedtime = bedHour * 60 + bedMinute,
     earliestBedtime = targetBedtime - BEDTIME_FLEX,
