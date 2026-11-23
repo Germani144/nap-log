@@ -224,7 +224,8 @@ function chartBox(key, title, sub, body, series, fmt, geo, legend = series) {
       : '';
   return `<section class="chart" data-k="${key}"><h2>${title}</h2><div class="csub">${sub}</div>${leg}<div class="cwrap">${body}<div class="tip" hidden></div></div></section>`;
 }
-// hover / touch: a crosshair on the nearest day and a tooltip with every series' value for that day
+// hover / touch: the day under the finger on one chart is shown on every chart of the page at once: a crosshair on
+// that day and a tooltip with every series' value for it. Letting go (or leaving the chart) hides them all.
 function chartHover(ev) {
   const sec = ev.target.closest('.chart');
   if (!sec) return;
@@ -236,6 +237,17 @@ function chartHover(ev) {
     sx = ((ev.clientX - r.left) / r.width) * G.W;
   let i = G.bars ? Math.floor((sx - G.L) / (G.pw / G.n)) : Math.round((sx - G.L) / (G.pw / Math.max(1, G.n - 1)));
   i = Math.max(0, Math.min(G.n - 1, i));
+  const day = G.days[i].day;
+  document.querySelectorAll('#stats .chart').forEach((s) => showChartDay(s, day));
+}
+// the crosshair and tooltip of one chart on a day (by its date), or nothing if that chart has no such day
+function showChartDay(sec, day) {
+  const c = chartData[sec.dataset.k];
+  if (!c) return;
+  const G = c.geo,
+    i = G.days.findIndex((d) => d.day === day);
+  if (i < 0) return hideChartDay(sec);
+  const r = sec.querySelector('svg').getBoundingClientRect();
   const x = G.X(i),
     hov = sec.querySelector('.hov');
   let h = `<line x1="${round1(x)}" x2="${round1(x)}" y1="${G.T}" y2="${G.H - G.B}" class="xh"/>`;
@@ -259,11 +271,14 @@ function chartHover(ev) {
   const px = (x / G.W) * r.width;
   tip.style.left = Math.min(Math.max(px - 70, 0), r.width - 150) + 'px';
 }
-function chartLeave(ev) {
-  const sec = ev.target.closest('.chart');
-  if (!sec) return;
-  sec.querySelector('.hov').innerHTML = '';
-  sec.querySelector('.tip').hidden = true;
+function hideChartDay(sec) {
+  const hov = sec.querySelector('.hov'),
+    tip = sec.querySelector('.tip');
+  if (hov) hov.innerHTML = '';
+  if (tip) tip.hidden = true;
+}
+function chartLeave() {
+  document.querySelectorAll('#stats .chart').forEach(hideChartDay);
 }
 function renderStats() {
   if (currentTab !== 'stats') return;
@@ -348,7 +363,7 @@ function renderStats() {
     15,
     { fromZero: true },
   );
-  h += `<div class="foot">Bold numbers are the averages over the period. Touch a chart to see each day; tap a name to show only that line.</div>`;
+  h += `<div class="foot">Bold numbers are the averages over the period. Touch a chart to see that day on every chart; tap a name to show only that line.</div>`;
   const el = $('#stats');
   el.innerHTML = h;
   el.querySelectorAll('.chart svg').forEach((s) => {

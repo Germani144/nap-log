@@ -883,6 +883,31 @@ test('Statistics plots how far off the plan was', async () => {
   await done();
 });
 
+test('touching a day on one chart shows that day on every chart; letting go hides them all', async () => {
+  const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
+  await p.page.click('#t-stats');
+  const charts = p.page.locator('#stats .chart:has(svg)');
+  const n = await charts.count();
+  assert.ok(n >= 4);
+  // touch the middle of the first chart's plot
+  const box = await charts.first().locator('svg').boundingBox();
+  await p.page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+  const days = await charts.evaluateAll((cs) =>
+    cs.map((c) => {
+      const t = c.querySelector('.tip');
+      return t.hidden ? null : t.querySelector('b').textContent;
+    }),
+  );
+  assert.equal(days.filter(Boolean).length, n, 'every chart shows a box: ' + days);
+  assert.equal(new Set(days).size, 1, 'all the same day: ' + days);
+  assert.equal(await p.page.locator('#stats .hov line').count(), n, 'one crosshair per chart');
+  // leaving the chart (lifting the finger) hides every box
+  await p.page.mouse.move(2, 2);
+  assert.equal(await p.page.locator('#stats .tip:not([hidden])').count(), 0);
+  assert.equal(await p.page.locator('#stats .hov line').count(), 0);
+  await done();
+});
+
 test('tapping a legend name shows only that line and fits the axis; tapping it again shows all', async () => {
   const p = await phone({ now: at(D0, 0, 12, 0), storage: { entries: madeUpHistory(D0, 10), settings: S3 } });
   await p.page.click('#t-stats');
