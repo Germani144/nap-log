@@ -141,8 +141,8 @@ The full explanation is in the app under **How the plan works**. In short:
   now. A nap beyond the target number of naps (added, or without data) is a bridge nap: target at most 45 min (her past
   extra naps: 23–66 min, typically ~37). After an added nap, bedtime aims for its target (no lean towards a later bedtime).
 - **Nap length** = the usual length of that nap, lengthened if earlier naps were short so the day reaches the
-  usual total nap time (a nap is never stretched beyond 3 hours).
-- **Bedtime** = the target bedtime, allowed to move 30 min either way to respect the awake limits, leaning about a
+  usual total nap time (a nap is never stretched beyond 3h 20m; 3 hours before v3.27).
+- **Bedtime** = the target bedtime, allowed to move 60 min either way (30 min before v3.27) to respect the awake limits, leaning about a
   third towards "end of last nap + usual gap before bedtime".
 - **Wake-up** = this morning's logged wake-up, or the average of the past 7 mornings (shown with ~). An estimated
   wake-up can be tapped (`logWake`): it edits last night's entry if there is one, otherwise it logs last night.
