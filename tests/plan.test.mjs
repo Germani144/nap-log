@@ -67,19 +67,19 @@ test('awake windows never exceed 3h 30m', () => {
   assert.equal(clockTime(p.rows[0].s), '09:30'); // usual 5h gap capped to 3h30
 });
 
-test('bedtime stays within 30 minutes of the target when the naps allow it', () => {
+test('bedtime stays within 60 minutes of the target when the naps allow it', () => {
   for (const bt of ['18:30', '19:30', '20:30']) {
     const p = makePlan(week(), at(0, 7, 0), { targetNaps: 3, bedtime: bt });
     const [h, m] = bt.split(':').map(Number);
-    assert.ok(Math.abs(p.B - (h * 60 + m)) <= 30, bt + ' -> ' + clockTime(p.B));
+    assert.ok(Math.abs(p.B - (h * 60 + m)) <= 60, bt + ' -> ' + clockTime(p.B));
   }
 });
 
-test('short naps today lengthen the remaining ones, never beyond 3 hours', () => {
+test('short naps today lengthen the remaining ones, never beyond 3h 20m', () => {
   const E = [...week(), nap(0, 8, 30, 8, 50), nap(0, 11, 0, 11, 20)];
   const r = makePlan(E, at(0, 11, 30), S).rows[2];
   assert.ok(r.add > 0);
-  assert.ok(r.e - r.s <= 180);
+  assert.ok(r.e - r.s <= 200);
 });
 
 test('recent days count more', () => {

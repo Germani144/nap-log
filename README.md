@@ -46,7 +46,7 @@ code that runs at load only touches earlier files):
 | `today.js`       | `render()`: the Today tab (ring, countdown, buttons, plan), the plan animation, then History and Statistics                                                    |
 | `edit-dialog.js` | The edit box for a nap or night: `openEdit`, `openAdd`, `logWake`, Save, Resume and Delete                                                                     |
 | `notify.js`      | The reminder written for the sender (`syncReminder`), push subscriptions and the bell box                                                                      |
-| `stats.js`       | The Statistics tab (line and bar charts, touch tooltips, tap a legend name to show only that line)                                                             |
+| `stats.js`       | The Statistics tab (line and bar charts, touch tooltips shown on every chart at once, tap a legend name to show only that line)                                |
 | `tabs.js`        | Switching tabs by tapping or swiping                                                                                                                           |
 | `history.js`     | The History tab: month calendar and the selected day; loads older months on demand                                                                             |
 | `settings.js`    | The Settings box (targets, family code hidden until Show)                                                                                                      |
@@ -141,8 +141,8 @@ The full explanation is in the app under **How the plan works**. In short:
   now. A nap beyond the target number of naps (added, or without data) is a bridge nap: target at most 45 min (her past
   extra naps: 23–66 min, typically ~37). After an added nap, bedtime aims for its target (no lean towards a later bedtime).
 - **Nap length** = the usual length of that nap, lengthened if earlier naps were short so the day reaches the
-  usual total nap time (a nap is never stretched beyond 3 hours).
-- **Bedtime** = the target bedtime, allowed to move 30 min either way to respect the awake limits, leaning about a
+  usual total nap time (a nap is never stretched beyond 3h 20m; 3 hours before v3.27).
+- **Bedtime** = the target bedtime, allowed to move 60 min either way (30 min before v3.27) to respect the awake limits, leaning about a
   third towards "end of last nap + usual gap before bedtime".
 - **Wake-up** = this morning's logged wake-up, or the average of the past 7 mornings (shown with ~). An estimated
   wake-up can be tapped (`logWake`): it edits last night's entry if there is one, otherwise it logs last night.
@@ -196,7 +196,8 @@ the last nap went from about 25 to 22 minutes off, the next nap from about 27.7 
   installed app often stays zoomed and shifted sideways afterwards, even after reopening it. A tab swipe that the phone
   interrupts (leaving the app mid-swipe) is undone when the app is hidden or shown again (`js/tabs.js`).
 - **History**: a month calendar (each bar is that day's nap total) and the selected day's wake-up, naps and bedtime.
-- **Statistics** (v3): charts of the last 7, 14 or 30 full days (touch a chart for each day's values): when she falls
+- **Statistics** (v3): charts of the last 7, 14 or 30 full days (touch a chart for each day's values: since v3.27
+  every chart on the page shows that same day at once, crosshair and box, and letting go hides them all): when she falls
   asleep, when she wakes up, how long naps last, night sleep, and her day as stacked bars. Per-day figures come from
   `dailyStats` in `plan.js`. One scale per chart, so night sleep has its own chart. Colours were checked for
   colour-blind separation and contrast on the dark background. Each name in a legend is a button (v3.23): tapping it
