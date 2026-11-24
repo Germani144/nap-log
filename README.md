@@ -146,7 +146,12 @@ The full explanation is in the app under **How the plan works**. In short:
   third towards "end of last nap + usual gap before bedtime".
 - **Wake-up** = this morning's logged wake-up, or the average of the past 7 mornings (shown with ~). An estimated
   wake-up can be tapped (`logWake`): it edits last night's entry if there is one, otherwise it logs last night.
-- **Night ring** = expected night length is the average of the nights in the past 8 days.
+- **Night ring** = the expected night runs from bedtime to her usual wake-up time (the average of the past 7
+  mornings), whatever time she goes down (v3.28; before, bedtime + the average night of the past 8 days). In the logged
+  history an earlier bedtime gave a longer night, not an earlier morning: replayed on 86 nights the expected night was
+  25 min off on average instead of 32 (28 instead of 39 over the last 30). The same expected night is saved with each
+  night (`pred.len`, from its real bedtime), so the PLAN line under the wake-up and the accuracy chart use it too. A
+  night that would come out under 6 or over 14 hours, or no mornings logged yet, falls back to the average night.
 
 `makePlan(entries, now, settings)` only uses its inputs, so tests and the backtest can feed it any history and any
 "now"; the app only draws what it returns. The keys it returns are short (`B` bedtime, `bt` target bedtime, `tn`

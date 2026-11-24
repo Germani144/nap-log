@@ -146,7 +146,7 @@ function render() {
     showAddRow = true;
 
   if (running && running.type === 'night') {
-    // the ring becomes a loading ring for the expected night: the average of the nights in the last 8 days
+    // the ring becomes a loading ring for the expected night: from bedtime to her usual wake-up time (avgN, plan.js)
     nightLook = true;
     showAddRow = false;
     planTitle = 'Tonight';
