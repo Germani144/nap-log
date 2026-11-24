@@ -119,8 +119,11 @@ test('predFor: what a starting nap or night was predicted to be', async () => {
   assert.deepEqual(predFor(p, 'nap'), { s: at(0, 8, 30), len: 60, n: 1 });
   const q = makePlan([...week(), nap(0, 8, 30, 9, 30), nap(0, 12, 0, 13, 30), nap(0, 16, 0, 16, 45)], at(0, 19, 20), S);
   const pn = predFor(q, 'night');
-  assert.equal(pn.len, 660);
+  assert.equal(pn.len, 670, 'from now (19:20) to her usual wake-up, 06:30');
   assert.ok(Math.abs(pn.s - at(0, 19, 30)) <= 30 * 6e4);
+  // the expected night runs from the real bedtime to her usual wake-up: an early bedtime gives a longer night
+  assert.equal(predFor(q, 'night', at(0, 18, 30)).len, 720);
+  assert.equal(predFor(q, 'night', at(0, 20, 30)).len, 600);
   assert.equal(predFor(makePlan([], at(0, 9, 0), S), 'nap'), null); // no data, no prediction
 });
 
@@ -361,4 +364,27 @@ test('planErrors: minutes off per day, absolute, for nap start, nap length, bedt
   });
   assert.equal(planErrors(E, T0 + 864e5, 3).totals.wakeUp.off, 20, 'counted the next day, on the morning she woke');
   assert.deepEqual(planErrors([], T0, 7).totals, { napStart: null, napLength: null, bedtime: null, wakeUp: null });
+});
+
+test('expected night: to her usual wake-up time, whatever time she goes down', () => {
+  // mornings at 06:00, 06:30 and 07:00 in the last week: usual wake-up 06:30
+  const E = [night(-3, 19, 30, 6, 0), night(-2, 19, 30, 6, 30), night(-1, 19, 30, 7, 0)];
+  const early = makePlan([...E, night(0, 18, 30, null, null)], at(0, 22, 0), S);
+  assert.equal(early.uw, 6 * 60 + 30);
+  assert.equal(Math.round(early.avgN), 12 * 60, 'down at 18:30: 12 hours to 06:30');
+  const late = makePlan([...E, night(0, 20, 45, null, null)], at(0, 22, 0), S);
+  assert.equal(Math.round(late.avgN), 9 * 60 + 45);
+  // outside 6-14 hours (a night started at 03:00): the average night instead
+  const odd = makePlan([...E, night(1, 3, 0, null, null)], at(1, 3, 30), S);
+  assert.equal(Math.round(odd.avgN), 11 * 60);
+  // no mornings logged yet: the usual 10h 30m
+  assert.equal(Math.round(makePlan([night(0, 19, 30, null, null)], at(0, 21, 0), S).avgN), 630);
+});
+
+test('expected night across the autumn clock change: the usual wake-up minute on the clock', async () => {
+  const { expectedWakeAfter } = createRequire(import.meta.url)('../plan.js');
+  const bed = new Date(2026, 9, 24, 19, 30).getTime(); // the clocks go back during this night
+  assert.equal(expectedWakeAfter(6 * 60 + 30, bed), new Date(2026, 9, 25, 6, 30).getTime());
+  assert.equal((expectedWakeAfter(390, bed) - bed) / 6e4, 12 * 60, '11 hours on the clock, 12 real hours');
+  assert.equal(expectedWakeAfter(null, bed), null);
 });

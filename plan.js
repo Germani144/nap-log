@@ -37,6 +37,15 @@ const addDays = (dayStart, n) => {
 };
 // the moment a minute-of-day (as the plan uses, fractions allowed) falls on the day that starts at `dayStart`: "08:26"
 // is 08:26 on the clock even on a day the clocks changed earlier (dayStart + minutes alone would be an hour off then)
+// The expected wake-up after a night that starts at `from` (ms): the first time at her usual wake-up minute at least
+// 6 hours later. null without a usual wake-up.
+const expectedWakeAfter = (usualWakeUp, from) => {
+  if (usualWakeUp == null || from == null) return null;
+  let day = startOfDay(from),
+    t = timeAtMinute(day, usualWakeUp);
+  for (let i = 0; i < 3 && t < from + 6 * 3600e3; i++) t = timeAtMinute((day = addDays(day, 1)), usualWakeUp);
+  return t;
+};
 const timeAtMinute = (dayStart, minutes) => {
   const naive = dayStart + minutes * 60000;
   return naive + (new Date(naive).getTimezoneOffset() - new Date(dayStart).getTimezoneOffset()) * 60000;
@@ -390,9 +399,28 @@ function makePlan(entries, nowMs, settings) {
       };
     }
   }
-  // expected night length: the average of the nights in the last 8 days
+  // expected night length: from bedtime (the night in progress, tonight's logged bedtime, or the expected one) to her
+  // usual wake-up time, the average of the mornings in the last 7 days, whatever time she goes down. In the logged
+  // history an earlier bedtime gave a longer night, not an earlier morning: on 88 nights this was 26 min off on
+  // average, against 33 min for "bedtime + the average night length" (v3.28). Without mornings to go by, or for a
+  // night outside 6-14 hours, the average of the nights in the last 8 days.
+  const recentWakeUps = entries
+      .filter((e) => e.type === 'night' && e.end && e.end >= nowMs - 7 * DAY && e.end <= nowMs)
+      .map((e) => minuteOfDay(e.end)),
+    usualWakeUp = recentWakeUps.length ? average(recentWakeUps) : null;
   const recentNights = entries.filter((e) => e.type === 'night' && e.end && e.end >= nowMs - 8 * DAY),
-    nightLength = recentNights.length ? average(recentNights.map((e) => (e.end - e.start) / 6e4)) : 630;
+    averageNight = recentNights.length ? average(recentNights.map((e) => (e.end - e.start) / 6e4)) : 630,
+    nightFrom =
+      running && running.type === 'night'
+        ? running.start
+        : bedtimeEntry
+          ? bedtimeEntry.start
+          : bedtime != null
+            ? timeAtMinute(today, bedtime)
+            : null,
+    nightWake = expectedWakeAfter(usualWakeUp, nightFrom),
+    nightToWake = nightWake && (nightWake - nightFrom) / 6e4,
+    nightLength = nightToWake && nightToWake >= 360 && nightToWake <= 840 ? nightToWake : averageNight;
   const napTimeToday = todaysNaps.reduce((x, a) => x + ((a.end || nowMs) - a.start) / 6e4, 0);
   const runningNap = todaysNaps.find((e) => !e.end),
     runningNapTarget =
@@ -409,6 +437,7 @@ function makePlan(entries, nowMs, settings) {
   //   shift   how far the remaining naps were moved to fit bedtime · bn: tonight's bedtime entry, if logged
   //   next    the next event while awake {label, name, key, t} · want: its reminder {key, at, event, label, time}
   //   avgN    expected night length (minutes) · napDone: nap time so far today (minutes)
+  //   uw      her usual wake-up (minute of the day, average of the last 7 mornings; null without any)
   return {
     cur: runningNapTarget,
     now: nowMs,
@@ -429,6 +458,7 @@ function makePlan(entries, nowMs, settings) {
     next,
     want,
     avgN: nightLength,
+    uw: usualWakeUp,
     napDone: napTimeToday,
   };
 }
@@ -436,15 +466,19 @@ function makePlan(entries, nowMs, settings) {
 // What the plan predicted for a nap or night that is being started now, saved with the entry so the real-world
 // accuracy of each app version can be measured later (tools/accuracy.mjs). s = predicted start (ms),
 // len = predicted length (min), n = nap number. null when there was no prediction (no data, or bedtime already logged).
-function predFor(plan, type) {
+function predFor(plan, type, start) {
   if (type === 'nap') {
     const r = plan.rows.find((x) => !x.a && !x.nodata);
     return r ? { s: Math.round(timeAtMinute(plan.today, r.s)), len: Math.round(r.e - r.s), n: r.n } : null;
   }
-  if (type === 'night')
-    return plan.bn || plan.B == null
-      ? null
-      : { s: Math.round(timeAtMinute(plan.today, plan.B)), len: Math.round(plan.avgN) };
+  if (type === 'night') {
+    if (plan.bn || plan.B == null) return null;
+    // the expected night from the real bedtime to her usual wake-up (see avgN), so its plan line shows that wake-up
+    const from = start != null ? start : plan.now,
+      wake = expectedWakeAfter(plan.uw, from),
+      len = wake && (wake - from) / 6e4 >= 360 && (wake - from) / 6e4 <= 840 ? (wake - from) / 6e4 : plan.avgN;
+    return { s: Math.round(timeAtMinute(plan.today, plan.B)), len: Math.round(len) };
+  }
   return null;
 }
 
@@ -456,7 +490,7 @@ function predBefore(entries, e, settings) {
     seen = entries
       .filter((x) => x.id !== e.id && x.start < t)
       .map((x) => (x.end && x.end > t ? { ...x, end: null } : x));
-  return predFor(makePlan(seen, t, settings), e.type);
+  return predFor(makePlan(seen, t, settings), e.type, e.start);
 }
 
 // Per-day figures for the Statistics tab, for the `days` full days before `today` (today itself is not complete yet).
@@ -532,6 +566,7 @@ if (typeof module !== 'undefined')
   module.exports = {
     makePlan,
     predFor,
+    expectedWakeAfter,
     addDays,
     timeAtMinute,
     predBefore,
